@@ -9,6 +9,7 @@ import UserRepo from '@src/repos/UserRepo';
 
 const Errors = {
   USER_NOT_FOUND: 'User not found',
+  INVALID_CREDENTIALS: 'Invalid username or password',
 } as const;
 
 /******************************************************************************
@@ -51,6 +52,23 @@ async function deleteOne(id: number): Promise<void> {
   return UserRepo.delete(id);
 }
 
+/**
+ * Authenticate a user.
+ */
+async function authenticate(username: string, passwordInput: string): Promise<IUser> {
+  const user = await UserRepo.getOne(username);
+  if (!user) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
+  }
+
+  const isMatch = await UserRepo.comparePassword(passwordInput, user.password);
+  if (!isMatch) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
+  }
+
+  return user;
+}
+
 /******************************************************************************
                                 Export default
 ******************************************************************************/
@@ -61,4 +79,5 @@ export default {
   addOne,
   updateOne,
   delete: deleteOne,
+  authenticate
 } as const;

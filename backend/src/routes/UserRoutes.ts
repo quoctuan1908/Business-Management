@@ -1,4 +1,4 @@
-import { isNumber } from 'jet-validators';
+import { isNonEmptyString, isNumber } from 'jet-validators';
 import { transform } from 'jet-validators/utils';
 
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
@@ -16,6 +16,10 @@ const reqValidators = {
   add: parseReq({ user: User.isComplete }),
   update: parseReq({ user: User.isComplete }),
   delete: parseReq({ id: transform(Number, isNumber) }),
+  authenticate: parseReq({ 
+    username: isNonEmptyString, 
+    password: isNonEmptyString 
+  }),
 } as const;
 
 /******************************************************************************
@@ -65,6 +69,18 @@ async function delete_(req: Req, res: Res) {
   res.status(HttpStatusCodes.OK).end();
 }
 
+/**
+ * Login user.
+ * @route POST /api/users/login
+ */
+async function login(req: Req, res: Res) {
+  const { username, password } = reqValidators.authenticate(req.body);
+  const user = await UserService.authenticate(username, password);
+  
+  // For now, we return the user. In the future, you'll return a JWT token here.
+  res.status(HttpStatusCodes.OK).json({ user });
+}
+
 /******************************************************************************
                                 Export default
 ******************************************************************************/
@@ -74,4 +90,5 @@ export default {
   add,
   update,
   delete: delete_,
+  login
 } as const;

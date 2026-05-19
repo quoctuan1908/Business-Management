@@ -11,15 +11,17 @@ import { Entity } from './common/types';
 
 const GetDefaults = (): IUser => ({
   id: 0,
-  name: '',
-  email: '',
+  username: '',
+  password: '',
+  role: 'user',
   created: new Date(),
 });
 
 const schema: Schema<IUser> = {
   id: isUnsignedInteger,
-  name: isString,
-  email: isString,
+  username: isString,
+  password: isString,
+  role: isString,
   created: transformIsDate,
 };
 
@@ -31,8 +33,10 @@ const schema: Schema<IUser> = {
  * @entity users
  */
 export interface IUser extends Entity {
-  name: string;
-  email: string;
+  id: number;
+  username: string;
+  password: string;
+  role:string;
 }
 
 /******************************************************************************
@@ -45,8 +49,9 @@ const parseUser = parseObject<IUser>(schema);
 // For the APIs make sure the right fields are complete
 const isCompleteUser = testObject<IUser>({
   ...schema,
-  name: isNonEmptyString,
-  email: isNonEmptyString,
+  username: isNonEmptyString,
+  password: isNonEmptyString,
+  role: isNonEmptyString
 });
 
 /******************************************************************************
