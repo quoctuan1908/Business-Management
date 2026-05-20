@@ -7,12 +7,25 @@ import path from 'path';
 import Paths from '@src/common/constants/Paths';
 import { RouteError } from '@src/common/utils/route-errors';
 import BaseRouter from '@src/routes/apiRouter';
-
+import { Pool } from 'pg';
 import EnvVars, { NodeEnvs } from './common/constants/env';
 
 /******************************************************************************
                                 Setup
 ******************************************************************************/
+
+export const dbPool = new Pool({
+  host: EnvVars.PostgresHost,
+  port: EnvVars.PostgresPort,
+  user: EnvVars.PostgresUser,
+  password: EnvVars.PostgresPassword,
+  database: EnvVars.PostgresDb,
+  
+});
+
+dbPool.connect()
+  .then(() => logger.info('✅ Đã kết nối thành công với PostgreSQL!'))
+  .catch((err: Error) => logger.err('❌ Lỗi kết nối PostgreSQL: ' + err.message, true));
 
 const app = express();
 
@@ -44,26 +57,6 @@ app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
     res.status(err.status).json({ error: err.message });
   }
   return next(err);
-});
-
-// **** FrontEnd Content **** //
-
-// Set views directory (html)
-const viewsDir = path.join(__dirname, 'views');
-app.set('views', viewsDir);
-
-// Set static directory (js and css).
-const staticDir = path.join(__dirname, 'public');
-app.use(express.static(staticDir));
-
-// Nav to users pg by default
-app.get('/', (_: Request, res: Response) => {
-  return res.redirect('/users');
-});
-
-// Redirect to login if not logged in.
-app.get('/users', (_: Request, res: Response) => {
-  return res.sendFile('users.html', { root: viewsDir });
 });
 
 /******************************************************************************

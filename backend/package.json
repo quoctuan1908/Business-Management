@@ -23,6 +23,10 @@
     "@src": "dist"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "@types/pg": "^8.20.0",
+    "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cross-env": "^10.1.0",
     "dayjs": "^1.11.20",
@@ -36,12 +40,14 @@
     "jsonfile": "^6.2.1",
     "module-alias": "^2.3.4",
     "morgan": "^1.10.1",
+    "pg": "^8.21.0",
     "tspo": "^1.0.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@swc/core": "^1.15.33",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
+    "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/find": "^0.2.4",
     "@types/fs-extra": "^11.0.4",
@@ -61,6 +67,7 @@
     "jiti": "^2.6.1",
     "nodemon": "^3.1.14",
     "prettier": "^3.8.3",
+    "prisma": "^7.8.0",
     "shx": "^0.4.0",
     "supertest": "^7.2.2",
     "ts-node": "^10.9.2",

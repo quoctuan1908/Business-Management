@@ -1,120 +1,116 @@
-import { getRandomInt } from '@src/common/utils/number-utils';
+import bcrypt from 'bcrypt';
 import { IUser } from '@src/models/User.model';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@prisma/client';
 
-import orm from './MockOrm';
+import EnvVars from '../common/constants/env';
+
+const pool = new Pool({ connectionString: EnvVars.DatabaseUrl });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+const SALT_ROUNDS = 12;
 
 /******************************************************************************
                                 Functions
 ******************************************************************************/
 
 /**
- * Get one user.
+ * Get one user by username.
  */
-async function getOne(email: string): Promise<IUser | null> {
-  const db = await orm.openDb();
-  for (const user of db.users) {
-    if (user.email === email) {
-      return user;
-    }
-  }
-  return null;
+async function getOne(username: string): Promise<IUser | null> {
+  return await prisma.user.findUnique({
+    where: { username },
+  });
 }
 
 /**
  * See if a user with the given id exists.
  */
-async function persists(id: number): Promise<boolean> {
-  const db = await orm.openDb();
-  for (const user of db.users) {
-    if (user.id === id) {
-      return true;
-    }
-  }
-  return false;
+async function persists(user_id: number): Promise<boolean> {
+  const count = await prisma.user.count({
+    where: { id: user_id },
+  });
+  return count > 0;
 }
 
 /**
  * Get all users.
  */
 async function getAll(): Promise<IUser[]> {
-  const db = await orm.openDb();
-  return db.users;
+  return await prisma.user.findMany();
 }
 
 /**
- * Add one user.
+ * Add one user with password hashing.
  */
 async function add(user: IUser): Promise<void> {
-  const db = await orm.openDb();
-  user.id = getRandomInt();
-  db.users.push(user);
-  return orm.saveDb(db);
+  const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
+  await prisma.user.create({
+    data: {
+      username: user.username,
+      password: hashedPassword,
+      role: user.role,
+    },
+  });
 }
 
 /**
- * Update a user.
+ * Update a user and re-hash password.
  */
 async function update(user: IUser): Promise<void> {
-  const db = await orm.openDb();
-  for (let i = 0; i < db.users.length; i++) {
-    if (db.users[i].id === user.id) {
-      const dbUser = db.users[i];
-      db.users[i] = {
-        ...dbUser,
-        name: user.name,
-        email: user.email,
-      };
-      return orm.saveDb(db);
-    }
-  }
+  const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      username: user.username,
+      password: hashedPassword,
+      role: user.role,
+    },
+  });
 }
 
 /**
  * Delete one user.
  */
-async function delete_(id: number): Promise<void> {
-  const db = await orm.openDb();
-  for (let i = 0; i < db.users.length; i++) {
-    if (db.users[i].id === id) {
-      db.users.splice(i, 1);
-      return orm.saveDb(db);
-    }
-  }
+async function delete_(user_id: number): Promise<void> {
+  await prisma.user.delete({
+    where: { id: user_id },
+  });
 }
 
 // **** Unit-Tests Only **** //
 
 /**
- * @testOnly
- *
  * Delete every user record.
  */
 async function deleteAllUsers(): Promise<void> {
-  const db = await orm.openDb();
-  db.users = [];
-  return orm.saveDb(db);
+  await prisma.user.deleteMany();
 }
 
 /**
- * @testOnly
- *
- * Insert multiple users. Can't do multiple at once cause using a plain file
- * for now.
+ * Insert multiple users with hashed passwords.
  */
-async function insertMultiple(
-  users: IUser[] | readonly IUser[],
-): Promise<IUser[]> {
-  const db = await orm.openDb(),
-    usersF = [...users];
-  for (const user of usersF) {
-    user.id = getRandomInt();
-    user.created = new Date();
-  }
-  db.users = [...db.users, ...users];
-  await orm.saveDb(db);
-  return usersF;
+async function insertMultiple(users: IUser[]): Promise<void> {
+  const encryptedUsers = await Promise.all(
+    users.map(async (user) => ({
+      username: user.username,
+      password: await bcrypt.hash(user.password, SALT_ROUNDS),
+      role: user.role,
+    })),
+  );
+  await prisma.user.createMany({
+    data: encryptedUsers,
+  });
 }
 
+/**
+ * Compare a plain text password with a hashed password.
+ */
+async function comparePassword(plainText: string, hash: string): Promise<boolean> {
+  return await bcrypt.compare(plainText, hash);
+}
 /******************************************************************************
                                 Export default
 ******************************************************************************/
@@ -128,4 +124,5 @@ export default {
   delete: delete_,
   deleteAllUsers,
   insertMultiple,
+  comparePassword
 } as const;
