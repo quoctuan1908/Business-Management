@@ -8,6 +8,7 @@ import UserService from '@src/services/UserService';
 import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
 
+
 /******************************************************************************
                                 Constants
 ******************************************************************************/
@@ -69,18 +70,6 @@ async function delete_(req: Req, res: Res) {
   res.status(HttpStatusCodes.OK).end();
 }
 
-/**
- * Login user.
- * @route POST /api/users/login
- */
-async function login(req: Req, res: Res) {
-  const { username, password } = reqValidators.authenticate(req.body);
-  const user = await UserService.authenticate(username, password);
-  
-  // For now, we return the user. In the future, you'll return a JWT token here.
-  res.status(HttpStatusCodes.OK).json({ user });
-}
-
 /******************************************************************************
                                 Export default
 ******************************************************************************/
@@ -89,6 +78,5 @@ export default {
   getAll,
   add,
   update,
-  delete: delete_,
-  login
+  delete: delete_
 } as const;

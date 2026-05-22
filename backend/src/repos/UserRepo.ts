@@ -1,14 +1,6 @@
 import bcrypt from 'bcrypt';
 import { IUser } from '@src/models/User.model';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
-
-import EnvVars from '../common/constants/env';
-
-const pool = new Pool({ connectionString: EnvVars.DatabaseUrl });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+import prisma from './prisma';
 
 const SALT_ROUNDS = 12;
 

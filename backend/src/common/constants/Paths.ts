@@ -9,6 +9,13 @@ const Paths = {
     Update: '/update',
     Delete: '/delete/:id',
   },
+  Auth: {
+    _: '/auth',
+    Login: '/login',
+    Refresh: '/refresh',
+    Logout: '/logout',
+    Register: '/register'
+  },
 } as const;
 
 export const JetPaths = jetPaths(Paths);
