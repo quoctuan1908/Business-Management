@@ -12,10 +12,22 @@ datasource db {
   provider = "postgresql"
 }
 
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int      
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId]) 
+}
+
 model User {
-  id  Int      @id @default(autoincrement())
-  username String   @unique
-  password String
-  role     String   @default("user")
-  created  DateTime @default(now())
+  id            Int            @id @default(autoincrement())
+  username      String         @unique
+  password      String
+  role          String         @default("user")
+  created       DateTime       @default(now())
+  refreshTokens RefreshToken[]
 }
