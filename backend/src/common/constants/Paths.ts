@@ -6,8 +6,10 @@ const Paths = {
     _: '/users',
     Get: '/all',
     Add: '/add',
+    Search: '/search',
     Update: '/update',
     Delete: '/delete/:id',
+
   },
   Auth: {
     _: '/auth',

@@ -47,7 +47,9 @@ async function register(req: Req, res: Res) {
     username,
     password,
     role: role || 'user',
-    created: new Date()
+    created_at: new Date(),
+    updated_at: new Date(),
+    deleted_at: null
   });
 
   return res.status(HttpStatusCodes.CREATED).json({ message: 'Register successfully!' });
@@ -81,7 +83,7 @@ async function login(req: Req, res: Res) {
   res.cookie('accessToken', accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
   res.cookie('refreshToken', refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
-  return res.status(HttpStatusCodes.OK).json({ message: 'Login thành công' });
+  return res.status(HttpStatusCodes.OK).json({ message: 'Login successfully' });
 }
 
 /**
@@ -95,7 +97,7 @@ async function refresh(req: Req, res: Res) {
   }
 
   const tokenDb = await AuthRepo.findToken(refreshToken);
-  if (!tokenDb || tokenDb.expiresAt < new Date()) {
+  if (!tokenDb || tokenDb.expires_at < new Date()) {
     if (tokenDb) await AuthRepo.deleteToken(refreshToken);
     throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Session expired');
   }

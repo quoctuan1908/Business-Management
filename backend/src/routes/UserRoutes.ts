@@ -1,4 +1,4 @@
-import { isNonEmptyString, isNumber } from 'jet-validators';
+import { isNonEmptyString, isNumber, isString } from 'jet-validators';
 import { transform } from 'jet-validators/utils';
 
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
@@ -10,13 +10,14 @@ import parseReq from './common/parseReq';
 
 
 /******************************************************************************
-                                Constants
+                                   Constants
 ******************************************************************************/
 
 const reqValidators = {
   add: parseReq({ user: User.isComplete }),
   update: parseReq({ user: User.isComplete }),
   delete: parseReq({ id: transform(Number, isNumber) }),
+  search: parseReq({ query: isString }),
   authenticate: parseReq({ 
     username: isNonEmptyString, 
     password: isNonEmptyString 
@@ -24,12 +25,11 @@ const reqValidators = {
 } as const;
 
 /******************************************************************************
-                                Functions
+                                   Functions
 ******************************************************************************/
 
 /**
  * Get all users.
- *
  * @route GET /api/users/all
  */
 async function getAll(_: Req, res: Res) {
@@ -38,8 +38,17 @@ async function getAll(_: Req, res: Res) {
 }
 
 /**
+ * Search users by full_name, username, department, email, or phone_number.
+ * @route GET /api/users/search?query=...
+ */
+async function search(req: Req, res: Res) {
+  const { query } = reqValidators.search(req.query);
+  const users = await UserService.search(query);
+  res.status(HttpStatusCodes.OK).json({ users });
+}
+
+/**
  * Add one user.
- *
  * @route POST /api/users/add
  */
 async function add(req: Req, res: Res) {
@@ -50,7 +59,6 @@ async function add(req: Req, res: Res) {
 
 /**
  * Update one user.
- *
  * @route PUT /api/users/update
  */
 async function update(req: Req, res: Res) {
@@ -60,8 +68,7 @@ async function update(req: Req, res: Res) {
 }
 
 /**
- * Delete one user.
- *
+ * Delete one user (Soft delete).
  * @route DELETE /api/users/delete/:id
  */
 async function delete_(req: Req, res: Res) {
@@ -71,12 +78,13 @@ async function delete_(req: Req, res: Res) {
 }
 
 /******************************************************************************
-                                Export default
+                                 Export default
 ******************************************************************************/
 
 export default {
   getAll,
+  search,
   add,
   update,
-  delete: delete_
+  delete: delete_,
 } as const;

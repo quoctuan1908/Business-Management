@@ -6,7 +6,7 @@ import UserRepo from '@src/repos/UserRepo';
 
 
 /******************************************************************************
-                                Functions
+                                   Functions
 ******************************************************************************/
 
 /**
@@ -14,6 +14,13 @@ import UserRepo from '@src/repos/UserRepo';
  */
 function getAll(): Promise<IUser[]> {
   return UserRepo.getAll();
+}
+
+/**
+ * Search users by query string.
+ */
+function search(query: string): Promise<IUser[]> {
+  return UserRepo.search(query);
 }
 
 /**
@@ -46,13 +53,13 @@ async function deleteOne(id: number): Promise<void> {
 }
 
 /******************************************************************************
-                                Export default
+                                 Export default
 ******************************************************************************/
 
 export default {
-  Errors,
   getAll,
+  search,
   addOne,
   updateOne,
-  delete: deleteOne
+  delete: deleteOne,
 } as const;

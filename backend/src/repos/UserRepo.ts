@@ -5,38 +5,51 @@ import prisma from './prisma';
 const SALT_ROUNDS = 12;
 
 /******************************************************************************
-                                Functions
+                                   Functions
 ******************************************************************************/
 
-/**
- * Get one user by username.
- */
 async function getOne(username: string): Promise<IUser | null> {
-  return await prisma.user.findUnique({
-    where: { username },
+  return await prisma.user.findFirst({
+    where: { 
+      username,
+      deleted_at: null,
+    },
   });
 }
 
-/**
- * See if a user with the given id exists.
- */
 async function persists(user_id: number): Promise<boolean> {
   const count = await prisma.user.count({
-    where: { id: user_id },
+    where: { 
+      id: user_id,
+      deleted_at: null, 
+    },
   });
   return count > 0;
 }
 
-/**
- * Get all users.
- */
 async function getAll(): Promise<IUser[]> {
-  return await prisma.user.findMany();
+  return await prisma.user.findMany({
+    where: {
+      deleted_at: null,
+    },
+  });
 }
 
-/**
- * Add one user with password hashing.
- */
+async function search(query: string): Promise<IUser[]> {
+  return await prisma.user.findMany({
+    where: {
+      deleted_at: null,
+      OR: [
+        { full_name: { contains: query, mode: 'insensitive' } },
+        { username: { contains: query, mode: 'insensitive' } },
+        { department: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+        { phone_number: { contains: query, mode: 'insensitive' } },
+      ],
+    },
+  });
+}
+
 async function add(user: IUser): Promise<void> {
   const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
   await prisma.user.create({
@@ -44,13 +57,14 @@ async function add(user: IUser): Promise<void> {
       username: user.username,
       password: hashedPassword,
       role: user.role,
+      full_name: user.full_name,
+      department: user.department,
+      phone_number: user.phone_number,
+      email: user.email,
     },
   });
 }
 
-/**
- * Update a user and re-hash password.
- */
 async function update(user: IUser): Promise<void> {
   const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
   await prisma.user.update({
@@ -59,37 +73,40 @@ async function update(user: IUser): Promise<void> {
       username: user.username,
       password: hashedPassword,
       role: user.role,
+      full_name: user.full_name,
+      department: user.department,
+      phone_number: user.phone_number,
+      email: user.email,
+      updated_at: new Date(),
     },
   });
 }
 
-/**
- * Delete one user.
- */
 async function delete_(user_id: number): Promise<void> {
-  await prisma.user.delete({
+  await prisma.user.update({
     where: { id: user_id },
+    data: {
+      deleted_at: new Date(),
+    },
   });
 }
 
 // **** Unit-Tests Only **** //
 
-/**
- * Delete every user record.
- */
 async function deleteAllUsers(): Promise<void> {
   await prisma.user.deleteMany();
 }
 
-/**
- * Insert multiple users with hashed passwords.
- */
 async function insertMultiple(users: IUser[]): Promise<void> {
   const encryptedUsers = await Promise.all(
     users.map(async (user) => ({
       username: user.username,
       password: await bcrypt.hash(user.password, SALT_ROUNDS),
       role: user.role,
+      full_name: user.full_name,
+      department: user.department,
+      phone_number: user.phone_number,
+      email: user.email,
     })),
   );
   await prisma.user.createMany({
@@ -97,24 +114,23 @@ async function insertMultiple(users: IUser[]): Promise<void> {
   });
 }
 
-/**
- * Compare a plain text password with a hashed password.
- */
 async function comparePassword(plainText: string, hash: string): Promise<boolean> {
   return await bcrypt.compare(plainText, hash);
 }
+
 /******************************************************************************
-                                Export default
+                                 Export default
 ******************************************************************************/
 
 export default {
   getOne,
   persists,
   getAll,
+  search,
   add,
   update,
   delete: delete_,
   deleteAllUsers,
   insertMultiple,
-  comparePassword
+  comparePassword,
 } as const;
