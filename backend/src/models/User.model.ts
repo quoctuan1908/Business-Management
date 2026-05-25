@@ -1,10 +1,10 @@
-import { isNonEmptyString, isString, isUnsignedInteger } from 'jet-validators';
+import { isString, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
-
+import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
 
 /******************************************************************************
-                                 Constants
+                                   Constants
 ******************************************************************************/
 
 const GetDefaults = (): IUser => ({
@@ -12,12 +12,13 @@ const GetDefaults = (): IUser => ({
   username: '',
   password: '',
   role: 'user',
-  fullname: '',
+  fullName: '',
   department: '',
   phoneNumber: '',
   email: '',
   createdAt: new Date(),
   updatedAt: new Date(),
+  deletedAt: null,
 });
 
 const schema: Schema<Omit<IUser, 'createdAt' | 'updatedAt'>> = {
@@ -25,14 +26,17 @@ const schema: Schema<Omit<IUser, 'createdAt' | 'updatedAt'>> = {
   username: isString,
   password: isString,
   role: isString,
-  fullname: isString,
+  fullName: isString,
   department: isString,
   phoneNumber: isString,
   email: isString,
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+  deletedAt: ((val: unknown) => (val === null ? null : transformIsDate(val))) as any,
 };
 
 /******************************************************************************
-                                  Types
+                                     Types
 ******************************************************************************/
 
 /**
@@ -42,33 +46,32 @@ export interface IUser extends Entity {
   username: string;
   password: string;
   role: string;
-  fullname: string;
+  fullName: string;
   department: string;
   phoneNumber: string;
   email: string;
+
+  deletedAt: Date | null
 }
 
 export type IUserPublic = Omit<IUser, 'password'>;
 
 /******************************************************************************
-                                  Setup
+                                     Setup
 ******************************************************************************/
 
 const parseUser = parseObject<IUser>(schema);
 
-const isCompleteUser = testObject<Omit<IUser, 'createdAt' | 'updatedAt'>>({
+const isCompleteUser = testObject<IUser>({
   ...schema,
-  username: isNonEmptyString,
-  password: isNonEmptyString,
-  role: isNonEmptyString,
-  fullname: isNonEmptyString,
-  department: isNonEmptyString,
-  phoneNumber: isNonEmptyString,
-  email: isNonEmptyString,
+  username: isString,
+  password: isString,
+  fullName: isString,
+  email: isString,
 });
 
 /******************************************************************************
-                                 Functions
+                                   Functions
 ******************************************************************************/
 
 function new_(user?: Partial<IUser>): IUser {
@@ -83,11 +86,11 @@ function toPublic(user: IUser): IUserPublic {
 }
 
 /******************************************************************************
-                                Export default
+                                 Export default
 ******************************************************************************/
 
 export default {
   new: new_,
   isComplete: isCompleteUser,
-  toPublic,
+  toPublic
 } as const;

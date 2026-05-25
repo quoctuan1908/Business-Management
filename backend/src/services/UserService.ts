@@ -1,43 +1,45 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import { RouteError } from '@src/common/utils/route-errors';
-<<<<<<< HEAD
 import User, { IUser } from '@src/models/User.model';
-=======
-import { Errors } from '@src/models/common/types';
-import { IUser } from '@src/models/User.model';
->>>>>>> main
+import { IUser, IUserPublic } from '@src/models/User.model';
 import UserRepo from '@src/repos/UserRepo';
 
 
 /******************************************************************************
-                                Functions
+                                   Functions
 ******************************************************************************/
 
-async function getAll() {
-  const users = await UserRepo.getAll();
-  return users.map(User.toPublic);
+/**
+ * Get all users.
+ */
+function getAll(): Promise<IUserPublic[]> {
+  return UserRepo.getAll();
 }
 
-async function getOne(id: number) {
-  const user = await UserRepo.getOne(id);
-  if (!user) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
-  }
-  return User.toPublic(user);
+/**
+ * Search users by query string.
+ */
+function search(query: string): Promise<IUserPublic[]> {
+  return UserRepo.search(query);
 }
 
-async function addOne(user: IUser) {
-  const created = await UserRepo.add(user);
-  return User.toPublic(created);
+/**
+ * Add one user.
+ */
+function addOne(user: IUser): Promise<IUserPublic> {
+  return UserRepo.add(user);
 }
 
-async function updateOne(user: IUser) {
-  const exists = await UserRepo.persists(user.id);
-  if (!exists) {
+/**
+ * Update one user.
+ */
+async function updateOne(user: IUser): Promise<IUserPublic> {
+  const persists = await UserRepo.persists(user.id);
+  if (!persists) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
   const updated = await UserRepo.update(user);
-  return User.toPublic(updated);
+  return updated;
 }
 
 async function deleteOne(id: number): Promise<void> {
@@ -48,7 +50,6 @@ async function deleteOne(id: number): Promise<void> {
   return UserRepo.delete(id);
 }
 
-<<<<<<< HEAD
 async function authenticate(username: string, passwordInput: string) {
   const user = await UserRepo.getOneByUsername(username);
   if (!user) {
@@ -63,22 +64,14 @@ async function authenticate(username: string, passwordInput: string) {
   return User.toPublic(user);
 }
 
-=======
->>>>>>> main
 /******************************************************************************
-                                Export default
+                                 Export default
 ******************************************************************************/
 
 export default {
-  Errors,
   getAll,
-  getOne,
+  search,
   addOne,
   updateOne,
-<<<<<<< HEAD
   delete: deleteOne,
-  authenticate,
-=======
-  delete: deleteOne
->>>>>>> main
 } as const;

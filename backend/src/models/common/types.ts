@@ -1,21 +1,18 @@
 export interface Entity {
   id: number; // @PK
-<<<<<<< HEAD
-  createdAt: Date;
+  createdAt: Date; // @audit
   updatedAt: Date;
-=======
-  created: Date; // @audit
->>>>>>> main
 }
 
 export interface ISessionUser {
-  user_id: number;
+  userId: number;
   username: string;
   role: string;
 }
 
 export const Errors = {
   USER_NOT_FOUND: 'User not found',
+  EMPLOYEE_NOT_FOUND: 'Employee not found',
   INVALID_CREDENTIALS: 'Invalid username or password',
 } as const;
 

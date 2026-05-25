@@ -33,7 +33,7 @@ async function refresh(token: string) {
   const tokenDb = await AuthRepo.findToken(token);
   if (!tokenDb) throw new Error('Token not found in database');
 
-  if (tokenDb.expiresAt < new Date()) {
+  if (tokenDb.expires_at < new Date()) {
     await AuthRepo.deleteToken(token);
     throw new Error('Token expired');
   }
