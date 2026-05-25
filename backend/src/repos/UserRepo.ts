@@ -159,6 +159,7 @@ async function comparePassword(plainText: string, hash: string): Promise<boolean
 
 export default {
   getOne,
+  getOneByUsername,
   persists,
   getAll,
   search,

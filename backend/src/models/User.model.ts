@@ -21,7 +21,7 @@ const GetDefaults = (): IUser => ({
   deletedAt: null,
 });
 
-const schema: Schema<IUser> = {
+const schema: Schema<Omit<IUser, 'createdAt' | 'updatedAt'>> = {
   id: isUnsignedInteger,
   username: isString,
   password: isString,
