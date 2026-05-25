@@ -47,6 +47,10 @@ async function register(req: Req, res: Res) {
     username,
     password,
     role: role || 'user',
+    full_name: '',
+    department: '',
+    phone_number: '',
+    email: '',
     created_at: new Date(),
     updated_at: new Date(),
     deleted_at: null

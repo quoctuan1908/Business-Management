@@ -13,10 +13,10 @@ datasource db {
 }
 
 model RefreshToken {
-  id        Int      @id @default(autoincrement())
+  token_id        Int      @id @default(autoincrement())
   token     String   @unique
   user_id    Int      
-  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
   expires_at DateTime
   created_at DateTime @default(now())
 
@@ -24,7 +24,7 @@ model RefreshToken {
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
+  user_id         Int       @id @default(autoincrement())
   username   String    @unique
   password   String
   role       String    @default("user")
@@ -40,15 +40,16 @@ model User {
 
   refresh_tokens RefreshToken[]
   salaries       Salary[]
+  activities     Activity[]
 
   @@map("users")
 }
 
 model Salary {
-  id              Int      @id @default(autoincrement())
+  salary_id              Int      @id @default(autoincrement())
   user_id         Int
-  month           Int      number NOT NULL
-  year            Int      number NOT NULL
+  month           Int  
+  year            Int   
   base_salary     Decimal  @db.Decimal(15, 2)
   commission      Decimal  @db.Decimal(15, 2)
   bonus           Decimal  @db.Decimal(15, 2)
@@ -56,7 +57,106 @@ model Salary {
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
-  user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 
   @@map("salaries")
+}
+
+model Product {
+  product_id      Int              @id @default(autoincrement())
+  product_name    String           @db.VarChar(50)
+  unit_price      Decimal          @db.Decimal(15, 2)
+  stock_quantity  Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  activityDetails ActivityDetail[]
+
+  @@map("products")
+}
+
+model Location {
+  location_id Int        @id @default(autoincrement())
+  province    String     @db.VarChar(50)
+  ward        String     @db.VarChar(50)
+  ward_code   Int        @unique
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  customers   Customer[]
+
+  @@unique([province, ward])
+  @@map("locations")
+}
+
+model Customer {
+  customer_id         Int        @id @default(autoincrement())
+  location_id         Int
+  company_name        String     @db.VarChar(50)
+  business_type       String     @db.VarChar(50)
+  representative_name String     @db.VarChar(50)
+  position            String     @db.VarChar(50)
+  phone_number        String     @db.VarChar(10)
+  current_balance     Decimal    @default(0) @db.Decimal(15, 2)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  location            Location   @relation(fields: [location_id], references: [location_id], onDelete: Restrict, onUpdate: Cascade)
+  activities          Activity[]
+
+  @@map("customers")
+}
+
+enum InvoiceStatus {
+  paid
+  unpaid
+  partial
+}
+
+model Invoice {
+  invoice_id   Int           @id @default(autoincrement())
+  total_amount Decimal       @db.Decimal(15, 2)
+  date         DateTime
+  status       InvoiceStatus
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  activity     Activity?
+
+  @@map("invoices")
+}
+
+model OrderStatus {
+  status_code String @id @db.VarChar(50)
+  status_name String @db.VarChar(100)
+  sort_order  Int    @unique
+  is_terminal Boolean @default(false)
+
+  @@map("order_statuses")
+}
+
+model Activity {
+  activity_id   Int              @id @default(autoincrement())
+  user_id       Int
+  customer_id   Int
+  invoice_id    Int?             @unique
+  status        String           @db.VarChar(50)
+  activity_date DateTime
+  content       String           @db.VarChar(50)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  user          User             @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+  customer      Customer         @relation(fields: [customer_id], references: [customer_id], onDelete: Restrict, onUpdate: Cascade)
+  invoice       Invoice?         @relation(fields: [invoice_id], references: [invoice_id], onDelete: SetNull, onUpdate: Cascade)
+  details       ActivityDetail[]
+
+  @@map("activities")
+}
+
+model ActivityDetail {
+  activity_id Int
+  product_id  Int
+  quantity    Int
+  sale_price  Decimal  @db.Decimal(15, 2)
+  activity    Activity @relation(fields: [activity_id], references: [activity_id], onDelete: Cascade, onUpdate: Cascade)
+  product     Product  @relation(fields: [product_id], references: [product_id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([activity_id, product_id])
+  @@map("activity_details")
 }

@@ -12,13 +12,13 @@ const GetDefaults = (): IUser => ({
   username: '',
   password: '',
   role: 'user',
-  full_name: '',
+  fullName: '',
   department: '',
-  phone_number: '',
+  phoneNumber: '',
   email: '',
-  created_at: new Date(),
-  updated_at: new Date(),
-  deleted_at: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  deletedAt: null,
 });
 
 const schema: Schema<IUser> = {
@@ -26,13 +26,13 @@ const schema: Schema<IUser> = {
   username: isString,
   password: isString,
   role: isString,
-  full_name: isString,
+  fullName: isString,
   department: isString,
-  phone_number: isString,
+  phoneNumber: isString,
   email: isString,
-  created_at: transformIsDate,
-  updated_at: transformIsDate,
-  deleted_at: ((val: unknown) => (val === null ? null : transformIsDate(val))) as any,
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+  deletedAt: ((val: unknown) => (val === null ? null : transformIsDate(val))) as any,
 };
 
 /******************************************************************************
@@ -43,18 +43,18 @@ const schema: Schema<IUser> = {
  * @entity users
  */
 export interface IUser extends Entity {
-  id: number;
   username: string;
   password: string;
   role: string;
-  full_name: string;
+  fullName: string;
   department: string;
-  phone_number: string;
+  phoneNumber: string;
   email: string;
-  created_at: Date;
-  updated_at: Date;
-  deleted_at: Date | null;
+
+  deletedAt: Date | null
 }
+
+export type IUserPublic = Omit<IUser, 'password'>;
 
 /******************************************************************************
                                      Setup
@@ -66,7 +66,7 @@ const isCompleteUser = testObject<IUser>({
   ...schema,
   username: isString,
   password: isString,
-  full_name: isString,
+  fullName: isString,
   email: isString,
 });
 
@@ -80,6 +80,11 @@ function new_(user?: Partial<IUser>): IUser {
   });
 }
 
+function toPublic(user: IUser): IUserPublic {
+  const { password: _password, ...publicUser } = user;
+  return publicUser;
+}
+
 /******************************************************************************
                                  Export default
 ******************************************************************************/
@@ -87,4 +92,5 @@ function new_(user?: Partial<IUser>): IUser {
 export default {
   new: new_,
   isComplete: isCompleteUser,
+  toPublic
 } as const;

@@ -16,6 +16,7 @@ import parseReq from './common/parseReq';
 const reqValidators = {
   add: parseReq({ user: User.isComplete }),
   update: parseReq({ user: User.isComplete }),
+  getOne: parseReq({ id: transform(Number, isNumber) }),
   delete: parseReq({ id: transform(Number, isNumber) }),
   search: parseReq({ query: isString }),
   authenticate: parseReq({ 
@@ -53,8 +54,8 @@ async function search(req: Req, res: Res) {
  */
 async function add(req: Req, res: Res) {
   const { user } = reqValidators.add(req.body);
-  await UserService.addOne(user);
-  res.status(HttpStatusCodes.CREATED).end();
+  const created = await UserService.addOne(user);
+  res.status(HttpStatusCodes.CREATED).json({ user: created });
 }
 
 /**
@@ -63,8 +64,8 @@ async function add(req: Req, res: Res) {
  */
 async function update(req: Req, res: Res) {
   const { user } = reqValidators.update(req.body);
-  await UserService.updateOne(user);
-  res.status(HttpStatusCodes.OK).end();
+  const updated = await UserService.updateOne(user);
+  res.status(HttpStatusCodes.OK).json({ user: updated });
 }
 
 /**

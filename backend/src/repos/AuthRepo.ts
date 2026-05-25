@@ -5,7 +5,7 @@ async function saveToken(userId: number, token: string, expiresAt: Date) {
   await deleteUserTokens(userId); 
   
   return await prisma.refreshToken.create({
-    data: { user_id, token, expires_at },
+    data: { user_id:userId, token:token, expires_at:expiresAt },
   });
 }
 
@@ -24,7 +24,7 @@ async function deleteToken(token: string) {
 
 async function deleteUserTokens(userId: number) {
   return await prisma.refreshToken.deleteMany({
-    where: { user_id },
+    where: { user_id:userId },
   });
 }
 

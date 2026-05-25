@@ -1,12 +1,11 @@
 export interface Entity {
   id: number; // @PK
-  created_at: Date; // @audit
-  updated_at: Date;
-  deleted_at: Date | null;
+  createdAt: Date; // @audit
+  updatedAt: Date;
 }
 
 export interface ISessionUser {
-  user_id: number;
+  userId: number;
   username: string;
   role: string;
 }
