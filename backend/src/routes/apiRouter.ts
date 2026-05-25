@@ -10,6 +10,8 @@ import InvoiceRoutes from './InvoiceRoutes';
 import LocationRoutes from './LocationRoutes';
 import ProductRoutes from './ProductRoutes';
 import UserRoutes from './UserRoutes';
+import AuthRoutes from './AuthRoutes';
+import authMiddleware from '@src/middlewares/authMiddleware';
 
 /******************************************************************************
                                 Setup
@@ -18,6 +20,9 @@ import UserRoutes from './UserRoutes';
 const apiRouter = Router();
 
 const userRouter = Router();
+
+userRouter.use(authMiddleware.auth);
+
 userRouter.get(Paths.Users.Get, UserRoutes.getAll);
 userRouter.get(Paths.Users.GetOne, UserRoutes.getOne);
 userRouter.post(Paths.Users.Add, UserRoutes.add);
@@ -79,6 +84,16 @@ activityRouter.post(Paths.Activities.Add, ActivityRoutes.add);
 activityRouter.put(Paths.Activities.Update, ActivityRoutes.update);
 activityRouter.delete(Paths.Activities.Delete, ActivityRoutes.delete);
 apiRouter.use(Paths.Activities._, activityRouter);
+// ----------------------- Add AuthRouter --------------------------------- //
+
+const authRouter = Router();
+
+authRouter.post(Paths.Auth.Login, AuthRoutes.login);
+authRouter.get(Paths.Auth.Refresh, AuthRoutes.refresh);
+authRouter.get(Paths.Auth.Logout, AuthRoutes.logout);
+authRouter.post(Paths.Auth.Register, AuthRoutes.register)
+
+apiRouter.use(Paths.Auth._, authRouter);
 
 /******************************************************************************
                                 Export

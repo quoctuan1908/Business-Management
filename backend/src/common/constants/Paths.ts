@@ -62,6 +62,13 @@ const Paths = {
     _: '/order-statuses',
     Get: '/all',
   },
+  Auth: {
+    _: '/auth',
+    Login: '/login',
+    Refresh: '/refresh',
+    Logout: '/logout',
+    Register: '/register'
+  },
 } as const;
 
 export const JetPaths = jetPaths(Paths);

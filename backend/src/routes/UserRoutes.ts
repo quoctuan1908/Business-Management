@@ -8,6 +8,7 @@ import UserService from '@src/services/UserService';
 import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
 
+
 /******************************************************************************
                                 Constants
 ******************************************************************************/
@@ -56,12 +57,15 @@ async function delete_(req: Req, res: Res) {
   res.status(HttpStatusCodes.OK).end();
 }
 
+<<<<<<< HEAD
 async function login(req: Req, res: Res) {
   const { username, password } = reqValidators.authenticate(req.body);
   const user = await UserService.authenticate(username, password);
   res.status(HttpStatusCodes.OK).json({ user });
 }
 
+=======
+>>>>>>> main
 /******************************************************************************
                                 Export default
 ******************************************************************************/
@@ -71,6 +75,10 @@ export default {
   getOne,
   add,
   update,
+<<<<<<< HEAD
   delete: delete_,
   login,
+=======
+  delete: delete_
+>>>>>>> main
 } as const;

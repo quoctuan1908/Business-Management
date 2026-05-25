@@ -1,16 +1,13 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import { RouteError } from '@src/common/utils/route-errors';
+<<<<<<< HEAD
 import User, { IUser } from '@src/models/User.model';
+=======
+import { Errors } from '@src/models/common/types';
+import { IUser } from '@src/models/User.model';
+>>>>>>> main
 import UserRepo from '@src/repos/UserRepo';
 
-/******************************************************************************
-                                Constants
-******************************************************************************/
-
-const Errors = {
-  USER_NOT_FOUND: 'User not found',
-  INVALID_CREDENTIALS: 'Invalid username or password',
-} as const;
 
 /******************************************************************************
                                 Functions
@@ -51,6 +48,7 @@ async function deleteOne(id: number): Promise<void> {
   return UserRepo.delete(id);
 }
 
+<<<<<<< HEAD
 async function authenticate(username: string, passwordInput: string) {
   const user = await UserRepo.getOneByUsername(username);
   if (!user) {
@@ -65,6 +63,8 @@ async function authenticate(username: string, passwordInput: string) {
   return User.toPublic(user);
 }
 
+=======
+>>>>>>> main
 /******************************************************************************
                                 Export default
 ******************************************************************************/
@@ -75,6 +75,10 @@ export default {
   getOne,
   addOne,
   updateOne,
+<<<<<<< HEAD
   delete: deleteOne,
   authenticate,
+=======
+  delete: deleteOne
+>>>>>>> main
 } as const;

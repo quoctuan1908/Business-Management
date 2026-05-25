@@ -1,9 +1,7 @@
 import bcrypt from 'bcrypt';
 
 import { IUser } from '@src/models/User.model';
-
-import { toUser } from './common/mappers';
-import prisma from './common/prisma';
+import prisma from './prisma';
 
 const SALT_ROUNDS = 12;
 
