@@ -1,8 +1,6 @@
 import { isNonEmptyString, isString, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 
-import { transformIsDate } from '@src/common/utils/validators';
-
 import { Entity } from './common/types';
 
 /******************************************************************************
@@ -14,15 +12,23 @@ const GetDefaults = (): IUser => ({
   username: '',
   password: '',
   role: 'user',
-  created: new Date(),
+  fullname: '',
+  department: '',
+  phoneNumber: '',
+  email: '',
+  createdAt: new Date(),
+  updatedAt: new Date(),
 });
 
-const schema: Schema<IUser> = {
+const schema: Schema<Omit<IUser, 'createdAt' | 'updatedAt'>> = {
   id: isUnsignedInteger,
   username: isString,
   password: isString,
   role: isString,
-  created: transformIsDate,
+  fullname: isString,
+  department: isString,
+  phoneNumber: isString,
+  email: isString,
 };
 
 /******************************************************************************
@@ -33,38 +39,47 @@ const schema: Schema<IUser> = {
  * @entity users
  */
 export interface IUser extends Entity {
-  id: number;
   username: string;
   password: string;
-  role:string;
+  role: string;
+  fullname: string;
+  department: string;
+  phoneNumber: string;
+  email: string;
 }
+
+export type IUserPublic = Omit<IUser, 'password'>;
 
 /******************************************************************************
                                   Setup
 ******************************************************************************/
 
-// Set the "parseUser" function
 const parseUser = parseObject<IUser>(schema);
 
-// For the APIs make sure the right fields are complete
-const isCompleteUser = testObject<IUser>({
+const isCompleteUser = testObject<Omit<IUser, 'createdAt' | 'updatedAt'>>({
   ...schema,
   username: isNonEmptyString,
   password: isNonEmptyString,
-  role: isNonEmptyString
+  role: isNonEmptyString,
+  fullname: isNonEmptyString,
+  department: isNonEmptyString,
+  phoneNumber: isNonEmptyString,
+  email: isNonEmptyString,
 });
 
 /******************************************************************************
                                  Functions
 ******************************************************************************/
 
-/**
- * New user object.
- */
 function new_(user?: Partial<IUser>): IUser {
   return parseUser({ ...GetDefaults(), ...user }, (errors) => {
     throw new Error('Setup new user failed ' + JSON.stringify(errors, null, 2));
   });
+}
+
+function toPublic(user: IUser): IUserPublic {
+  const { password: _password, ...publicUser } = user;
+  return publicUser;
 }
 
 /******************************************************************************
@@ -74,4 +89,5 @@ function new_(user?: Partial<IUser>): IUser {
 export default {
   new: new_,
   isComplete: isCompleteUser,
+  toPublic,
 } as const;

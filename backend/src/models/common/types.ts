@@ -1,6 +1,11 @@
 export interface Entity {
   id: number; // @PK
+<<<<<<< HEAD
+  createdAt: Date;
+  updatedAt: Date;
+=======
   created: Date; // @audit
+>>>>>>> main
 }
 
 export interface ISessionUser {
