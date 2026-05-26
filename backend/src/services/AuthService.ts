@@ -41,7 +41,7 @@ async function refresh(token: string) {
   await JwtUtils.verifyToken(token, EnvVars.JwtRefreshTokenKey);
 
   const sessionUser: ISessionUser = {
-    user_id: tokenDb.user.id,
+    userId: tokenDb.user.user_id,
     username: tokenDb.user.username,
     role: tokenDb.user.role,
   };
