@@ -5,7 +5,7 @@ import {
 } from '@src/common/services/provinces-api';
 import { ILocation } from '@src/models/Location.model';
 
-import { toLocation } from './common/mappers';
+import { locationToPrismaData, toLocation } from './common/mappers';
 import prisma from './common/prisma';
 
 /******************************************************************************
@@ -37,11 +37,7 @@ async function getAll(): Promise<ILocation[]> {
 
 async function add(location: ILocation): Promise<ILocation> {
   const row = await prisma.location.create({
-    data: {
-      province: location.province,
-      ward: location.ward,
-      ward_code: location.wardCode,
-    },
+    data: locationToPrismaData(location),
   });
   return toLocation(row);
 }
@@ -49,11 +45,7 @@ async function add(location: ILocation): Promise<ILocation> {
 async function update(location: ILocation): Promise<ILocation> {
   const row = await prisma.location.update({
     where: { location_id: location.id },
-    data: {
-      province: location.province,
-      ward: location.ward,
-      ward_code: location.wardCode,
-    },
+    data: locationToPrismaData(location),
   });
   return toLocation(row);
 }
@@ -66,9 +58,6 @@ async function countCustomersByLocation(locationId: number): Promise<number> {
   return prisma.customer.count({ where: { location_id: locationId } });
 }
 
-/**
- * Đồng bộ xã/phường Cần Thơ từ Province Open API v2 vào bảng locations.
- */
 async function syncCanThoFromApi(): Promise<{ created: number; skipped: number }> {
   const wards = await fetchCanThoWards();
   let created = 0;
@@ -90,11 +79,11 @@ async function syncCanThoFromApi(): Promise<{ created: number; skipped: number }
     }
 
     await prisma.location.create({
-      data: {
+      data: locationToPrismaData({
         province: fields.province,
         ward: fields.ward,
-        ward_code: fields.wardCode,
-      },
+        wardCode: fields.wardCode,
+      }),
     });
     created++;
   }

@@ -1,51 +1,53 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
-
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+// --- Auth / User (giữ nguyên, không đổi convention) ---
+
 model RefreshToken {
   id        Int      @id @default(autoincrement())
   token     String   @unique
-  userId    Int      
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  @@index([userId]) 
+  @@index([userId])
 }
 
 model User {
-  user_id      Int        @id @default(autoincrement())
-  username     String     @unique @db.VarChar(50)
-  password     String     @db.VarChar(255)
-  role         String     @db.VarChar(50)
-  fullname     String     @db.VarChar(50)
-  department   String     @db.VarChar(50)
-  phone_number String     @db.VarChar(50)
-  email        String     @db.VarChar(50)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  activities   Activity[]
+  user_id       Int            @id @default(autoincrement())
+  username      String         @unique @db.VarChar(50)
+  password      String         @db.VarChar(255)
+  role          String         @db.VarChar(50)
+  fullname      String         @db.VarChar(50)
+  department    String         @db.VarChar(50)
+  phone_number  String         @db.VarChar(50)
+  email         String         @db.VarChar(50)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  activities    Activity[]
   refreshTokens RefreshToken[]
+
   @@map("users")
 }
+
+// --- Các bảng nghiệp vụ: cột DB snake_case ---
 
 model Product {
   product_id      Int              @id @default(autoincrement())
   product_name    String           @db.VarChar(50)
   unit_price      Decimal          @db.Decimal(15, 2)
   stock_quantity  Int
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
   activityDetails ActivityDetail[]
 
   @@map("products")
@@ -56,8 +58,8 @@ model Location {
   province    String     @db.VarChar(50)
   ward        String     @db.VarChar(50)
   ward_code   Int        @unique
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
   customers   Customer[]
 
   @@unique([province, ward])
@@ -73,8 +75,8 @@ model Customer {
   position            String     @db.VarChar(50)
   phone_number        String     @db.VarChar(10)
   current_balance     Decimal    @default(0) @db.Decimal(15, 2)
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  created_at          DateTime   @default(now())
+  updated_at          DateTime   @updatedAt
   location            Location   @relation(fields: [location_id], references: [location_id], onDelete: Restrict, onUpdate: Cascade)
   activities          Activity[]
 
@@ -92,8 +94,8 @@ model Invoice {
   total_amount Decimal       @db.Decimal(15, 2)
   date         DateTime
   status       InvoiceStatus
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
   activity     Activity?
 
   @@map("invoices")
@@ -116,8 +118,8 @@ model Activity {
   status        String           @db.VarChar(50)
   activity_date DateTime
   content       String           @db.VarChar(50)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  created_at    DateTime         @default(now())
+  updated_at    DateTime         @updatedAt
   user          User             @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
   customer      Customer         @relation(fields: [customer_id], references: [customer_id], onDelete: Restrict, onUpdate: Cascade)
   invoice       Invoice?         @relation(fields: [invoice_id], references: [invoice_id], onDelete: SetNull, onUpdate: Cascade)

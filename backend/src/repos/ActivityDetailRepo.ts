@@ -1,6 +1,9 @@
 import { IActivityDetail } from '@src/models/ActivityDetail.model';
 
-import { toActivityDetailView } from './common/mappers';
+import {
+  activityDetailToPrismaData,
+  toActivityDetailView,
+} from './common/mappers';
 import prisma from './common/prisma';
 
 /******************************************************************************
@@ -30,12 +33,7 @@ async function exists(activityId: number, productId: number): Promise<boolean> {
 
 async function add(detail: IActivityDetail) {
   const row = await prisma.activityDetail.create({
-    data: {
-      activity_id: detail.activityId,
-      product_id: detail.productId,
-      quantity: detail.quantity,
-      sale_price: detail.salePrice,
-    },
+    data: activityDetailToPrismaData(detail),
     include: { product: true },
   });
   return toActivityDetailView(row);

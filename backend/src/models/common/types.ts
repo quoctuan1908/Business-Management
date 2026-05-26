@@ -1,11 +1,7 @@
 export interface Entity {
   id: number; // @PK
-<<<<<<< HEAD
   createdAt: Date;
   updatedAt: Date;
-=======
-  created: Date; // @audit
->>>>>>> main
 }
 
 export interface ISessionUser {
@@ -20,8 +16,8 @@ export const Errors = {
 } as const;
 
 export const COOKIE_OPTIONS = {
-  httpOnly: true, 
-  secure: true, 
-  sameSite: 'strict' as const, 
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict' as const,
   path: '/',
 };
