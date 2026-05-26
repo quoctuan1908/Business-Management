@@ -1,6 +1,6 @@
 import { IInvoice } from '@src/models/Invoice.model';
 
-import { toInvoice } from './common/mappers';
+import { invoiceToPrismaData, toInvoice } from './common/mappers';
 import prisma from './common/prisma';
 
 /******************************************************************************
@@ -24,11 +24,7 @@ async function getAll(): Promise<IInvoice[]> {
 
 async function add(invoice: IInvoice): Promise<IInvoice> {
   const row = await prisma.invoice.create({
-    data: {
-      total_amount: invoice.totalAmount,
-      date: invoice.date,
-      status: invoice.status,
-    },
+    data: invoiceToPrismaData(invoice),
   });
   return toInvoice(row);
 }
@@ -36,11 +32,7 @@ async function add(invoice: IInvoice): Promise<IInvoice> {
 async function update(invoice: IInvoice): Promise<IInvoice> {
   const row = await prisma.invoice.update({
     where: { invoice_id: invoice.id },
-    data: {
-      total_amount: invoice.totalAmount,
-      date: invoice.date,
-      status: invoice.status,
-    },
+    data: invoiceToPrismaData(invoice),
   });
   return toInvoice(row);
 }

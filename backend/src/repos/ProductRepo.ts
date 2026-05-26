@@ -1,6 +1,6 @@
 import { IProduct } from '@src/models/Product.model';
 
-import { toProduct } from './common/mappers';
+import { productToPrismaData, toProduct } from './common/mappers';
 import prisma from './common/prisma';
 
 /******************************************************************************
@@ -24,11 +24,7 @@ async function getAll(): Promise<IProduct[]> {
 
 async function add(product: IProduct): Promise<IProduct> {
   const row = await prisma.product.create({
-    data: {
-      product_name: product.productName,
-      unit_price: product.unitPrice,
-      stock_quantity: product.stockQuantity,
-    },
+    data: productToPrismaData(product),
   });
   return toProduct(row);
 }
@@ -36,11 +32,7 @@ async function add(product: IProduct): Promise<IProduct> {
 async function update(product: IProduct): Promise<IProduct> {
   const row = await prisma.product.update({
     where: { product_id: product.id },
-    data: {
-      product_name: product.productName,
-      unit_price: product.unitPrice,
-      stock_quantity: product.stockQuantity,
-    },
+    data: productToPrismaData(product),
   });
   return toProduct(row);
 }

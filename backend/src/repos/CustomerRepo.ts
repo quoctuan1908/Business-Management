@@ -1,6 +1,6 @@
 import { ICustomer } from '@src/models/Customer.model';
 
-import { toCustomer } from './common/mappers';
+import { customerToPrismaData, toCustomer } from './common/mappers';
 import prisma from './common/prisma';
 
 /******************************************************************************
@@ -28,15 +28,7 @@ async function getAll(): Promise<ICustomer[]> {
 
 async function add(customer: ICustomer): Promise<ICustomer> {
   const row = await prisma.customer.create({
-    data: {
-      location_id: customer.locationId,
-      company_name: customer.companyName,
-      business_type: customer.businessType,
-      representative_name: customer.representativeName,
-      position: customer.position,
-      phone_number: customer.phoneNumber,
-      current_balance: customer.currentBalance,
-    },
+    data: customerToPrismaData(customer),
   });
   return toCustomer(row);
 }
@@ -44,15 +36,7 @@ async function add(customer: ICustomer): Promise<ICustomer> {
 async function update(customer: ICustomer): Promise<ICustomer> {
   const row = await prisma.customer.update({
     where: { customer_id: customer.id },
-    data: {
-      location_id: customer.locationId,
-      company_name: customer.companyName,
-      business_type: customer.businessType,
-      representative_name: customer.representativeName,
-      position: customer.position,
-      phone_number: customer.phoneNumber,
-      current_balance: customer.currentBalance,
-    },
+    data: customerToPrismaData(customer),
   });
   return toCustomer(row);
 }

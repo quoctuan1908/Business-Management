@@ -1,6 +1,6 @@
 export interface Entity {
   id: number; // @PK
-  createdAt: Date; // @audit
+  createdAt: Date;
   updatedAt: Date;
 }
 
@@ -17,8 +17,8 @@ export const Errors = {
 } as const;
 
 export const COOKIE_OPTIONS = {
-  httpOnly: true, 
-  secure: true, 
-  sameSite: 'strict' as const, 
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict' as const,
   path: '/',
 };
