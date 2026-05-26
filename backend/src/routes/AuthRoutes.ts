@@ -47,13 +47,13 @@ async function register(req: Req, res: Res) {
     username,
     password,
     role: role || 'user',
-    full_name: '',
+    fullName: '',
     department: '',
-    phone_number: '',
+    phoneNumber: '',
     email: '',
-    created_at: new Date(),
-    updated_at: new Date(),
-    deleted_at: null
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null
   });
 
   return res.status(HttpStatusCodes.CREATED).json({ message: 'Register successfully!' });
@@ -72,7 +72,7 @@ async function login(req: Req, res: Res) {
   }
 
   const sessionUser: ISessionUser = {
-    user_id: user.id,
+    userId: user.id,
     username: user.username,
     role: user.role,
   };
@@ -82,7 +82,7 @@ async function login(req: Req, res: Res) {
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
-  await AuthRepo.saveToken(sessionUser.user_id, refreshToken, expiresAt);
+  await AuthRepo.saveToken(sessionUser.userId, refreshToken, expiresAt);
 
   res.cookie('accessToken', accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
   res.cookie('refreshToken', refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
@@ -109,7 +109,7 @@ async function refresh(req: Req, res: Res) {
   await JwtUtils.verifyToken(refreshToken, EnvVars.JwtRefreshTokenKey);
 
   const sessionUser: ISessionUser = {
-    user_id: tokenDb.user.id,
+    userId: tokenDb.user.user_id,
     username: tokenDb.user.username,
     role: tokenDb.user.role,
   };

@@ -31,14 +31,14 @@ function mapRowToUser(row: any): IUser {
                                    Functions
 ******************************************************************************/
 
-async function getOne(username: string): Promise<IUserPublic | null> {
+async function getOne(username: string): Promise<IUser | null> {
   const row = await prisma.user.findFirst({
     where: { 
       username,
       deleted_at: null,
     },
   });
-  return row ? userModel.toPublic(mapRowToUser(row)) : null;
+  return row ? mapRowToUser(row) : null;
 }
 
 async function persists(id: number): Promise<boolean> {
@@ -58,7 +58,7 @@ async function getAll(): Promise<IUserPublic[]> {
   return rows.map(row => userModel.toPublic(mapRowToUser(row)));
 }
 
-async function search(query: string): Promise<IUserPublic[]> {
+async function search(query: string): Promise<IUser[]> {
   const rows = await prisma.user.findMany({
     where: {
       deleted_at: null,
@@ -71,7 +71,7 @@ async function search(query: string): Promise<IUserPublic[]> {
       ],
     },
   });
-  return rows.map(row => userModel.toPublic(mapRowToUser(row)));
+  return rows.map(row => mapRowToUser(row));
 }
 
 async function add(user: IUser): Promise<IUserPublic> {
@@ -159,7 +159,6 @@ async function comparePassword(plainText: string, hash: string): Promise<boolean
 
 export default {
   getOne,
-  getOneByUsername,
   persists,
   getAll,
   search,

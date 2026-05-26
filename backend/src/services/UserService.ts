@@ -1,7 +1,7 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import { RouteError } from '@src/common/utils/route-errors';
-import User, { IUser } from '@src/models/User.model';
-import { IUser, IUserPublic } from '@src/models/User.model';
+import { Errors } from '@src/models/common/types';
+import User,{ IUser, IUserPublic } from '@src/models/User.model';
 import UserRepo from '@src/repos/UserRepo';
 
 
@@ -48,20 +48,6 @@ async function deleteOne(id: number): Promise<void> {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
   return UserRepo.delete(id);
-}
-
-async function authenticate(username: string, passwordInput: string) {
-  const user = await UserRepo.getOneByUsername(username);
-  if (!user) {
-    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
-  }
-
-  const isMatch = await UserRepo.comparePassword(passwordInput, user.password);
-  if (!isMatch) {
-    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
-  }
-
-  return User.toPublic(user);
 }
 
 /******************************************************************************
