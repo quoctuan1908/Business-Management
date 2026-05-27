@@ -19,6 +19,7 @@ async function request<T>(
 ): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,
@@ -174,6 +175,31 @@ export const customersApi = {
     }).then((d) => d.customer),
   delete: (id: number) =>
     request<void>(`/customers/delete/${id}`, { method: "DELETE" }),
+};
+
+export const authApi = {
+  register: (data: Pick<User, "username" | "password" | "role">) =>
+    request<{ message: string }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  login: (data: Pick<User, "username" | "password">) =>
+    request<{ message: string }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  refresh: () =>
+    request<{ message: string }>("/auth/refresh", {
+      method: "GET",
+    }),
+  logout: () =>
+    request<void>("/auth/logout", {
+      method: "GET",
+    }),
+  check: () =>
+    request<{ user: User; isLoggedIn: boolean }>("/auth/check", {
+      method: "GET",
+  }),
 };
 
 export const locationsApi = {
