@@ -70,7 +70,8 @@ const Paths = {
     Login: '/login',
     Refresh: '/refresh',
     Logout: '/logout',
-    Register: '/register'
+    Register: '/register',
+    Check: '/check'
   },
   Salaries: {
     _: '/salaries',

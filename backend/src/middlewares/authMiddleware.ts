@@ -1,10 +1,10 @@
 import { NextFunction } from 'express';
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
-import EnvVars from '@src/common/constants/env';
 import { ISessionUser } from '@src/models/common/types';
 import JwtUtils from '@src/common/utils/session-authenticate';
 import { RouteError } from '@src/common/utils/route-errors';
 import { Req, Res } from '@src/routes/common/express-types';
+import EnvVars from '@src/common/constants/env';
 
 const AUTH_ERR = 'Session invalid or expired';
 
@@ -19,7 +19,7 @@ async function auth(req: Req, res: Res, next: NextFunction) {
     }
     const sessionUser = await JwtUtils.verifyToken<ISessionUser>(
       accessToken,
-      EnvVars.JwtTokenKey,
+      EnvVars.JwtTokenKey
     );
     res.locals.sessionUser = sessionUser;
     return next();

@@ -39,6 +39,7 @@ salaryRouter.delete(Paths.Salaries.Delete, SalaryRoutes.delete);
 apiRouter.use(Paths.Salaries._, salaryRouter);
 
 const productRouter = Router();
+productRouter.use(authMiddleware.auth);
 productRouter.get(Paths.Products.Get, ProductRoutes.getAll);
 productRouter.get(Paths.Products.GetOne, ProductRoutes.getOne);
 productRouter.post(Paths.Products.Add, ProductRoutes.add);
@@ -97,6 +98,7 @@ authRouter.post(Paths.Auth.Login, AuthRoutes.login);
 authRouter.get(Paths.Auth.Refresh, AuthRoutes.refresh);
 authRouter.get(Paths.Auth.Logout, AuthRoutes.logout);
 authRouter.post(Paths.Auth.Register, AuthRoutes.register)
+authRouter.get(Paths.Auth.Check, AuthRoutes.check);
 apiRouter.use(Paths.Auth._, authRouter);
 
 

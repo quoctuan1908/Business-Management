@@ -32,6 +32,29 @@ const reqValidators = {
 ******************************************************************************/
 
 /**
+ * Check authentication status and return current user data.
+ * @route GET /api/auth/check
+ */
+async function check(req: Req, res: Res) {
+  const token = req.cookies.accessToken;
+  console.log(token)
+  if (!token) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Session not found');
+  }
+
+  try {
+    const userData = JwtUtils.decodeAccessToken(token);
+    
+    return res.status(HttpStatusCodes.OK).json({ 
+      user: userData,
+      isLoggedIn: true 
+    });
+  } catch (err) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Invalid or expired session');
+  }
+}
+
+/**
  * Register a new user.
  * @route POST /api/auth/register
  */
@@ -66,11 +89,9 @@ async function register(req: Req, res: Res) {
 async function login(req: Req, res: Res) {
   const { username, password } = reqValidators.login(req.body);
   const user = await AuthService.authenticate(username, password);
-  
   if (!user) {
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
   }
-
   const sessionUser: ISessionUser = {
     userId: user.id,
     username: user.username,
@@ -106,7 +127,7 @@ async function refresh(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Session expired');
   }
 
-  await JwtUtils.verifyToken(refreshToken, EnvVars.JwtRefreshTokenKey);
+  await JwtUtils.verifyToken(refreshToken,EnvVars.JwtRefreshTokenKey);
 
   const sessionUser: ISessionUser = {
     userId: tokenDb.user.user_id,
@@ -142,5 +163,6 @@ export default {
   login,
   refresh,
   logout,
-  register
+  register,
+  check
 } as const;

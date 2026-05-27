@@ -38,7 +38,7 @@ async function refresh(token: string) {
     throw new Error('Token expired');
   }
 
-  await JwtUtils.verifyToken(token, EnvVars.JwtRefreshTokenKey);
+  await JwtUtils.verifyToken(token,EnvVars.JwtRefreshTokenKey);
 
   const sessionUser: ISessionUser = {
     userId: tokenDb.user.user_id,

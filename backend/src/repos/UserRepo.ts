@@ -13,7 +13,7 @@ const SALT_ROUNDS = 12;
  */
 function mapRowToUser(row: any): IUser {
   return {
-    id: row.id,
+    id: row.user_id,
     username: row.username,
     password: row.password,
     role: row.role,

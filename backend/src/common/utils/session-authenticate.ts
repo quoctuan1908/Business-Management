@@ -9,17 +9,21 @@ function generateAccessToken(user: ISessionUser): string {
 }
 
 function generateRefreshToken(user: ISessionUser): string {
-  return jsonwebtoken.sign({ user_id: user.user_id }, EnvVars.JwtRefreshTokenKey, { 
+  return jsonwebtoken.sign({ userId: user.userId }, EnvVars.JwtRefreshTokenKey, { 
     expiresIn: '7d' 
   });
 }
 
-function verifyToken<T>(token: string, secret: string): Promise<T> {
+function verifyToken<T>(token: string, secretKey: string): Promise<T> {
   return new Promise((res, rej) => {
-    jsonwebtoken.verify(token, secret, (err, decoded) => {
+    jsonwebtoken.verify(token, secretKey, (err, decoded) => {
       return err ? rej(err) : res(decoded as T);
     });
   });
 }
 
-export default { generateAccessToken, generateRefreshToken, verifyToken } as const;
+function decodeAccessToken(token: string): ISessionUser {
+  return jsonwebtoken.verify(token, EnvVars.JwtTokenKey) as ISessionUser;
+}
+
+export default { generateAccessToken, generateRefreshToken, verifyToken,decodeAccessToken } as const;
