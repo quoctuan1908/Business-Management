@@ -31,6 +31,7 @@ apiRouter.use(Paths.Users._, userRouter);
 
 const salaryRouter = Router();
 salaryRouter.use(authMiddleware.auth);
+salaryRouter.get(Paths.Salaries.GetAll, SalaryRoutes.getAll);
 salaryRouter.get(Paths.Salaries.GetByUserId, SalaryRoutes.getByUserId);
 salaryRouter.get(Paths.Salaries.GetOne, SalaryRoutes.getOne);
 salaryRouter.post(Paths.Salaries.Add, SalaryRoutes.add);
@@ -95,7 +96,7 @@ apiRouter.use(Paths.Activities._, activityRouter);
 
 const authRouter = Router();
 authRouter.post(Paths.Auth.Login, AuthRoutes.login);
-authRouter.get(Paths.Auth.Refresh, AuthRoutes.refresh);
+authRouter.post(Paths.Auth.Refresh, AuthRoutes.refresh);
 authRouter.get(Paths.Auth.Logout, AuthRoutes.logout);
 authRouter.post(Paths.Auth.Register, AuthRoutes.register)
 authRouter.get(Paths.Auth.Check, AuthRoutes.check);
