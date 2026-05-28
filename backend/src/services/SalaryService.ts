@@ -1,11 +1,40 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import { RouteError } from '@src/common/utils/route-errors';
-import { ISalary } from '@src/models/Salary.model';
+import SalaryModel, { ISalary, ISalaryWithUser } from '@src/models/Salary.model';
 import SalaryRepo from '@src/repos/SalaryRepo';
+import UserRepo from '@src/repos/UserRepo';
 
 /******************************************************************************
                                    Functions
 ******************************************************************************/
+
+/**
+ * Get all salary records with User information (Admin focus).
+ */
+/**
+ * Get all salaries and attach the corresponding user object.
+ */
+async function getAll(): Promise<ISalaryWithUser[]> {
+  const [salaries, users] = await Promise.all([
+    SalaryRepo.getAll(),
+    UserRepo.getAll(),
+  ]);
+
+  return salaries.map(salary => {
+    const user = users.find(u => u.id === salary.userId);
+    return {
+      ...salary,
+      user: user ? {
+        username: user.username,
+        fullName: user.fullName,
+        department: user.department,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+      } : null,
+    };
+  });
+}
 
 function getByUserId(userId: number): Promise<ISalary[]> {
   return SalaryRepo.getByUserId(userId);
@@ -44,6 +73,7 @@ async function deleteOne(id: number): Promise<void> {
 ******************************************************************************/
 
 export default {
+  getAll,
   getByUserId,
   getOne,
   addOne,

@@ -104,8 +104,6 @@ export interface Product {
 
 }
 
-
-
 export interface User {
   id: number;
   username: string;
@@ -122,6 +120,28 @@ export interface User {
 
 export type UserPublic = Omit<User, "password">;
 
+export interface Salary {
+  id: number;
+  userId: number;
+  month: number;
+  year: number;
+  baseSalary: number;
+  commission: number;
+  bonus: number;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface SalaryWithUser extends Salary {
+  user: {
+    username: string;
+    fullName: string;
+    role: string;
+    email?: string;
+    phoneNumber?: string;
+    department?: string;
+  } | null;
+}
 
 export interface Location {
 
