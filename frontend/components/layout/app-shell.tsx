@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import {
   ClipboardList,
+  DollarSign,
   FileText,
   LogIn,
   LogOut,
   Package,
   Users,
+  UserCog
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -15,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { authApi } from "@/lib/api";
 import { User } from "@/lib/types";
 
-export type AppSection = "products" | "customers" | "activities" | "invoices";
+export type AppSection = "products" | "customers" | "activities" | "invoices" | "salaries" | "users";
 
 type NavItem = {
   id: AppSection;
@@ -44,6 +46,16 @@ const moduleNavItems: NavItem[] = [
     label: "Hóa đơn",
     icon: <FileText className="h-4 w-4" />,
   },
+  {
+    id: "users",
+    label: "Nhân sự",
+    icon: <UserCog className="h-4 w-4" />,
+  },
+  {
+    id: "salaries",
+    label: "Tiền lương",
+    icon: <DollarSign className="h-4 w-4" />,
+  }
 ];
 
 type AppShellProps = {
@@ -173,5 +185,13 @@ export const sectionMeta: Record<
   invoices: {
     title: "Hóa đơn",
     description: "Quản lý hóa đơn và trạng thái thanh toán",
+  },
+  users: {
+    title: "Nhân sự",
+    description: "Quản lý danh sách nhân viên, phòng ban và tài khoản",
+  },
+  salaries: {
+    title: "Tiền lương",
+    description: "Quản lý bảng lương, thưởng và thu nhập nhân viên",
   },
 };

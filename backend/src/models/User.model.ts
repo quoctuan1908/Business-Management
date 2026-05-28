@@ -32,7 +32,7 @@ const schema: Schema<IUser> = {
   email: isString,
   createdAt: transformIsDate,
   updatedAt: transformIsDate,
-  deletedAt: ((val: unknown) => (val === null ? null : transformIsDate(val))) as any,
+  deletedAt: (() => true) as any,
 };
 
 /******************************************************************************

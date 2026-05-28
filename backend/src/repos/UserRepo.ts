@@ -44,7 +44,7 @@ async function getOne(username: string): Promise<IUser | null> {
 async function persists(id: number): Promise<boolean> {
   const count = await prisma.user.count({
     where: { 
-      id: id, 
+      user_id: id, 
       deleted_at: null, 
     },
   });
@@ -90,7 +90,7 @@ async function add(user: IUser): Promise<IUserPublic> {
   return userModel.toPublic(mapRowToUser(row));
 }
 
-async function update(user: IUser): Promise<IUserPublic> {
+async function update(user: Partial<IUser>): Promise<IUserPublic> {
   const existingUser = await prisma.user.findUnique({
     where: { user_id: user.id },
   });
@@ -100,20 +100,21 @@ async function update(user: IUser): Promise<IUserPublic> {
   }
 
   let hashedPassword = existingUser.password;
-  if (user.password && user.password !== existingUser.password) {
+  
+  if (user.password && user.password.trim() !== "" && user.password !== existingUser.password) {
     hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
   }
 
   const row = await prisma.user.update({
     where: { user_id: user.id },
     data: {
-      username: user.username,
+      username: user.username ?? existingUser.username,
       password: hashedPassword, 
-      role: user.role,
-      full_name: user.fullName,
-      department: user.department,
-      phone_number: user.phoneNumber,
-      email: user.email,
+      role: user.role ?? existingUser.role,
+      full_name: user.fullName ?? existingUser.full_name,
+      department: user.department ?? existingUser.department,
+      phone_number: user.phoneNumber ?? existingUser.phone_number,
+      email: user.email ?? existingUser.email,
       updated_at: new Date(),
     },
   });

@@ -24,6 +24,15 @@ const reqValidators = {
 ******************************************************************************/
 
 /**
+ * Get all salary records (Admin only).
+ * @route GET /api/salaries/all
+ */
+async function getAll(_: Req, res: Res) {
+  const salaries = await SalaryService.getAll();
+  res.status(HttpStatusCodes.OK).json({ salaries });
+}
+
+/**
  * Get all salary records for a specific user.
  * @route GET /api/salaries/user/:userId
  */
@@ -78,6 +87,7 @@ async function delete_(req: Req, res: Res) {
 ******************************************************************************/
 
 export default {
+  getAll,
   getByUserId,
   getOne,
   add,

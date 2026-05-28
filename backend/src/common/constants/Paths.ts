@@ -75,6 +75,7 @@ const Paths = {
   },
   Salaries: {
     _: '/salaries',
+    GetAll: '/all',
     GetByUserId: '/user/:userId',
     GetOne: '/:id',
     Add: '/add',

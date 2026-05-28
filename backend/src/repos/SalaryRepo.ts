@@ -6,6 +6,43 @@ import prisma from './prisma';
 ******************************************************************************/
 
 /**
+ * Get all salary records with user information.
+ * Used by Admin to view the entire payroll.
+ */
+async function getAll(): Promise<any[]> {
+  const rows = await prisma.salary.findMany({
+    include: {
+      user: true,
+    },
+    orderBy: [
+      { year: 'desc' },
+      { month: 'desc' },
+    ],
+  });
+
+  return rows.map(row => ({
+    id: row.salary_id,
+    userId: row.user_id,
+    month: row.month,
+    year: row.year,
+    baseSalary: Number(row.base_salary),
+    commission: Number(row.commission),
+    bonus: Number(row.bonus),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+
+    user: row.user ? {
+      username: row.user.username,
+      fullName: row.user.full_name,
+      department: row.user.department,
+      email: row.user.email,
+      phoneNumber: row.user.phone_number,
+      role: row.user.role,
+    } : null,
+  }));
+}
+
+/**
  * Get one salary record by id.
  */
 async function getOne(salaryId: number): Promise<ISalary | null> {
@@ -132,6 +169,7 @@ async function deleteAll(): Promise<void> {
 ******************************************************************************/
 
 export default {
+  getAll,
   getOne,
   persists,
   getByUserId,
