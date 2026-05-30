@@ -12,7 +12,7 @@ datasource db {
 // --- Auth / User (giữ nguyên, không đổi convention) ---
 
 model RefreshToken {
-  id        Int      @id @default(autoincrement())
+  token_id        Int      @id @default(autoincrement())
   token     String   @unique
   userId    Int
   user      User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)

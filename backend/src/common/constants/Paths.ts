@@ -7,8 +7,10 @@ const Paths = {
     Get: '/all',
     GetOne: '/:id',
     Add: '/add',
+    Search: '/search',
     Update: '/update',
     Delete: '/delete/:id',
+
     Login: '/login',
   },
   Products: {
@@ -35,6 +37,7 @@ const Paths = {
     Add: '/add',
     Update: '/update',
     Delete: '/delete/:id',
+    Login: '/login',
   },
   Invoices: {
     _: '/invoices',
@@ -67,7 +70,17 @@ const Paths = {
     Login: '/login',
     Refresh: '/refresh',
     Logout: '/logout',
-    Register: '/register'
+    Register: '/register',
+    Check: '/check'
+  },
+  Salaries: {
+    _: '/salaries',
+    GetAll: '/all',
+    GetByUserId: '/user/:userId',
+    GetOne: '/:id',
+    Add: '/add',
+    Update: '/update',
+    Delete: '/delete/:id',
   },
 } as const;
 

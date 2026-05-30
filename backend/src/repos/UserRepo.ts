@@ -1,69 +1,132 @@
 import bcrypt from 'bcrypt';
-
-import { IUser } from '@src/models/User.model';
+import userModel, { IUser, IUserPublic } from '@src/models/User.model';
 import prisma from './prisma';
 
 const SALT_ROUNDS = 12;
 
 /******************************************************************************
-                                Functions
-******************************************************************************/
+                                   Helpers
+ ******************************************************************************/
 
-async function getOne(id: number): Promise<IUser | null> {
-  const row = await prisma.user.findUnique({ where: { user_id: id } });
-  return row ? toUser(row) : null;
+/**
+ * Map Prisma row (snake_case) to Model (camelCase)
+ */
+function mapRowToUser(row: any): IUser {
+  return {
+    id: row.user_id,
+    username: row.username,
+    password: row.password,
+    role: row.role,
+    fullName: row.full_name,
+    department: row.department,
+    phoneNumber: row.phone_number,
+    email: row.email,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+  };
 }
 
-async function getOneByUsername(username: string): Promise<IUser | null> {
-  const row = await prisma.user.findUnique({ where: { username } });
-  return row ? toUser(row) : null;
+/******************************************************************************
+                                   Functions
+******************************************************************************/
+
+async function getOne(username: string): Promise<IUser | null> {
+  const row = await prisma.user.findFirst({
+    where: { 
+      username,
+      deleted_at: null,
+    },
+  });
+  return row ? mapRowToUser(row) : null;
 }
 
 async function persists(id: number): Promise<boolean> {
-  const count = await prisma.user.count({ where: { user_id: id } });
+  const count = await prisma.user.count({
+    where: { 
+      user_id: id, 
+      deleted_at: null, 
+    },
+  });
   return count > 0;
 }
 
-async function getAll(): Promise<IUser[]> {
-  const rows = await prisma.user.findMany({ orderBy: { user_id: 'asc' } });
-  return rows.map(toUser);
+async function getAll(): Promise<IUserPublic[]> {
+  const rows = await prisma.user.findMany({
+    where: { deleted_at: null },
+  });
+  return rows.map(row => userModel.toPublic(mapRowToUser(row)));
 }
 
-async function add(user: IUser): Promise<IUser> {
+async function search(query: string): Promise<IUser[]> {
+  const rows = await prisma.user.findMany({
+    where: {
+      deleted_at: null,
+      OR: [
+        { full_name: { contains: query, mode: 'insensitive' } },
+        { username: { contains: query, mode: 'insensitive' } },
+        { department: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+        { phone_number: { contains: query, mode: 'insensitive' } },
+      ],
+    },
+  });
+  return rows.map(row => mapRowToUser(row));
+}
+
+async function add(user: IUser): Promise<IUserPublic> {
   const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
   const row = await prisma.user.create({
     data: {
       username: user.username,
       password: hashedPassword,
       role: user.role,
-      fullname: user.fullname,
+      full_name: user.fullName,
       department: user.department,
       phone_number: user.phoneNumber,
       email: user.email,
     },
   });
-  return toUser(row);
+  return userModel.toPublic(mapRowToUser(row));
 }
 
-async function update(user: IUser): Promise<IUser> {
-  const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
+async function update(user: Partial<IUser>): Promise<IUserPublic> {
+  const existingUser = await prisma.user.findUnique({
+    where: { user_id: user.id },
+  });
+
+  if (!existingUser) {
+    throw new Error('User not found');
+  }
+
+  let hashedPassword = existingUser.password;
+  
+  if (user.password && user.password.trim() !== "" && user.password !== existingUser.password) {
+    hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
+  }
+
   const row = await prisma.user.update({
     where: { user_id: user.id },
     data: {
-      username: user.username,
-      password: hashedPassword,
-      role: user.role,
-      fullname: user.fullname,
-      department: user.department,
-      phone_number: user.phoneNumber,
-      email: user.email,
+      username: user.username ?? existingUser.username,
+      password: hashedPassword, 
+      role: user.role ?? existingUser.role,
+      full_name: user.fullName ?? existingUser.full_name,
+      department: user.department ?? existingUser.department,
+      phone_number: user.phoneNumber ?? existingUser.phone_number,
+      email: user.email ?? existingUser.email,
+      updated_at: new Date(),
     },
   });
-  return toUser(row);
+
+  return userModel.toPublic(mapRowToUser(row));
 }
 
 async function delete_(id: number): Promise<void> {
-  await prisma.user.delete({ where: { user_id: id } });
+  await prisma.user.update({
+    where: { user_id: id },
+    data: { deleted_at: new Date() },
+  });
 }
 
 // **** Unit-Tests Only **** //
@@ -72,30 +135,34 @@ async function deleteAllUsers(): Promise<void> {
   await prisma.user.deleteMany();
 }
 
-async function insertMultiple(users: IUser[]): Promise<IUser[]> {
-  const created: IUser[] = [];
-  for (const user of users) {
-    created.push(await add(user));
-  }
-  return created;
+async function insertMultiple(users: IUser[]): Promise<void> {
+  const data = await Promise.all(
+    users.map(async (u) => ({
+      username: u.username,
+      password: await bcrypt.hash(u.password, SALT_ROUNDS),
+      role: u.role,
+      full_name: u.fullName,
+      department: u.department,
+      phone_number: u.phoneNumber,
+      email: u.email,
+    })),
+  );
+  await prisma.user.createMany({ data });
 }
 
-async function comparePassword(
-  plainText: string,
-  hash: string,
-): Promise<boolean> {
-  return bcrypt.compare(plainText, hash);
+async function comparePassword(plainText: string, hash: string): Promise<boolean> {
+  return await bcrypt.compare(plainText, hash);
 }
 
 /******************************************************************************
-                                Export default
+                                 Export default
 ******************************************************************************/
 
 export default {
   getOne,
-  getOneByUsername,
   persists,
   getAll,
+  search,
   add,
   update,
   delete: delete_,

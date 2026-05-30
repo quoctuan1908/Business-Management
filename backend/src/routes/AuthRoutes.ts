@@ -32,6 +32,29 @@ const reqValidators = {
 ******************************************************************************/
 
 /**
+ * Check authentication status and return current user data.
+ * @route GET /api/auth/check
+ */
+async function check(req: Req, res: Res) {
+  const token = req.cookies.accessToken;
+  console.log(token)
+  if (!token) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Session not found');
+  }
+
+  try {
+    const userData = JwtUtils.decodeAccessToken(token);
+    
+    return res.status(HttpStatusCodes.OK).json({ 
+      user: userData,
+      isLoggedIn: true 
+    });
+  } catch (err) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Invalid or expired session');
+  }
+}
+
+/**
  * Register a new user.
  * @route POST /api/auth/register
  */
@@ -47,7 +70,13 @@ async function register(req: Req, res: Res) {
     username,
     password,
     role: role || 'user',
-    created: new Date()
+    fullName: '',
+    department: '',
+    phoneNumber: '',
+    email: '',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null
   });
 
   return res.status(HttpStatusCodes.CREATED).json({ message: 'Register successfully!' });
@@ -60,13 +89,11 @@ async function register(req: Req, res: Res) {
 async function login(req: Req, res: Res) {
   const { username, password } = reqValidators.login(req.body);
   const user = await AuthService.authenticate(username, password);
-  
   if (!user) {
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
   }
-
   const sessionUser: ISessionUser = {
-    user_id: user.id,
+    userId: user.id,
     username: user.username,
     role: user.role,
   };
@@ -76,12 +103,12 @@ async function login(req: Req, res: Res) {
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
-  await AuthRepo.saveToken(sessionUser.user_id, refreshToken, expiresAt);
+  await AuthRepo.saveToken(sessionUser.userId, refreshToken, expiresAt);
 
   res.cookie('accessToken', accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
   res.cookie('refreshToken', refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
-  return res.status(HttpStatusCodes.OK).json({ message: 'Login thành công' });
+  return res.status(HttpStatusCodes.OK).json({ message: 'Login successfully' });
 }
 
 /**
@@ -95,15 +122,15 @@ async function refresh(req: Req, res: Res) {
   }
 
   const tokenDb = await AuthRepo.findToken(refreshToken);
-  if (!tokenDb || tokenDb.expiresAt < new Date()) {
+  if (!tokenDb || tokenDb.expires_at < new Date()) {
     if (tokenDb) await AuthRepo.deleteToken(refreshToken);
     throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Session expired');
   }
 
-  await JwtUtils.verifyToken(refreshToken, EnvVars.JwtRefreshTokenKey);
+  await JwtUtils.verifyToken(refreshToken,EnvVars.JwtRefreshTokenKey);
 
   const sessionUser: ISessionUser = {
-    user_id: tokenDb.user.id,
+    userId: tokenDb.user.user_id,
     username: tokenDb.user.username,
     role: tokenDb.user.role,
   };
@@ -136,5 +163,6 @@ export default {
   login,
   refresh,
   logout,
-  register
+  register,
+  check
 } as const;

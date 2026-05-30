@@ -8,42 +8,76 @@ import type {
   Location,
   OrderStatus,
   Product,
+  Salary,
+  UserPublic,
 } from "@/lib/types";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api";
 
+let isRefreshing = false;
+let refreshPromise: Promise<void> | null = null;
+
 async function request<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const url = `${API_BASE}${path}`;
+  const defaultOptions: RequestInit = {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,
     },
-  });
+  };
+
+  let res = await fetch(url, defaultOptions);
+
+  // 1. Kiểm tra nếu lỗi 401 (Unauthorized - Thường là do hết hạn Access Token)
+  if (res.status === 401 && !path.includes("/auth/refresh")) {
+    
+    // Nếu chưa có tiến trình refresh nào đang chạy, thì bắt đầu refresh
+    if (!isRefreshing) {
+      console.log("Refreshing token...")
+      isRefreshing = true;
+      refreshPromise = (async () => {
+        try {
+          const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+            method: "POST",
+            credentials: "include",
+          });
+          
+          if (!refreshRes.ok) throw new Error("Refresh token expired");
+        } catch (error) {
+          // Nếu refresh thất bại (hết hạn cả Refresh Token), xóa session và đẩy về login
+          window.location.href = "/auth";
+          throw error;
+        } finally {
+          isRefreshing = false;
+          refreshPromise = null;
+        }
+      })();
+    }
+    await refreshPromise;
+
+    // 2. Thử lại request ban đầu một lần nữa sau khi đã có token mới
+    res = await fetch(url, defaultOptions);
+  }
 
   if (!res.ok) {
     let message = res.statusText;
     try {
       const body = await res.json();
       message = body.error ?? message;
-    } catch {
-      // ignore parse errors
-    }
+    } catch { }
     throw new Error(message);
   }
 
-  if (res.status === 204 || res.status === 205) {
-    return undefined as T;
-  }
+  if (res.status === 204 || res.status === 205) return undefined as T;
 
   const text = await res.text();
-  if (!text.trim()) {
-    return undefined as T;
-  }
+  if (!text.trim()) return undefined as T;
 
   return JSON.parse(text) as T;
 }
@@ -176,6 +210,60 @@ export const customersApi = {
     request<void>(`/customers/delete/${id}`, { method: "DELETE" }),
 };
 
+export const authApi = {
+  register: (data: Pick<User, "username" | "password" | "role">) =>
+    request<{ message: string }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  login: (data: Pick<User, "username" | "password">) =>
+    request<{ message: string }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  refresh: () =>
+    request<{ message: string }>("/auth/refresh", {
+      method: "GET",
+    }),
+  logout: () =>
+    request<void>("/auth/logout", {
+      method: "GET",
+    }),
+  check: () =>
+    request<{ user: User; isLoggedIn: boolean }>("/auth/check", {
+      method: "GET",
+  }),
+};
+
+export const salariesApi = {
+  getAll: () =>
+    request<{ salaries: (Salary & { user: User | null })[] }>("/salaries/all", {
+      method: "GET",
+    }),  
+  getByUserId: (userId: number) =>
+    request<{ salaries: Salary[] }>(`/salaries/user/${userId}`, {
+      method: "GET",
+    }),
+  getOne: (id: number) =>
+    request<{ salary: Salary }>(`/salaries/${id}`, {
+      method: "GET",
+    }),
+  add: (salary: Omit<Salary, "id" | "createdAt" | "updatedAt">) =>
+    request<{ salary: Salary }>("/salaries/add", {
+      method: "POST",
+      body: JSON.stringify({ salary }),
+    }),
+  update: (salary: Salary) =>
+    request<{ salary: Salary }>("/salaries/update", {
+      method: "PUT",
+      body: JSON.stringify({ salary }),
+    }),
+  delete: (id: number) =>
+    request<void>(`/salaries/delete/${id}`, {
+      method: "DELETE",
+    }),
+};
+
 export const locationsApi = {
   getAll: () =>
     request<{ locations: Location[] }>("/locations/all").then(
@@ -184,10 +272,26 @@ export const locationsApi = {
 };
 
 export const usersApi = {
-  getAll: () =>
-    request<{ users: User[] }>("/users/all").then((d) => d.users),
-};
 
+  getAll: () =>
+    request<{ users: UserPublic[] }>("/users/all").then((d) => d.users),
+  search: (query: string) =>
+    request<{ users: UserPublic[] }>(`/users/search?query=${encodeURIComponent(query)}`).then((d) => d.users),
+  add: (user: Partial<User>) =>
+    request<{ user: UserPublic }>("/users/add", {
+      method: "POST",
+      body: JSON.stringify({ user }),
+    }).then((d) => d.user),
+  update: (user: Partial<User>) =>
+    request<{ user: UserPublic }>("/users/update", {
+      method: "PUT",
+      body: JSON.stringify({ user }),
+    }).then((d) => d.user),
+  delete: (id: number) =>
+    request<void>(`/users/delete/${id}`, {
+      method: "DELETE",
+    }),
+};
 export const lookupApi = {
   users: () => usersApi.getAll(),
   customers: () => customersApi.getAll(),

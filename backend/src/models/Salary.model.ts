@@ -1,4 +1,4 @@
-import { isString, isUnsignedInteger } from 'jet-validators';
+import { isNumber, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
@@ -7,32 +7,30 @@ import { Entity } from './common/types';
                                    Constants
 ******************************************************************************/
 
-const GetDefaults = (): IUser => ({
+const GetDefaults = (): ISalary => ({
   id: 0,
-  username: '',
-  password: '',
-  role: 'user',
-  fullName: '',
-  department: '',
-  phoneNumber: '',
-  email: '',
+  userId: 0,
+  month: new Date().getMonth() + 1,
+  year: new Date().getFullYear(),
+  baseSalary: 0,
+  commission: 0,
+  bonus: 0,
   createdAt: new Date(),
-  updatedAt: new Date(),
-  deletedAt: null,
+  updatedAt: new Date()
 });
 
-const schema: Schema<IUser> = {
+const schema: Schema<ISalary> = {
   id: isUnsignedInteger,
-  username: isString,
-  password: isString,
-  role: isString,
-  fullName: isString,
-  department: isString,
-  phoneNumber: isString,
-  email: isString,
+  userId: isUnsignedInteger,
+  month: (val: unknown): val is number => 
+    typeof val === 'number' && val >= 1 && val <= 12,
+  year: (val: unknown): val is number => 
+    typeof val === 'number' && val >= 1900,
+  baseSalary: isNumber,
+  commission: isNumber,
+  bonus: isNumber,
   createdAt: transformIsDate,
   updatedAt: transformIsDate,
-  deletedAt: (() => true) as any,
 };
 
 /******************************************************************************
@@ -40,49 +38,47 @@ const schema: Schema<IUser> = {
 ******************************************************************************/
 
 /**
- * @entity users
+ * @entity salaries
  */
-export interface IUser extends Entity {
-  username: string;
-  password: string;
-  role: string;
-  fullName: string;
-  department: string;
-  phoneNumber: string;
-  email: string;
-
-  deletedAt: Date | null
+export interface ISalary extends Entity {
+  userId: number;
+  month: number;
+  year: number;
+  baseSalary: number;
+  commission: number;
+  bonus: number;
 }
 
-export type IUserPublic = Omit<IUser, 'password'>;
+export interface ISalaryWithUser extends ISalary {
+  user: {
+    username: string;
+    fullName: string;
+    department: string;
+    email: string;
+    phoneNumber: string;
+    role: string;
+  } | null;
+}
 
 /******************************************************************************
                                      Setup
 ******************************************************************************/
 
-const parseUser = parseObject<IUser>(schema);
+const parseSalary = parseObject<ISalary>(schema);
 
-const isCompleteUser = testObject<IUser>({
-  ...schema,
-  username: isString,
-  password: isString,
-  fullName: isString,
-  email: isString,
-});
+const isCompleteSalary = testObject<ISalary>(schema);
 
 /******************************************************************************
                                    Functions
 ******************************************************************************/
 
-function new_(user?: Partial<IUser>): IUser {
-  return parseUser({ ...GetDefaults(), ...user }, (errors) => {
-    throw new Error('Setup new user failed ' + JSON.stringify(errors, null, 2));
+/**
+ * Create a new Salary object.
+ */
+function new_(salary?: Partial<ISalary>): ISalary {
+  return parseSalary({ ...GetDefaults(), ...salary }, (errors) => {
+    throw new Error('Setup new salary failed ' + JSON.stringify(errors, null, 2));
   });
-}
-
-function toPublic(user: IUser): IUserPublic {
-  const { password: _password, ...publicUser } = user;
-  return publicUser;
 }
 
 /******************************************************************************
@@ -91,6 +87,5 @@ function toPublic(user: IUser): IUserPublic {
 
 export default {
   new: new_,
-  isComplete: isCompleteUser,
-  toPublic
+  isComplete: isCompleteSalary,
 } as const;

@@ -33,15 +33,15 @@ async function refresh(token: string) {
   const tokenDb = await AuthRepo.findToken(token);
   if (!tokenDb) throw new Error('Token not found in database');
 
-  if (tokenDb.expiresAt < new Date()) {
+  if (tokenDb.expires_at < new Date()) {
     await AuthRepo.deleteToken(token);
     throw new Error('Token expired');
   }
 
-  await JwtUtils.verifyToken(token, EnvVars.JwtRefreshTokenKey);
+  await JwtUtils.verifyToken(token,EnvVars.JwtRefreshTokenKey);
 
   const sessionUser: ISessionUser = {
-    user_id: tokenDb.user.id,
+    userId: tokenDb.user.user_id,
     username: tokenDb.user.username,
     role: tokenDb.user.role,
   };

@@ -11,6 +11,8 @@ import {
 } from "@/components/layout/app-shell";
 import { InvoicesPanel } from "@/components/invoices/invoices-panel";
 import { ProductsPanel } from "@/components/products/products-panel";
+import { SalariesPanel } from "@/components/salaries/salaries-panel";
+import { UsersPanel } from "@/components/users/users-panel";
 
 function SectionPanel({ section }: { section: AppSection }) {
   switch (section) {
@@ -22,6 +24,12 @@ function SectionPanel({ section }: { section: AppSection }) {
       return <ActivitiesPanel />;
     case "invoices":
       return <InvoicesPanel />;
+    case "users":
+      return <UsersPanel/>
+    case "salaries":
+      return <SalariesPanel />;
+    default:
+      return null;
   }
 }
 
@@ -38,7 +46,7 @@ export default function HomePage() {
         <h2 className="text-xl font-semibold">{meta.title}</h2>
         <p className="text-sm text-muted-foreground">{meta.description}</p>
       </header>
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-6 overflow-auto">
         <SectionPanel section={activeSection} />
       </div>
     </AppShell>
