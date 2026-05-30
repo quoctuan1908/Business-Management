@@ -49,6 +49,17 @@ export interface ISalary extends Entity {
   bonus: number;
 }
 
+export interface ISalaryWithUser extends ISalary {
+  user: {
+    username: string;
+    fullName: string;
+    department: string;
+    email: string;
+    phoneNumber: string;
+    role: string;
+  } | null;
+}
+
 /******************************************************************************
                                      Setup
 ******************************************************************************/

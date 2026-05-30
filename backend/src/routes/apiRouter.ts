@@ -31,6 +31,7 @@ apiRouter.use(Paths.Users._, userRouter);
 
 const salaryRouter = Router();
 salaryRouter.use(authMiddleware.auth);
+salaryRouter.get(Paths.Salaries.GetAll, SalaryRoutes.getAll);
 salaryRouter.get(Paths.Salaries.GetByUserId, SalaryRoutes.getByUserId);
 salaryRouter.get(Paths.Salaries.GetOne, SalaryRoutes.getOne);
 salaryRouter.post(Paths.Salaries.Add, SalaryRoutes.add);
@@ -39,6 +40,7 @@ salaryRouter.delete(Paths.Salaries.Delete, SalaryRoutes.delete);
 apiRouter.use(Paths.Salaries._, salaryRouter);
 
 const productRouter = Router();
+productRouter.use(authMiddleware.auth);
 productRouter.get(Paths.Products.Get, ProductRoutes.getAll);
 productRouter.get(Paths.Products.GetOne, ProductRoutes.getOne);
 productRouter.post(Paths.Products.Add, ProductRoutes.add);
@@ -94,9 +96,10 @@ apiRouter.use(Paths.Activities._, activityRouter);
 
 const authRouter = Router();
 authRouter.post(Paths.Auth.Login, AuthRoutes.login);
-authRouter.get(Paths.Auth.Refresh, AuthRoutes.refresh);
+authRouter.post(Paths.Auth.Refresh, AuthRoutes.refresh);
 authRouter.get(Paths.Auth.Logout, AuthRoutes.logout);
 authRouter.post(Paths.Auth.Register, AuthRoutes.register)
+authRouter.get(Paths.Auth.Check, AuthRoutes.check);
 apiRouter.use(Paths.Auth._, authRouter);
 
 

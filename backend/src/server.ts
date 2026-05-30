@@ -2,8 +2,7 @@ import express, { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import logger from 'jet-logger';
 import morgan from 'morgan';
-import path from 'path';
-
+import cookieParser from 'cookie-parser';
 import Paths from '@src/common/constants/Paths';
 import { RouteError } from '@src/common/utils/route-errors';
 import BaseRouter from '@src/routes/apiRouter';
@@ -62,6 +61,7 @@ app.use((req, res, next) => {
 // Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Show routes called in console during development
 if (EnvVars.NodeEnv === NodeEnvs.DEV) {
