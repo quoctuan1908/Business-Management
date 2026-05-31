@@ -1,4 +1,4 @@
-require("dotenv/config");
+require("dotenv").config({ path: "./config/.env.development" });
 const { Pool } = require("pg");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { PrismaClient } = require("@prisma/client");
@@ -60,32 +60,32 @@ async function main() {
       username: "admin",
       password: "123456",
       role: "admin",
-      fullname: "Quan tri vien",
+      full_name: "Quan tri vien",
       department: "IT",
       phone_number: "0900000000",
       email: "admin@company.com",
     },
   });
-  const staffUser01 = await prisma.user.create({
+  const sellerUser01 = await prisma.user.create({
     data: {
-      username: "nhanvien01",
+      username: "seller01",
       password: "123456",
-      role: "employee",
-      fullname: "Nguyen Van A",
+      role: "seller",
+      full_name: "Nguyen Van A",
       department: "Sales",
       phone_number: "0912345678",
-      email: "a.sales@company.com",
+      email: "seller01@company.com",
     },
   });
-  const staffUser02 = await prisma.user.create({
+  const sellerUser02 = await prisma.user.create({
     data: {
-      username: "nhanvien02",
+      username: "seller02",
       password: "123456",
-      role: "employee",
-      fullname: "Tran Thi B",
-      department: "Marketing",
+      role: "seller",
+      full_name: "Tran Thi B",
+      department: "Sales",
       phone_number: "0987654321",
-      email: "b.mkt@company.com",
+      email: "seller02@company.com",
     },
   });
 
@@ -147,7 +147,7 @@ async function main() {
     );
   }
 
-  const staffUsers = [staffUser01, staffUser02];
+  const staffUsers = [sellerUser01, sellerUser02];
 
   await prisma.product.createMany({
     data: [
