@@ -4,6 +4,7 @@ import Paths from '@src/common/constants/Paths';
 
 import ActivityDetailRoutes from './ActivityDetailRoutes';
 import ActivityRoutes from './ActivityRoutes';
+import PaymentRoutes from './PaymentRoutes';
 import OrderStatusRoutes from './OrderStatusRoutes';
 import CustomerRoutes from './CustomerRoutes';
 import InvoiceRoutes from './InvoiceRoutes';
@@ -60,6 +61,8 @@ apiRouter.use(Paths.Locations._, locationRouter);
 const customerRouter = Router();
 customerRouter.get(Paths.Customers.Get, CustomerRoutes.getAll);
 customerRouter.get(Paths.Customers.GetOne, CustomerRoutes.getOne);
+customerRouter.get(Paths.Customers.Account, CustomerRoutes.getAccount);
+customerRouter.post(Paths.Customers.ReceivePayment, CustomerRoutes.receivePayment);
 customerRouter.post(Paths.Customers.Add, CustomerRoutes.add);
 customerRouter.put(Paths.Customers.Update, CustomerRoutes.update);
 customerRouter.delete(Paths.Customers.Delete, CustomerRoutes.delete);
@@ -86,6 +89,11 @@ activityRouter.delete(
   ActivityDetailRoutes.delete,
 );
 activityRouter.get(Paths.Activities.DetailsGet, ActivityDetailRoutes.getByActivity);
+activityRouter.get(Paths.Activities.PaymentSummary, PaymentRoutes.getSummary);
+activityRouter.get(Paths.Activities.PaymentsList, PaymentRoutes.listByActivity);
+activityRouter.post(Paths.Activities.PaymentsApplyBalance, PaymentRoutes.applyBalance);
+activityRouter.post(Paths.Activities.PaymentsAdd, PaymentRoutes.record);
+activityRouter.delete(Paths.Activities.PaymentsDelete, PaymentRoutes.delete);
 activityRouter.post(Paths.Activities.Confirm, ActivityRoutes.confirm);
 activityRouter.post(Paths.Activities.AdvanceStatus, ActivityRoutes.advanceStatus);
 activityRouter.get(Paths.Activities.GetOne, ActivityRoutes.getOne);

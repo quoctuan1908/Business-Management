@@ -2,6 +2,7 @@ import { isNumber } from 'jet-validators';
 import { transform } from 'jet-validators/utils';
 
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { RouteError } from '@src/common/utils/route-errors';
 import Customer from '@src/models/Customer.model';
 import CustomerService from '@src/services/CustomerService';
 
@@ -17,7 +18,24 @@ const reqValidators = {
   update: parseReq({ customer: Customer.isComplete }),
   getOne: parseReq({ id: transform(Number, isNumber) }),
   delete: parseReq({ id: transform(Number, isNumber) }),
+  customerId: parseReq({ id: transform(Number, isNumber) }),
 } as const;
+
+function parseReceivePaymentBody(body: unknown): { amount: number; method: string } {
+  const raw =
+    typeof body === 'object' && body !== null && 'payment' in body
+      ? (body as { payment: { amount?: number; method?: string } }).payment
+      : (body as { amount?: number; method?: string });
+  const amount = Number(raw?.amount);
+  const method = typeof raw?.method === 'string' ? raw.method.trim() : '';
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, CustomerService.Errors.INVALID_AMOUNT);
+  }
+  if (!method) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, CustomerService.Errors.INVALID_METHOD);
+  }
+  return { amount, method };
+}
 
 /******************************************************************************
                                 Functions
@@ -52,6 +70,19 @@ async function delete_(req: Req, res: Res) {
   res.status(HttpStatusCodes.OK).end();
 }
 
+async function getAccount(req: Req, res: Res) {
+  const { id } = reqValidators.customerId(req.params);
+  const account = await CustomerService.getAccount(id);
+  res.status(HttpStatusCodes.OK).json({ account });
+}
+
+async function receivePayment(req: Req, res: Res) {
+  const { id } = reqValidators.customerId(req.params);
+  const input = parseReceivePaymentBody(req.body);
+  const result = await CustomerService.receivePayment(id, input);
+  res.status(HttpStatusCodes.OK).json(result);
+}
+
 /******************************************************************************
                                 Export default
 ******************************************************************************/
@@ -62,4 +93,6 @@ export default {
   add,
   update,
   delete: delete_,
+  getAccount,
+  receivePayment,
 } as const;

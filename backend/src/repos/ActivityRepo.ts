@@ -63,10 +63,15 @@ async function linkInvoice(
   activityId: number,
   invoiceId: number,
   status: string,
+  paymentStatus?: 'unpaid' | 'partial' | 'paid',
 ): Promise<IActivity> {
   const row = await prisma.activity.update({
     where: { activity_id: activityId },
-    data: { invoice_id: invoiceId, status },
+    data: {
+      invoice_id: invoiceId,
+      status,
+      ...(paymentStatus ? { payment_status: paymentStatus } : {}),
+    },
   });
   return toActivity(row);
 }

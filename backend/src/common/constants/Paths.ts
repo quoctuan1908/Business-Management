@@ -37,6 +37,8 @@ const Paths = {
     Add: '/add',
     Update: '/update',
     Delete: '/delete/:id',
+    Account: '/:id/account',
+    ReceivePayment: '/:id/receive-payment',
     Login: '/login',
   },
   Invoices: {
@@ -60,6 +62,11 @@ const Paths = {
     DetailsAdd: '/details/add',
     DetailsUpdate: '/details/update',
     DetailsDelete: '/details/delete/:activityId/:productId',
+    PaymentSummary: '/:activityId/payment-summary',
+    PaymentsList: '/:activityId/payments',
+    PaymentsApplyBalance: '/:activityId/payments/apply-balance',
+    PaymentsAdd: '/:activityId/payments',
+    PaymentsDelete: '/payments/:paymentId',
   },
   OrderStatuses: {
     _: '/order-statuses',

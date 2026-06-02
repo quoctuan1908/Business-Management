@@ -1,7 +1,3 @@
-export type InvoiceStatus = "paid" | "unpaid" | "partial";
-
-
-
 export interface OrderStatus {
 
   statusCode: string;
@@ -24,8 +20,6 @@ export interface Invoice {
 
   date: string;
 
-  status: InvoiceStatus;
-
   createdAt: string;
 
   updatedAt: string;
@@ -33,6 +27,31 @@ export interface Invoice {
 }
 
 
+
+export type PaymentStatus = "unpaid" | "partial" | "paid";
+
+export interface Payment {
+  id: number;
+  activityId: number;
+  paidAmount: number;
+  paymentDate: string;
+  method: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentSummary {
+  activityId: number;
+  invoiceTotal: number;
+  paidTotal: number;
+  remaining: number;
+  customerBalance: number;
+  paymentStatus: PaymentStatus;
+  paymentStatusLabel: string;
+  canRecordPayment: boolean;
+  paymentsDeferred?: boolean;
+  payments: Payment[];
+}
 
 export interface Activity {
 
@@ -45,6 +64,8 @@ export interface Activity {
   invoiceId: number | null;
 
   status: string;
+
+  paymentStatus: PaymentStatus;
 
   activityDate: string;
 
@@ -175,6 +196,36 @@ export interface Customer {
 
   currentBalance: number;
 
+}
+
+export interface CustomerOrderRow {
+  activityId: number;
+  activityDate: string;
+  createdAt: string;
+  status: string;
+  paymentStatus: PaymentStatus;
+  paymentStatusLabel: string;
+  invoiceTotal: number;
+  paidTotal: number;
+  remaining: number;
+}
+
+export interface CustomerAccount {
+  customer: Customer;
+  currentBalance: number;
+  totalDebt: number;
+  orders: CustomerOrderRow[];
+}
+
+export interface CustomerPaymentAllocation {
+  activityId: number;
+  paidAmount: number;
+}
+
+export interface CustomerReceivePaymentResult {
+  allocations: CustomerPaymentAllocation[];
+  excessToBalance: number;
+  account: CustomerAccount;
 }
 
 

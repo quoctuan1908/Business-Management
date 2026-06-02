@@ -3,10 +3,13 @@ import type {
   ActivityDetail,
   ActivityWrite,
   Customer,
+  CustomerAccount,
+  CustomerReceivePaymentResult,
   User,
   Invoice,
   Location,
   OrderStatus,
+  PaymentSummary,
   Product,
   Salary,
   UserPublic,
@@ -111,14 +114,54 @@ export const activitiesApi = {
       `/activities/${id}/confirm`,
       { method: "POST" },
     ),
-  advanceStatus: (id: number) =>
+  advanceStatus: (
+    id: number,
+    body?: {
+      pendingPayments?: { paidAmount: number; method: string }[];
+      applyCustomerBalance?: boolean;
+    },
+  ) =>
     request<{
       activity: Activity;
       nextStatus: string;
       nextStatusName: string;
-    }>(`/activities/${id}/advance-status`, { method: "POST" }),
+    }>(`/activities/${id}/advance-status`, {
+      method: "POST",
+      body: body ? JSON.stringify(body) : undefined,
+    }),
   delete: (id: number) =>
     request<void>(`/activities/delete/${id}`, { method: "DELETE" }),
+};
+
+export const paymentsApi = {
+  getSummary: (activityId: number) =>
+    request<{ summary: PaymentSummary }>(
+      `/activities/${activityId}/payment-summary`,
+    ).then((d) => d.summary),
+  applyBalance: (activityId: number) =>
+    request<{
+      applied: number;
+      paymentStatus: string;
+      summary: PaymentSummary;
+    }>(`/activities/${activityId}/payments/apply-balance`, { method: "POST" }),
+  record: (
+    activityId: number,
+    payment: {
+      paidAmount: number;
+      method: string;
+      applyCustomerBalance?: boolean;
+    },
+  ) =>
+    request<{
+      payment: unknown;
+      excessToBalance: number;
+      summary: PaymentSummary;
+    }>(`/activities/${activityId}/payments`, {
+      method: "POST",
+      body: JSON.stringify({ payment }),
+    }),
+  delete: (paymentId: number) =>
+    request<void>(`/activities/payments/${paymentId}`, { method: "DELETE" }),
 };
 
 export const activityDetailsApi = {
@@ -196,6 +239,18 @@ export const customersApi = {
     ),
   getOne: (id: number) =>
     request<{ customer: Customer }>(`/customers/${id}`).then((d) => d.customer),
+  getAccount: (id: number) =>
+    request<{ account: CustomerAccount }>(`/customers/${id}/account`).then(
+      (d) => d.account,
+    ),
+  receivePayment: (
+    id: number,
+    payment: { amount: number; method: string },
+  ) =>
+    request<CustomerReceivePaymentResult>(`/customers/${id}/receive-payment`, {
+      method: "POST",
+      body: JSON.stringify({ payment }),
+    }),
   add: (customer: Omit<Customer, "id">) =>
     request<{ customer: Customer }>("/customers/add", {
       method: "POST",

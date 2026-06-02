@@ -2,13 +2,16 @@ import { OrderStatusCodes } from '@src/common/constants/order-status';
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import { RouteError } from '@src/common/utils/route-errors';
 import { IActivityWrite } from '@src/models/Activity.model';
+import type { IPaymentRecordInput } from '@src/models/Payment.model';
 import ActivityDetailRepo from '@src/repos/ActivityDetailRepo';
 import ActivityRepo from '@src/repos/ActivityRepo';
 import CustomerRepo from '@src/repos/CustomerRepo';
 import OrderStatusRepo from '@src/repos/OrderStatusRepo';
 import UserRepo from '@src/repos/UserRepo';
+import { PaymentStatuses } from '@src/common/constants/payment-status';
 import { invoiceToPrismaData, toOrderStatus } from '@src/repos/common/mappers';
 import prisma from '@src/repos/common/prisma';
+import PaymentService from '@src/services/PaymentService';
 
 const Errors = {
   ACTIVITY_NOT_FOUND: 'Activity not found',
@@ -79,7 +82,6 @@ async function confirmOrder(activityId: number) {
     data: invoiceToPrismaData({
       totalAmount: total,
       date: new Date(),
-      status: 'unpaid',
     }),
   });
 
@@ -87,12 +89,21 @@ async function confirmOrder(activityId: number) {
     activityId,
     invoice.invoice_id,
     OrderStatusCodes.CONFIRMED,
+    PaymentStatuses.UNPAID,
   );
 
   return { activity: updated, invoiceId: invoice.invoice_id };
 }
 
-async function advanceStatus(activityId: number) {
+export interface IAdvanceStatusOptions {
+  pendingPayments?: IPaymentRecordInput[];
+  applyCustomerBalance?: boolean;
+}
+
+async function advanceStatus(
+  activityId: number,
+  options?: IAdvanceStatusOptions,
+) {
   const activity = await ActivityRepo.getOne(activityId);
   if (!activity) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.ACTIVITY_NOT_FOUND);
@@ -116,6 +127,16 @@ async function advanceStatus(activityId: number) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.NO_NEXT_STATUS);
   }
   const next = toOrderStatus(nextRow);
+
+  if (
+    current.statusCode === OrderStatusCodes.PROCESSING &&
+    next.statusCode === OrderStatusCodes.COMPLETED
+  ) {
+    await PaymentService.settlePendingPayments(activityId, {
+      pendingPayments: options?.pendingPayments ?? [],
+      applyCustomerBalance: options?.applyCustomerBalance,
+    });
+  }
 
   const updated = await ActivityRepo.setStatus(activityId, next.statusCode);
   return {

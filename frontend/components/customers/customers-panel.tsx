@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
+import { CustomerDetailDialog } from "@/components/customers/customer-detail-dialog";
 import { customersApi, locationsApi } from "@/lib/api";
 import type { Customer, Location } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,8 @@ export function CustomersPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailCustomerId, setDetailCustomerId] = useState<number | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
@@ -90,6 +93,11 @@ export function CustomersPanel() {
       locationId: locations[0] ? String(locations[0].id) : "",
     });
     setDialogOpen(true);
+  }
+
+  function openDetail(customer: Customer) {
+    setDetailCustomerId(customer.id);
+    setDetailOpen(true);
   }
 
   function openEdit(customer: Customer) {
@@ -201,7 +209,13 @@ export function CustomersPanel() {
                 <TableRow key={customer.id}>
                   <TableCell>{customer.id}</TableCell>
                   <TableCell className="font-medium">
-                    {customer.companyName}
+                    <button
+                      type="button"
+                      className="text-left hover:underline"
+                      onClick={() => openDetail(customer)}
+                    >
+                      {customer.companyName}
+                    </button>
                   </TableCell>
                   <TableCell>{customer.businessType}</TableCell>
                   <TableCell>
@@ -219,6 +233,15 @@ export function CustomersPanel() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      title="Xem chi tiết"
+                      onClick={() => openDetail(customer)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Sửa"
                       onClick={() => openEdit(customer)}
                     >
                       <Pencil className="h-4 w-4" />
@@ -237,6 +260,13 @@ export function CustomersPanel() {
           </Table>
         )}
       </CardContent>
+
+      <CustomerDetailDialog
+        customerId={detailCustomerId}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onAccountUpdated={() => void load()}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
