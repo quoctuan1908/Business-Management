@@ -56,7 +56,14 @@ async function confirm(req: Req, res: Res) {
 
 async function advanceStatus(req: Req, res: Res) {
   const { id } = reqValidators.advance(req.params);
-  const result = await ActivityService.advanceStatus(id);
+  const body = req.body ?? {};
+  const pendingPayments = Array.isArray(body.pendingPayments)
+    ? body.pendingPayments
+    : undefined;
+  const result = await ActivityService.advanceStatus(id, {
+    pendingPayments,
+    applyCustomerBalance: body.applyCustomerBalance,
+  });
   res.status(HttpStatusCodes.OK).json(result);
 }
 

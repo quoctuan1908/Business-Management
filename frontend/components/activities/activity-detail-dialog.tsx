@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import {
@@ -8,7 +8,12 @@ import {
   activityDetailsApi,
   lookupApi,
   orderStatusesApi,
+  paymentsApi,
 } from "@/lib/api";
+import {
+  computePaymentPreview,
+  type PendingPaymentLine,
+} from "@/lib/payment-preview";
 import type {
   Activity,
   ActivityDetail,
@@ -16,6 +21,7 @@ import type {
   Customer,
   User,
   OrderStatus,
+  PaymentSummary,
   Product,
 } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -59,12 +65,37 @@ const emptyLineForm = {
   salePrice: "",
 };
 
+const emptyPaymentForm = {
+  paidAmount: "",
+  method: "Tien mat",
+  applyCustomerBalance: true,
+};
+
+const PAYMENT_METHODS = [
+  { value: "Tien mat", label: "Tiền mặt" },
+  { value: "Chuyen khoan", label: "Chuyển khoản" },
+  { value: "The", label: "Thẻ" },
+  { value: "Khac", label: "Khác" },
+];
+
 function formatDate(value: string) {
   return new Date(value).toLocaleString("vi-VN");
 }
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat("vi-VN").format(value);
+}
+
+/** Next status by sort_order (same rule as backend OrderStatusRepo.getNext). */
+function getNextOrderStatus(
+  statuses: OrderStatus[],
+  currentCode: string | undefined,
+): OrderStatus | undefined {
+  if (!currentCode || statuses.length === 0) return undefined;
+  const sorted = [...statuses].sort((a, b) => a.sortOrder - b.sortOrder);
+  const current = sorted.find((s) => s.statusCode === currentCode);
+  if (!current || current.isTerminal) return undefined;
+  return sorted.find((s) => s.sortOrder > current.sortOrder);
 }
 
 export function ActivityDetailDialog({
@@ -84,6 +115,14 @@ export function ActivityDetailDialog({
   const [saving, setSaving] = useState(false);
   const [lineForm, setLineForm] = useState(emptyLineForm);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(
+    null,
+  );
+  const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
+  const [pendingPayments, setPendingPayments] = useState<PendingPaymentLine[]>(
+    [],
+  );
+  const [useBalanceOnComplete, setUseBalanceOnComplete] = useState(true);
 
   const [headerForm, setHeaderForm] = useState({
     userId: "",
@@ -93,14 +132,31 @@ export function ActivityDetailDialog({
   });
 
   const isDraft = activity?.status === "draft";
+  const isProcessing = activity?.status === "processing";
   const statusLabel =
     statuses.find((s) => s.statusCode === activity?.status)?.statusName ??
     activity?.status ??
     "";
   const currentStatus = statuses.find((s) => s.statusCode === activity?.status);
-  const nextStatus = currentStatus
-    ? statuses.find((s) => s.sortOrder === currentStatus.sortOrder + 1)
-    : undefined;
+  const nextStatus = getNextOrderStatus(statuses, activity?.status);
+  const canAdvance =
+    activity != null &&
+    activity.status !== "draft" &&
+    nextStatus != null &&
+    !currentStatus?.isTerminal;
+
+  const isCompleting =
+    isProcessing && nextStatus?.statusCode === "completed";
+
+  const paymentPreview = useMemo(() => {
+    if (!paymentSummary || !isProcessing) return null;
+    return computePaymentPreview(
+      paymentSummary.invoiceTotal,
+      paymentSummary.customerBalance,
+      pendingPayments,
+      useBalanceOnComplete,
+    );
+  }, [paymentSummary, isProcessing, pendingPayments, useBalanceOnComplete]);
 
   const load = useCallback(async () => {
     if (!activityId) return;
@@ -113,10 +169,14 @@ export function ActivityDetailDialog({
         lookupApi.products(),
         orderStatusesApi.getAll(),
       ]);
+      const summary = act.invoiceId
+        ? await paymentsApi.getSummary(activityId)
+        : null;
       setActivity(act);
       setDetails(detailList);
       setProducts(productList);
       setStatuses(statusList);
+      setPaymentSummary(summary);
       setHeaderForm({
         userId: String(act.userId),
         customerId: String(act.customerId),
@@ -134,9 +194,35 @@ export function ActivityDetailDialog({
     if (open && activityId) {
       setLineForm(emptyLineForm);
       setEditingProductId(null);
+      setPaymentForm(emptyPaymentForm);
+      setPendingPayments([]);
+      setUseBalanceOnComplete(true);
       void load();
     }
   }, [open, activityId, load]);
+
+  function addPendingPayment(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = Number(paymentForm.paidAmount);
+    if (!amount || amount <= 0) {
+      setError("Số tiền thu phải lớn hơn 0");
+      return;
+    }
+    setError(null);
+    setPendingPayments((list) => [
+      ...list,
+      {
+        clientId: `p-${Date.now()}-${list.length}`,
+        paidAmount: amount,
+        method: paymentForm.method,
+      },
+    ]);
+    setPaymentForm(emptyPaymentForm);
+  }
+
+  function removePendingPayment(clientId: string) {
+    setPendingPayments((list) => list.filter((p) => p.clientId !== clientId));
+  }
 
   async function saveHeader() {
     if (!activity) return;
@@ -231,7 +317,18 @@ export function ActivityDetailDialog({
     setSaving(true);
     setError(null);
     try {
-      await activitiesApi.advanceStatus(activity.id);
+      const body = isCompleting
+        ? {
+            pendingPayments: pendingPayments.map((p) => ({
+              paidAmount: p.paidAmount,
+              method: p.method,
+            })),
+            applyCustomerBalance: useBalanceOnComplete,
+          }
+        : undefined;
+      await activitiesApi.advanceStatus(activity.id, body);
+      setPendingPayments([]);
+      setUseBalanceOnComplete(true);
       await load();
       onChanged();
     } catch (err) {
@@ -245,7 +342,7 @@ export function ActivityDetailDialog({
 
   const orderTotal = details.reduce((sum, d) => sum + d.lineTotal, 0);
   const userName =
-    users.find((u) => u.id === activity?.userId)?.fullname ?? "—";
+    users.find((u) => u.id === activity?.userId)?.fullName ?? "—";
   const customerName =
     customers.find((c) => c.id === activity?.customerId)?.companyName ?? "—";
 
@@ -269,6 +366,14 @@ export function ActivityDetailDialog({
             <section className="space-y-3 rounded-lg border p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge>{statusLabel}</Badge>
+                {activity.invoiceId && (
+                  <Badge variant="secondary">
+                    {isProcessing && paymentPreview
+                      ? `${paymentPreview.paymentStatusLabel} (dự kiến)`
+                      : paymentSummary?.paymentStatusLabel ??
+                        activity.paymentStatus}
+                  </Badge>
+                )}
                 {activity.invoiceId ? (
                   <Badge variant="outline">Hóa đơn #{activity.invoiceId}</Badge>
                 ) : (
@@ -291,7 +396,7 @@ export function ActivityDetailDialog({
                       <SelectContent>
                         {users.map((u) => (
                           <SelectItem key={u.id} value={String(u.id)}>
-                            {u.fullname}
+                            {u.fullName}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -519,15 +624,204 @@ export function ActivityDetailDialog({
               </p>
             </section>
 
-            <section className="flex flex-wrap gap-2 border-t pt-4">
+            {activity.invoiceId && paymentSummary && (
+              <section className="space-y-3 rounded-lg border p-4">
+                <h3 className="text-sm font-semibold">Thanh toán</h3>
+                {isProcessing && (
+                  <p className="text-xs text-amber-700">
+                    Các khoản thu chỉ được lưu vào hệ thống khi bạn chuyển trạng
+                    thái sang &quot;Hoàn thành&quot;. Số dư khách hàng chưa thay
+                    đổi cho đến lúc đó.
+                  </p>
+                )}
+                <div className="grid gap-2 text-sm sm:grid-cols-2">
+                  <p>
+                    <span className="text-muted-foreground">Tổng đơn: </span>
+                    <span className="font-medium">
+                      {formatMoney(paymentSummary.invoiceTotal)} đ
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">
+                      {isProcessing ? "Sẽ thu (dự kiến): " : "Đã thu: "}
+                    </span>
+                    <span className="font-medium">
+                      {formatMoney(
+                        isProcessing && paymentPreview
+                          ? paymentPreview.paidTotal
+                          : paymentSummary.paidTotal,
+                      )}{" "}
+                      đ
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Còn lại: </span>
+                    <span className="font-medium">
+                      {formatMoney(
+                        isProcessing && paymentPreview
+                          ? paymentPreview.remaining
+                          : paymentSummary.remaining,
+                      )}{" "}
+                      đ
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">
+                      {isProcessing ? "Số dư KH sau HT (dự kiến): " : "Số dư KH: "}
+                    </span>
+                    <span className="font-medium">
+                      {formatMoney(
+                        isProcessing && paymentPreview
+                          ? paymentPreview.projectedCustomerBalance
+                          : paymentSummary.customerBalance,
+                      )}{" "}
+                      đ
+                    </span>
+                  </p>
+                </div>
+
+                {((isProcessing && paymentPreview && paymentPreview.displayRows.length > 0) ||
+                  (!isProcessing && paymentSummary.payments.length > 0)) && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {!isProcessing && <TableHead>Ngày</TableHead>}
+                        <TableHead>Số tiền</TableHead>
+                        <TableHead>Hình thức</TableHead>
+                        {isProcessing && (
+                          <TableHead className="text-right">Xóa</TableHead>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isProcessing && paymentPreview
+                        ? paymentPreview.displayRows.map((p) => (
+                            <TableRow key={p.clientId}>
+                              <TableCell>{formatMoney(p.paidAmount)} đ</TableCell>
+                              <TableCell>
+                                {p.isBalance ? "Số dư khách hàng" : p.method}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {!p.isBalance && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      removePendingPayment(p.clientId)
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        : paymentSummary.payments.map((p) => (
+                            <TableRow key={p.id}>
+                              <TableCell>{formatDate(p.paymentDate)}</TableCell>
+                              <TableCell>{formatMoney(p.paidAmount)} đ</TableCell>
+                              <TableCell>{p.method}</TableCell>
+                            </TableRow>
+                          ))}
+                    </TableBody>
+                  </Table>
+                )}
+
+                {isProcessing && paymentSummary.canRecordPayment && (
+                  <div className="space-y-3 border-t pt-3">
+                    <p className="text-xs text-muted-foreground">
+                      Thêm các hình thức thanh toán (chưa lưu). Thu vượt tổng đơn
+                      sẽ cộng phần dư vào số dư khách hàng khi hoàn thành.
+                    </p>
+                    {paymentSummary.customerBalance > 0 && (
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={useBalanceOnComplete}
+                          onChange={(e) =>
+                            setUseBalanceOnComplete(e.target.checked)
+                          }
+                        />
+                        Khi hoàn thành: dùng số dư khách hàng trước (tối đa{" "}
+                        {formatMoney(
+                          Math.min(
+                            paymentSummary.customerBalance,
+                            paymentSummary.invoiceTotal,
+                          ),
+                        )}{" "}
+                        đ)
+                      </label>
+                    )}
+                    <form
+                      className="grid gap-3 sm:grid-cols-3"
+                      onSubmit={addPendingPayment}
+                    >
+                      <div className="grid gap-2">
+                        <Label>Số tiền thu</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          required
+                          value={paymentForm.paidAmount}
+                          onChange={(e) =>
+                            setPaymentForm((f) => ({
+                              ...f,
+                              paidAmount: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Hình thức</Label>
+                        <Select
+                          value={paymentForm.method}
+                          onValueChange={(v) =>
+                            setPaymentForm((f) => ({ ...f, method: v }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PAYMENT_METHODS.map((m) => (
+                              <SelectItem key={m.value} value={m.value}>
+                                {m.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col justify-end">
+                        <Button type="submit" variant="outline" disabled={saving}>
+                          Thêm hình thức thanh toán
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {!isProcessing && activity.invoiceId && (
+                  <p className="text-xs text-muted-foreground">
+                    Chuyển đơn sang &quot;Đang xử lý&quot; để thu tiền.
+                  </p>
+                )}
+              </section>
+            )}
+
+            <section className="flex flex-col gap-2 border-t pt-4">
               {isDraft && (
-                <Button disabled={saving} onClick={() => void confirmOrder()}>
-                  Xác nhận đơn (tạo hóa đơn)
-                </Button>
+                <>
+                  <Button disabled={saving} onClick={() => void confirmOrder()}>
+                    Xác nhận đơn (tạo hóa đơn)
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Đơn nháp dùng nút xác nhận để chuyển sang &quot;Đã xác nhận&quot;
+                    và tạo hóa đơn. Sau đó mới dùng nút chuyển trạng thái tiếp theo.
+                  </p>
+                </>
               )}
-              {activity.status !== "draft" &&
-                nextStatus &&
-                !currentStatus?.isTerminal && (
+              {canAdvance && nextStatus && (
+                <>
                   <Button
                     variant="secondary"
                     disabled={saving}
@@ -535,6 +829,24 @@ export function ActivityDetailDialog({
                   >
                     Chuyển sang: {nextStatus.statusName}
                   </Button>
+                  {isCompleting && (
+                    <p className="text-xs text-muted-foreground">
+                      Khi chuyển sang Hoàn thành, hệ thống sẽ lưu{" "}
+                      {pendingPayments.length} khoản thu
+                      {useBalanceOnComplete ? " và áp dụng số dư khách hàng" : ""}
+                      , cập nhật trạng thái thanh toán và số dư.
+                    </p>
+                  )}
+                </>
+              )}
+              {!isDraft &&
+                !canAdvance &&
+                !currentStatus?.isTerminal &&
+                statuses.length === 0 && (
+                  <p className="text-xs text-amber-600">
+                    Chưa có danh mục trạng thái đơn. Chạy seed backend (
+                    <code className="text-xs">node prisma/seed.js</code>).
+                  </p>
                 )}
               <Button
                 variant="outline"

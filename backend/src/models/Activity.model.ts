@@ -1,6 +1,8 @@
 import { isNonEmptyString, isString, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
+import tspo from 'tspo';
 
+import { PaymentStatuses, type PaymentStatusCode } from '@src/common/constants/payment-status';
 import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
 
@@ -14,6 +16,7 @@ const GetDefaults = (): IActivity => ({
   customerId: 0,
   invoiceId: null,
   status: 'draft',
+  paymentStatus: PaymentStatuses.UNPAID,
   activityDate: new Date(),
   content: '',
   createdAt: new Date(),
@@ -25,6 +28,7 @@ const schema: Schema<IActivity> = {
   userId: isUnsignedInteger,
   customerId: isUnsignedInteger,
   status: isString,
+  paymentStatus: (v) => tspo.isValue(PaymentStatuses, v),
   activityDate: transformIsDate,
   content: isString,
 };
@@ -48,6 +52,7 @@ export interface IActivity extends Entity {
   customerId: number;
   invoiceId: number | null;
   status: string;
+  paymentStatus: PaymentStatusCode;
   activityDate: Date;
   content: string;
 }

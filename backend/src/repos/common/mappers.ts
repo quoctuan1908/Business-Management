@@ -5,14 +5,17 @@ import type {
   Invoice,
   Location,
   OrderStatus,
+  Payment,
   Product,
   User,
 } from '@prisma/client';
 
+import type { PaymentStatusCode } from '@src/common/constants/payment-status';
 import type { IActivity, IActivityWrite } from '@src/models/Activity.model';
 import type { IActivityDetail, IActivityDetailView } from '@src/models/ActivityDetail.model';
 import type { ICustomer } from '@src/models/Customer.model';
-import type { IInvoice, InvoiceStatus } from '@src/models/Invoice.model';
+import type { IInvoice } from '@src/models/Invoice.model';
+import type { IPayment } from '@src/models/Payment.model';
 import type { ILocation } from '@src/models/Location.model';
 import type { IProduct } from '@src/models/Product.model';
 import type { IUser } from '@src/models/User.model';
@@ -35,12 +38,13 @@ export function toUser(row: User): IUser {
     username: row.username,
     password: row.password,
     role: row.role,
-    fullname: row.fullname,
+    fullName: row.full_name,
     department: row.department,
     phoneNumber: row.phone_number,
     email: row.email,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
   };
 }
 
@@ -86,7 +90,18 @@ export function toInvoice(row: Invoice): IInvoice {
     id: row.invoice_id,
     totalAmount: Number(row.total_amount),
     date: row.date,
-    status: row.status as InvoiceStatus,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function toPayment(row: Payment): IPayment {
+  return {
+    id: row.payment_id,
+    activityId: row.activity_id,
+    paidAmount: Number(row.paid_amount),
+    paymentDate: row.payment_date,
+    method: row.method,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -99,6 +114,7 @@ export function toActivity(row: Activity): IActivity {
     customerId: row.customer_id,
     invoiceId: row.invoice_id,
     status: row.status,
+    paymentStatus: row.payment_status as PaymentStatusCode,
     activityDate: row.activity_date,
     content: row.content,
     createdAt: row.created_at,
@@ -177,13 +193,21 @@ export function customerToPrismaData(
   };
 }
 
-export function invoiceToPrismaData(
-  invoice: Pick<IInvoice, 'totalAmount' | 'date' | 'status'>,
-) {
+export function invoiceToPrismaData(invoice: Pick<IInvoice, 'totalAmount' | 'date'>) {
   return {
     total_amount: invoice.totalAmount,
     date: invoice.date,
-    status: invoice.status,
+  };
+}
+
+export function paymentToPrismaData(
+  payment: Pick<IPayment, 'activityId' | 'paidAmount' | 'paymentDate' | 'method'>,
+) {
+  return {
+    activity_id: payment.activityId,
+    paid_amount: payment.paidAmount,
+    payment_date: payment.paymentDate,
+    method: payment.method,
   };
 }
 

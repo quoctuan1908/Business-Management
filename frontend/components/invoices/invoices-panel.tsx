@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { invoicesApi } from "@/lib/api";
-import type { Invoice, InvoiceStatus } from "@/lib/types";
+import type { Invoice } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,13 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -36,7 +29,6 @@ const emptyForm = {
   id: 0,
   totalAmount: "",
   date: "",
-  status: "unpaid" as InvoiceStatus,
 };
 
 function formatDate(value: string) {
@@ -82,7 +74,6 @@ export function InvoicesPanel() {
       id: invoice.id,
       totalAmount: String(invoice.totalAmount),
       date: invoice.date.slice(0, 16),
-      status: invoice.status,
     });
     setDialogOpen(true);
   }
@@ -96,7 +87,6 @@ export function InvoicesPanel() {
         id: form.id,
         totalAmount: Number(form.totalAmount),
         date: new Date(form.date).toISOString(),
-        status: form.status,
       };
       if (form.id === 0) {
         await invoicesApi.add(payload);
@@ -153,7 +143,6 @@ export function InvoicesPanel() {
                 <TableHead>ID</TableHead>
                 <TableHead>Số tiền</TableHead>
                 <TableHead>Ngày</TableHead>
-                <TableHead>Trạng thái</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
@@ -163,9 +152,6 @@ export function InvoicesPanel() {
                   <TableCell>{invoice.id}</TableCell>
                   <TableCell>{formatMoney(invoice.totalAmount)}</TableCell>
                   <TableCell>{formatDate(invoice.date)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{invoice.status}</Badge>
-                  </TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"
@@ -220,24 +206,6 @@ export function InvoicesPanel() {
                   setForm((f) => ({ ...f, date: e.target.value }))
                 }
               />
-            </div>
-            <div className="grid gap-2">
-              <Label>Trạng thái</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, status: v as InvoiceStatus }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="paid">paid</SelectItem>
-                  <SelectItem value="unpaid">unpaid</SelectItem>
-                  <SelectItem value="partial">partial</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <Button type="submit" disabled={saving}>
               {saving ? "Đang lưu..." : "Lưu"}
