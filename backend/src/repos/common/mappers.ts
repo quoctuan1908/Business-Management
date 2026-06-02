@@ -29,7 +29,7 @@ export interface IOrderStatus {
 }
 
 /******************************************************************************
-  Prisma (snake_case DB) → Domain (camelCase, Entity.id for own PK)
+  Prisma + DB (snake_case, e.g. created_at) → Domain/API (camelCase, Entity.id)
 ******************************************************************************/
 
 export function toUser(row: User): IUser {

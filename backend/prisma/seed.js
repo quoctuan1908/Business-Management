@@ -112,7 +112,7 @@ async function main() {
       email: "admin@company.com",
     },
   });
-  const staffUser01 = await prisma.user.create({
+  const sellerUser01 = await prisma.user.create({
     data: {
       username: "nhanvien01",
       password: defaultPassword,
@@ -120,10 +120,10 @@ async function main() {
       full_name: "Nguyen Van A",
       department: "Sales",
       phone_number: "0912345678",
-      email: "a.sales@company.com",
+      email: "seller01@company.com",
     },
   });
-  const staffUser02 = await prisma.user.create({
+  const sellerUser02 = await prisma.user.create({
     data: {
       username: "nhanvien02",
       password: defaultPassword,
@@ -131,7 +131,7 @@ async function main() {
       full_name: "Tran Thi B",
       department: "Marketing",
       phone_number: "0987654321",
-      email: "b.mkt@company.com",
+      email: "seller02@company.com",
     },
   });
 
@@ -193,7 +193,7 @@ async function main() {
     );
   }
 
-  const staffUsers = [staffUser01, staffUser02];
+  const staffUsers = [sellerUser01, sellerUser02];
 
   await prisma.product.createMany({
     data: [
