@@ -155,6 +155,133 @@ async function comparePassword(plainText: string, hash: string): Promise<boolean
 }
 
 /******************************************************************************
+                                   Statistic
+******************************************************************************/
+
+async function getEmployeeOverviewStats(userId: number) {
+  const totalActivities = await prisma.activity.count({
+    where: { user_id: userId },
+  });
+
+  const invoiceStats = await prisma.invoice.aggregate({
+    where: {
+      activity: { user_id: userId }
+    },
+    _sum: {
+      total_amount: true
+    },
+    _count: {
+      invoice_id: true
+    }
+  });
+
+  const paidStats = await prisma.invoice.aggregate({
+    where: {
+      activity: { user_id: userId },
+      status: 'paid'
+    },
+    _sum: {
+      total_amount: true
+    }
+  });
+
+  const grossRevenue = Number(invoiceStats._sum.total_amount) || 0;
+  const collectedRevenue = Number(paidStats._sum.total_amount) || 0;
+  const pendingRevenue = grossRevenue - collectedRevenue;
+  const completedCount = invoiceStats._count.invoice_id || 0;
+
+  return {
+    totalActivities,
+    conversionRate: totalActivities > 0 ? Number(((completedCount / totalActivities) * 100).toFixed(2)) : 0,
+    grossRevenue,
+    collectedRevenue,
+    pendingRevenue,
+    averageOrderValue: completedCount > 0 ? Number((grossRevenue / completedCount).toFixed(2)) : 0,
+  };
+}
+
+async function getEmployeeLocationStats(userId: number) {
+  const locations = await prisma.location.findMany({
+    where: {
+      customers: {
+        some: {
+          activities: { some: { user_id: userId } }
+        }
+      }
+    },
+    include: {
+      customers: {
+        where: {
+          activities: { some: { user_id: userId } }
+        },
+        include: {
+          activities: {
+            where: { user_id: userId },
+            include: { invoice: true }
+          }
+        }
+      }
+    }
+  });
+
+  return locations.map(loc => {
+    let revenue = 0;
+    let debt = 0;
+    
+    loc.customers.forEach(cust => {
+      debt += Number(cust.current_balance) || 0;
+      cust.activities.forEach(act => {
+        if (act.invoice) {
+          revenue += Number(act.invoice.total_amount) || 0;
+        }
+      });
+    });
+
+    return {
+      province: loc.province,
+      activeCustomersCount: loc.customers.length,
+      revenueGenerated: revenue,
+      outstandingDebt: debt
+    };
+  });
+}
+
+async function getEmployeeTopProducts(userId: number) {
+  const groupedProducts = await prisma.activityDetail.groupBy({
+    by: ['product_id'],
+    where: {
+      activity: { user_id: userId }
+    },
+    _sum: {
+      quantity: true,
+    },
+    orderBy: {
+      _sum: {
+        quantity: 'desc'
+      }
+    },
+    take: 5 
+  });
+
+  const productIds = groupedProducts.map(p => p.product_id);
+  const productsInfo = await prisma.product.findMany({
+    where: { product_id: { in: productIds } }
+  });
+
+  return groupedProducts.map(gp => {
+    const info = productsInfo.find(p => p.product_id === gp.product_id);
+    const totalQty = gp._sum.quantity || 0;
+    const unitPrice = info ? Number(info.unit_price) : 0;
+
+    return {
+      productName: info?.product_name || `Unknown (ID: ${gp.product_id})`,
+      totalQty,
+      totalSales: totalQty * unitPrice
+    };
+  });
+}
+
+/******************************************************************************
                                  Export default
 ******************************************************************************/
 
@@ -169,4 +296,7 @@ export default {
   deleteAllUsers,
   insertMultiple,
   comparePassword,
+  getEmployeeOverviewStats,
+  getEmployeeLocationStats,
+  getEmployeeTopProducts,
 } as const;
