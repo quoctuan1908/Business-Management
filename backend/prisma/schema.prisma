@@ -25,6 +25,7 @@ model RefreshToken {
 }
 
 model User {
+<<<<<<< HEAD
   user_id         Int       @id @default(autoincrement())
   username   String    @unique
   password   String
@@ -42,10 +43,26 @@ model User {
   refresh_tokens RefreshToken[]
   salaries       Salary[]
   activities     Activity[]
+=======
+  user_id       Int            @id @default(autoincrement())
+  username      String         @unique @db.VarChar(50)
+  password      String         @db.VarChar(255)
+  role          String         @db.VarChar(50)
+  full_name     String         @db.VarChar(50)
+  department    String         @db.VarChar(50)
+  phone_number  String         @db.VarChar(50)
+  email         String         @db.VarChar(50)
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+  deleted_at    DateTime?
+  activities    Activity[]
+  refreshTokens RefreshToken[]
+>>>>>>> feature/activities
 
   @@map("users")
 }
 
+<<<<<<< HEAD
 model Salary {
   salary_id              Int      @id @default(autoincrement())
   user_id         Int
@@ -63,6 +80,8 @@ model Salary {
   @@map("salaries")
 }
 
+=======
+>>>>>>> feature/activities
 model Product {
   product_id      Int              @id @default(autoincrement())
   product_name    String           @db.VarChar(50)
@@ -105,19 +124,19 @@ model Customer {
   @@map("customers")
 }
 
-enum InvoiceStatus {
-  paid
+/// Thanh toán đơn hàng (ERD: unpaid | partial | paid trên Activity)
+enum PaymentStatus {
   unpaid
   partial
+  paid
 }
 
 model Invoice {
-  invoice_id   Int           @id @default(autoincrement())
-  total_amount Decimal       @db.Decimal(15, 2)
+  invoice_id   Int       @id @default(autoincrement())
+  total_amount Decimal   @db.Decimal(15, 2)
   date         DateTime
-  status       InvoiceStatus
-  created_at   DateTime      @default(now())
-  updated_at   DateTime      @updatedAt
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
   activity     Activity?
 
   @@map("invoices")
@@ -133,23 +152,39 @@ model OrderStatus {
 }
 
 model Activity {
-  activity_id   Int              @id @default(autoincrement())
-  user_id       Int
-  customer_id   Int
-  invoice_id    Int?             @unique
-  status        String           @db.VarChar(50)
-  activity_date DateTime
-  content       String           @db.VarChar(50)
-  created_at    DateTime         @default(now())
-  updated_at    DateTime         @updatedAt
-  user          User             @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
-  customer      Customer         @relation(fields: [customer_id], references: [customer_id], onDelete: Restrict, onUpdate: Cascade)
-  invoice       Invoice?         @relation(fields: [invoice_id], references: [invoice_id], onDelete: SetNull, onUpdate: Cascade)
-  details       ActivityDetail[]
+  activity_id    Int              @id @default(autoincrement())
+  user_id        Int
+  customer_id    Int
+  invoice_id     Int?             @unique
+  status         String           @db.VarChar(50)
+  activity_date  DateTime
+  content        String           @db.VarChar(50)
+  payment_status PaymentStatus    @default(unpaid)
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+  user           User             @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+  customer       Customer         @relation(fields: [customer_id], references: [customer_id], onDelete: Restrict, onUpdate: Cascade)
+  invoice        Invoice?         @relation(fields: [invoice_id], references: [invoice_id], onDelete: SetNull, onUpdate: Cascade)
+  details        ActivityDetail[]
+  payments       Payment[]
 
   @@index([user_id])
   @@index([customer_id])
   @@map("activities")
+}
+
+model Payment {
+  payment_id   Int      @id @default(autoincrement())
+  activity_id  Int
+  paid_amount  Decimal  @db.Decimal(15, 2)
+  payment_date DateTime
+  method       String   @db.VarChar(30)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  activity     Activity @relation(fields: [activity_id], references: [activity_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([activity_id])
+  @@map("payments")
 }
 
 model ActivityDetail {

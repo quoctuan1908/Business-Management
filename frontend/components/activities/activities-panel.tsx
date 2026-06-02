@@ -462,7 +462,7 @@ export function ActivitiesPanel() {
 
                     <SelectItem key={u.id} value={String(u.id)}>
 
-                      {u.fullname}
+                      {u.fullName}
 
                     </SelectItem>
 

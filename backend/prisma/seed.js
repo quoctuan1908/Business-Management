@@ -1,7 +1,14 @@
 require("dotenv").config({ path: "./config/.env.development" });
+<<<<<<< HEAD
+=======
+const bcrypt = require("bcrypt");
+>>>>>>> feature/activities
 const { Pool } = require("pg");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { PrismaClient } = require("@prisma/client");
+
+const SEED_PASSWORD = "123456";
+const hashPassword = () => bcrypt.hash(SEED_PASSWORD, 12);
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is missing for seed script");
@@ -46,19 +53,61 @@ async function syncCanThoLocations() {
   return wards.length;
 }
 
+const ORDER_STATUSES = [
+  { status_code: "draft", status_name: "Nháp", sort_order: 1, is_terminal: false },
+  {
+    status_code: "confirmed",
+    status_name: "Đã xác nhận",
+    sort_order: 2,
+    is_terminal: false,
+  },
+  {
+    status_code: "processing",
+    status_name: "Đang xử lý",
+    sort_order: 3,
+    is_terminal: false,
+  },
+  {
+    status_code: "completed",
+    status_name: "Hoàn thành",
+    sort_order: 4,
+    is_terminal: true,
+  },
+];
+
+async function seedOrderStatuses() {
+  for (const row of ORDER_STATUSES) {
+    await prisma.orderStatus.upsert({
+      where: { status_code: row.status_code },
+      create: row,
+      update: {
+        status_name: row.status_name,
+        sort_order: row.sort_order,
+        is_terminal: row.is_terminal,
+      },
+    });
+  }
+}
+
 async function main() {
+  await seedOrderStatuses();
+
+  await prisma.payment.deleteMany();
   await prisma.activityDetail.deleteMany();
   await prisma.activity.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.customer.deleteMany();
   await prisma.product.deleteMany();
+  await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
   await prisma.location.deleteMany();
+
+  const defaultPassword = await hashPassword();
 
   const adminUser = await prisma.user.create({
     data: {
       username: "admin",
-      password: "123456",
+      password: defaultPassword,
       role: "admin",
       full_name: "Quan tri vien",
       department: "IT",
@@ -68,9 +117,15 @@ async function main() {
   });
   const sellerUser01 = await prisma.user.create({
     data: {
+<<<<<<< HEAD
       username: "seller01",
       password: "123456",
       role: "seller",
+=======
+      username: "nhanvien01",
+      password: defaultPassword,
+      role: "employee",
+>>>>>>> feature/activities
       full_name: "Nguyen Van A",
       department: "Sales",
       phone_number: "0912345678",
@@ -79,11 +134,19 @@ async function main() {
   });
   const sellerUser02 = await prisma.user.create({
     data: {
+<<<<<<< HEAD
       username: "seller02",
       password: "123456",
       role: "seller",
       full_name: "Tran Thi B",
       department: "Sales",
+=======
+      username: "nhanvien02",
+      password: defaultPassword,
+      role: "employee",
+      full_name: "Tran Thi B",
+      department: "Marketing",
+>>>>>>> feature/activities
       phone_number: "0987654321",
       email: "seller02@company.com",
     },
@@ -141,7 +204,7 @@ async function main() {
           representative_name: "Le Van E",
           position: "Chu tich",
           phone_number: "0923334455",
-          current_balance: "22000000.00",
+          current_balance: "5000000.00",
         },
       }),
     );
@@ -178,6 +241,7 @@ async function main() {
         user_id: staffUsers[0].user_id,
         customer_id: customers[0].customer_id,
         status: "draft",
+        payment_status: "unpaid",
         activity_date: new Date("2026-05-11T09:30:00Z"),
         content: "Don hang dang soan thao",
       },
@@ -187,6 +251,7 @@ async function main() {
         user_id: staffUsers[0].user_id,
         customer_id: customers[1].customer_id,
         status: "confirmed",
+        payment_status: "unpaid",
         activity_date: new Date("2026-05-02T08:00:00Z"),
         content: "Ghe tham va chot don hang",
       },
@@ -196,6 +261,7 @@ async function main() {
         user_id: staffUsers[1].user_id,
         customer_id: customers[2].customer_id,
         status: "processing",
+        payment_status: "partial",
         activity_date: new Date("2026-05-16T15:00:00Z"),
         content: "Giao hang va thu tien",
       },
@@ -232,12 +298,11 @@ async function main() {
       data: {
         total_amount: total2.toFixed(2),
         date: new Date("2026-05-02T08:00:00Z"),
-        status: "unpaid",
       },
     });
     await prisma.activity.update({
       where: { activity_id: activities[1].activity_id },
-      data: { invoice_id: inv2.invoice_id },
+      data: { invoice_id: inv2.invoice_id, payment_status: "unpaid" },
     });
 
     const total3 = 2950000 * 3;
@@ -245,18 +310,28 @@ async function main() {
       data: {
         total_amount: total3.toFixed(2),
         date: new Date("2026-05-16T15:00:00Z"),
-        status: "partial",
       },
     });
     await prisma.activity.update({
       where: { activity_id: activities[2].activity_id },
-      data: { invoice_id: inv3.invoice_id },
+      data: { invoice_id: inv3.invoice_id, payment_status: "partial" },
+    });
+
+    const partialPaid = Math.floor(total3 / 2);
+    await prisma.payment.create({
+      data: {
+        activity_id: activities[2].activity_id,
+        paid_amount: partialPaid.toFixed(2),
+        payment_date: new Date("2026-05-17T10:00:00Z"),
+        method: "Chuyen khoan",
+      },
     });
   }
 
   const invoiceCount = await prisma.invoice.count();
   const activityCount = await prisma.activity.count();
   const activityDetailCount = await prisma.activityDetail.count();
+  const paymentCount = await prisma.payment.count();
 
   console.log("Seed completed:", {
     adminUserId: adminUser.user_id,
@@ -266,6 +341,7 @@ async function main() {
     invoiceCount,
     activityCount,
     activityDetailCount,
+    paymentCount,
   });
 }
 
