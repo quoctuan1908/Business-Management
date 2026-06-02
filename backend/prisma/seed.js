@@ -1,8 +1,5 @@
 require("dotenv").config({ path: "./config/.env.development" });
-<<<<<<< HEAD
-=======
 const bcrypt = require("bcrypt");
->>>>>>> feature/activities
 const { Pool } = require("pg");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { PrismaClient } = require("@prisma/client");
@@ -117,15 +114,9 @@ async function main() {
   });
   const sellerUser01 = await prisma.user.create({
     data: {
-<<<<<<< HEAD
-      username: "seller01",
-      password: "123456",
-      role: "seller",
-=======
       username: "nhanvien01",
       password: defaultPassword,
       role: "employee",
->>>>>>> feature/activities
       full_name: "Nguyen Van A",
       department: "Sales",
       phone_number: "0912345678",
@@ -134,19 +125,11 @@ async function main() {
   });
   const sellerUser02 = await prisma.user.create({
     data: {
-<<<<<<< HEAD
-      username: "seller02",
-      password: "123456",
-      role: "seller",
-      full_name: "Tran Thi B",
-      department: "Sales",
-=======
       username: "nhanvien02",
       password: defaultPassword,
       role: "employee",
       full_name: "Tran Thi B",
       department: "Marketing",
->>>>>>> feature/activities
       phone_number: "0987654321",
       email: "seller02@company.com",
     },
