@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Eye, EyeOff, Lock, User, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { Label } from "@/components/ui/label";
 
 export function LoginForm() {
   const router = useRouter();
+  const { refresh } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +28,8 @@ export function LoginForm() {
     const password = formData.get("password") as string;
 
     try {
-      const result = await authApi.login({ username, password });
-      if (result) console.log(result)
+      await authApi.login({ username, password });
+      await refresh();
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tên đăng nhập hoặc mật khẩu không đúng");

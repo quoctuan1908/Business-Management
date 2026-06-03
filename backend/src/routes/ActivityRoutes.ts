@@ -2,11 +2,24 @@ import { isNumber } from 'jet-validators';
 import { transform } from 'jet-validators/utils';
 
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { Roles } from '@src/common/constants/roles';
 import Activity from '@src/models/Activity.model';
+import type { IActivityWrite } from '@src/models/Activity.model';
+import { ISessionUser } from '@src/models/common/types';
 import ActivityService from '@src/services/ActivityService';
 
 import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
+
+function activityWriteForSession(
+  sessionUser: ISessionUser,
+  activity: IActivityWrite,
+): IActivityWrite {
+  if (sessionUser.role === Roles.ADMIN) {
+    return activity;
+  }
+  return { ...activity, userId: sessionUser.userId };
+}
 
 /******************************************************************************
                                 Constants
@@ -38,13 +51,20 @@ async function getOne(req: Req, res: Res) {
 
 async function add(req: Req, res: Res) {
   const { activity } = reqValidators.add(req.body);
-  const created = await ActivityService.addOne(activity);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const created = await ActivityService.addOne(
+    activityWriteForSession(sessionUser, activity),
+  );
   res.status(HttpStatusCodes.CREATED).json({ activity: created });
 }
 
 async function update(req: Req, res: Res) {
   const { activity } = reqValidators.update(req.body);
-  const updated = await ActivityService.updateOne(activity.id, activity);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const updated = await ActivityService.updateOne(
+    activity.id,
+    activityWriteForSession(sessionUser, activity),
+  );
   res.status(HttpStatusCodes.OK).json({ activity: updated });
 }
 

@@ -35,7 +35,9 @@ function authorize(...allowedRoles: string[]) {
   return (req: Req, res: Res, next: NextFunction) => {
     const user = res.locals.sessionUser;
     if (!user || !allowedRoles.includes(user.role)) {
-      throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Permission denied');
+      return next(
+        new RouteError(HttpStatusCodes.FORBIDDEN, 'Permission denied'),
+      );
     }
     return next();
   };

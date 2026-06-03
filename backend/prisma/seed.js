@@ -86,6 +86,51 @@ async function seedOrderStatuses() {
   }
 }
 
+/** Bảng lương theo tháng cho admin và nhân viên (3 tháng gần nhất). */
+async function seedSalaries(users) {
+  const year = 2026;
+  const months = [3, 4, 5];
+
+  const templates = {
+    admin: [
+      { base: 25000000, commission: 0, bonus: 2000000 },
+      { base: 25000000, commission: 0, bonus: 2500000 },
+      { base: 25000000, commission: 0, bonus: 3000000 },
+    ],
+    nhanvien01: [
+      { base: 12000000, commission: 1800000, bonus: 500000 },
+      { base: 12000000, commission: 2200000, bonus: 700000 },
+      { base: 12000000, commission: 3100000, bonus: 1000000 },
+    ],
+    nhanvien02: [
+      { base: 11500000, commission: 1500000, bonus: 400000 },
+      { base: 11500000, commission: 1900000, bonus: 600000 },
+      { base: 11500000, commission: 2400000, bonus: 800000 },
+    ],
+  };
+
+  const byUsername = Object.fromEntries(users.map((u) => [u.username, u]));
+
+  for (let i = 0; i < months.length; i++) {
+    const month = months[i];
+    for (const [username, rows] of Object.entries(templates)) {
+      const user = byUsername[username];
+      if (!user) continue;
+      const row = rows[i];
+      await prisma.salary.create({
+        data: {
+          user_id: user.user_id,
+          month,
+          year,
+          base_salary: row.base.toFixed(2),
+          commission: row.commission.toFixed(2),
+          bonus: row.bonus.toFixed(2),
+        },
+      });
+    }
+  }
+}
+
 async function main() {
   await seedOrderStatuses();
 
@@ -95,6 +140,7 @@ async function main() {
   await prisma.invoice.deleteMany();
   await prisma.customer.deleteMany();
   await prisma.product.deleteMany();
+  await prisma.salary.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
   await prisma.location.deleteMany();
@@ -194,6 +240,8 @@ async function main() {
   }
 
   const staffUsers = [sellerUser01, sellerUser02];
+  const allUsers = [adminUser, sellerUser01, sellerUser02];
+  await seedSalaries(allUsers);
 
   await prisma.product.createMany({
     data: [
@@ -315,6 +363,7 @@ async function main() {
   const activityCount = await prisma.activity.count();
   const activityDetailCount = await prisma.activityDetail.count();
   const paymentCount = await prisma.payment.count();
+  const salaryCount = await prisma.salary.count();
 
   console.log("Seed completed:", {
     adminUserId: adminUser.user_id,
@@ -325,6 +374,7 @@ async function main() {
     activityCount,
     activityDetailCount,
     paymentCount,
+    salaryCount,
   });
 }
 

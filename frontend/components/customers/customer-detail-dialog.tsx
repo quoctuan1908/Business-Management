@@ -54,6 +54,8 @@ interface CustomerDetailDialogProps {
   customerId: number | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Admin: tài khoản, đơn hàng, trả tiền */
+  canManageAccount?: boolean;
   onAccountUpdated?: () => void;
 }
 
@@ -61,6 +63,7 @@ export function CustomerDetailDialog({
   customerId,
   open,
   onOpenChange,
+  canManageAccount = false,
   onAccountUpdated,
 }: CustomerDetailDialogProps) {
   const [account, setAccount] = useState<CustomerAccount | null>(null);
@@ -78,23 +81,35 @@ export function CustomerDetailDialog({
     setLoading(true);
     setError(null);
     try {
-      const [acc, locs, statuses] = await Promise.all([
-        customersApi.getAccount(customerId),
-        locationsApi.getAll(),
-        orderStatusesApi.getAll(),
-      ]);
-      setAccount(acc);
+      const locs = await locationsApi.getAll();
       setLocations(locs);
-      setStatusMap(
-        Object.fromEntries(statuses.map((s) => [s.statusCode, s.statusName])),
-      );
+
+      if (canManageAccount) {
+        const [acc, statuses] = await Promise.all([
+          customersApi.getAccount(customerId),
+          orderStatusesApi.getAll(),
+        ]);
+        setAccount(acc);
+        setStatusMap(
+          Object.fromEntries(statuses.map((s) => [s.statusCode, s.statusName])),
+        );
+      } else {
+        const customer = await customersApi.getOne(customerId);
+        setAccount({
+          customer,
+          currentBalance: customer.currentBalance,
+          totalDebt: 0,
+          orders: [],
+        });
+        setStatusMap({});
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
       setAccount(null);
     } finally {
       setLoading(false);
     }
-  }, [customerId]);
+  }, [customerId, canManageAccount]);
 
   useEffect(() => {
     if (open && customerId) {
@@ -163,7 +178,9 @@ export function CustomerDetailDialog({
             <Tabs defaultValue="info" className="w-full">
               <TabsList>
                 <TabsTrigger value="info">Thông tin</TabsTrigger>
-                <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
+                {canManageAccount && (
+                  <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="info" className="space-y-3 text-sm">
@@ -191,6 +208,7 @@ export function CustomerDetailDialog({
                 </div>
               </TabsContent>
 
+              {canManageAccount && (
               <TabsContent value="orders" className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-4">
                   <div className="grid gap-1 text-sm">
@@ -258,6 +276,7 @@ export function CustomerDetailDialog({
                   </Table>
                 )}
               </TabsContent>
+              )}
             </Tabs>
           ) : (
             !loading &&
