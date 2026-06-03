@@ -37,7 +37,6 @@ const reqValidators = {
  */
 async function check(req: Req, res: Res) {
   const token = req.cookies.accessToken;
-  console.log(token)
   if (!token) {
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Session not found');
   }
