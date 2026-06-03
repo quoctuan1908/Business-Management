@@ -28,6 +28,17 @@ userRouter.get(Paths.Users.Search, UserRoutes.search);
 userRouter.post(Paths.Users.Add, UserRoutes.add);
 userRouter.put(Paths.Users.Update, UserRoutes.update);
 userRouter.delete(Paths.Users.Delete, UserRoutes.delete);
+userRouter.get(Paths.Users.StatsOverview, UserRoutes.getOverviewStats);
+userRouter.get(Paths.Users.StatsMonthly, UserRoutes.getMonthlyStats);
+userRouter.get(Paths.Users.StatsLocations, UserRoutes.getLocationStats);
+userRouter.get(Paths.Users.StatsTopProducts, UserRoutes.getTopProducts);
+userRouter.get(Paths.Users.StatsStatusBreakdown, UserRoutes.getStatusBreakdown);
+userRouter.get(Paths.Users.StatsRecentSales, UserRoutes.getRecentSalesTimeline);
+userRouter.get(Paths.Users.StatsSellerOverview, UserRoutes.getSellerOverviewStats);
+userRouter.get(Paths.Users.StatsSellerMonthly, UserRoutes.getSellerMonthlyStats);
+userRouter.get(Paths.Users.StatsSellerTopDebtors, UserRoutes.getEmployeeTopDebtors);
+userRouter.get(Paths.Users.StatsShipperOverview, UserRoutes.getShipperOverviewStats);
+userRouter.get(Paths.Users.StatsShipperMonthly, UserRoutes.getShipperMonthlyStats);
 apiRouter.use(Paths.Users._, userRouter);
 
 const salaryRouter = Router();

@@ -9,7 +9,8 @@ import {
   LogOut,
   Package,
   Users,
-  UserCog
+  UserCog,
+  LayoutDashboard
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -17,15 +18,21 @@ import { cn } from "@/lib/utils";
 import { authApi } from "@/lib/api";
 import { User } from "@/lib/types";
 
-export type AppSection = "products" | "customers" | "activities" | "invoices" | "salaries" | "users";
+export type AppSection = "user-dashboard" | "products" | "customers" | "activities" | "invoices" | "salaries" | "users";
 
 type NavItem = {
   id: AppSection;
   label: string;
   icon: React.ReactNode;
+  adminOnly?: boolean;
 };
 
 const moduleNavItems: NavItem[] = [
+  {
+    id: "user-dashboard",
+    label: "Thống kê cá nhân",
+    icon: <LayoutDashboard className="h-4 w-4" />,
+  },
   {
     id: "products",
     label: "Sản phẩm",
@@ -50,11 +57,13 @@ const moduleNavItems: NavItem[] = [
     id: "users",
     label: "Nhân sự",
     icon: <UserCog className="h-4 w-4" />,
+    adminOnly: true, // Restricted to admins
   },
   {
     id: "salaries",
     label: "Tiền lương",
     icon: <DollarSign className="h-4 w-4" />,
+    adminOnly: true, // Restricted to admins
   }
 ];
 
@@ -77,8 +86,13 @@ export function AppShell({
     const verifySession = async () => {
       try {
         const data = await authApi.check();
-        console.log(data)
+        console.log(data);
         setUser(data.user);
+        
+        // Khởi tạo một biến local để tránh gọi trực tiếp activeSection từ bên ngoài vào
+        if (data.user && data.user.role !== "admin") {
+          onSectionChange("user-dashboard");
+        }
       } catch (error) {
         setUser(null);
       } finally {
@@ -86,7 +100,8 @@ export function AppShell({
       }
     };
     verifySession();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Sửa từ [onSectionChange] thành []
 
   const handleLoginClick = () => {
     router.push("/auth");
@@ -105,6 +120,12 @@ export function AppShell({
   if (isLoading) {
     return null;
   }
+
+  // Filter sidebar menu items based on the logged-in user's role
+  const allowedNavItems = moduleNavItems.filter(item => {
+    //if (item.adminOnly && user?.role !== "admin") return false;
+    return true;
+  });
 
   return (
     <div className="flex min-h-screen bg-muted/30">
@@ -142,7 +163,7 @@ export function AppShell({
           <div className="px-3 pb-1 text-xs font-medium uppercase text-muted-foreground">
             Module
           </div>
-          {moduleNavItems.map((item) => (
+          {allowedNavItems.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -170,6 +191,10 @@ export const sectionMeta: Record<
   AppSection,
   { title: string; description: string }
 > = {
+  "user-dashboard": {
+    title: "Bảng thống kê cá nhân",
+    description: "Theo dõi hiệu suất doanh thu, hoạt động kinh doanh và số liệu thị trường thời gian thực.",
+  },
   products: {
     title: "Sản phẩm",
     description: "Quản lý danh mục sản phẩm và tồn kho",

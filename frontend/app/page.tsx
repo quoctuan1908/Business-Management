@@ -13,6 +13,8 @@ import { InvoicesPanel } from "@/components/invoices/invoices-panel";
 import { ProductsPanel } from "@/components/products/products-panel";
 import { SalariesPanel } from "@/components/salaries/salaries-panel";
 import { UsersPanel } from "@/components/users/users-panel";
+// Imported: Integrated the dedicated employee statistics page
+import { UserDashboard } from "@/components/users/user-dashboard";
 
 function SectionPanel({ section }: { section: AppSection }) {
   switch (section) {
@@ -25,9 +27,12 @@ function SectionPanel({ section }: { section: AppSection }) {
     case "invoices":
       return <InvoicesPanel />;
     case "users":
-      return <UsersPanel/>
+      return <UsersPanel />;
     case "salaries":
       return <SalariesPanel />;
+    // Added: Handler to render the employee dashboard view
+    case "user-dashboard":
+      return <UserDashboard />;
     default:
       return null;
   }
@@ -43,8 +48,9 @@ export default function HomePage() {
       onSectionChange={setActiveSection}
     >
       <header className="border-b bg-card px-6 py-4">
-        <h2 className="text-xl font-semibold">{meta.title}</h2>
-        <p className="text-sm text-muted-foreground">{meta.description}</p>
+        {/* Safe navigation guard in case metadata for the new section isn't registered yet */}
+        <h2 className="text-xl font-semibold">{meta?.title || "Dashboard"}</h2>
+        <p className="text-sm text-muted-foreground">{meta?.description || "Employee Overview Analytics"}</p>
       </header>
       <div className="flex-1 p-6 overflow-auto">
         <SectionPanel section={activeSection} />
