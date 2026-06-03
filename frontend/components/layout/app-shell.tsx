@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   ClipboardList,
   DollarSign,
@@ -9,15 +8,22 @@ import {
   LogOut,
   Package,
   Users,
-  UserCog
+  UserCog,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { authApi } from "@/lib/api";
-import { User } from "@/lib/types";
+import { useAuth } from "@/lib/auth-context";
+import { sectionsForRole } from "@/lib/permissions";
 
-export type AppSection = "products" | "customers" | "activities" | "invoices" | "salaries" | "users";
+export type AppSection =
+  | "products"
+  | "customers"
+  | "activities"
+  | "invoices"
+  | "salaries"
+  | "users";
 
 type NavItem = {
   id: AppSection;
@@ -25,7 +31,7 @@ type NavItem = {
   icon: React.ReactNode;
 };
 
-const moduleNavItems: NavItem[] = [
+const allNavItems: NavItem[] = [
   {
     id: "products",
     label: "Sản phẩm",
@@ -55,7 +61,7 @@ const moduleNavItems: NavItem[] = [
     id: "salaries",
     label: "Tiền lương",
     icon: <DollarSign className="h-4 w-4" />,
-  }
+  },
 ];
 
 type AppShellProps = {
@@ -70,23 +76,11 @@ export function AppShell({
   onSectionChange,
 }: AppShellProps) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isLoading, clearUser } = useAuth();
 
-  useEffect(() => {
-    const verifySession = async () => {
-      try {
-        const data = await authApi.check();
-        console.log(data)
-        setUser(data.user);
-      } catch (error) {
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    verifySession();
-  }, []);
+  const navItems = allNavItems.filter((item) =>
+    sectionsForRole(user?.role).includes(item.id),
+  );
 
   const handleLoginClick = () => {
     router.push("/auth");
@@ -95,7 +89,7 @@ export function AppShell({
   const handleLogoutClick = async () => {
     try {
       await authApi.logout();
-      setUser(null);
+      clearUser();
       router.push("/auth");
     } catch (error) {
       console.error("Logout failed", error);
@@ -105,6 +99,13 @@ export function AppShell({
   if (isLoading) {
     return null;
   }
+
+  const roleLabel =
+    user?.role === "admin"
+      ? "Quản trị"
+      : user?.role === "employee"
+        ? "Nhân viên"
+        : user?.role;
 
   return (
     <div className="flex min-h-screen bg-muted/30">
@@ -127,14 +128,20 @@ export function AppShell({
               Đăng nhập
             </button>
           ) : (
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/5 px-3 py-1.5 text-sm font-medium text-destructive shadow-sm hover:bg-destructive hover:text-destructive-foreground transition-colors w-fit"
-              onClick={handleLogoutClick}
-            >
-              <LogOut className="h-4 w-4" />
-              Đăng xuất ({user.username})
-            </button>
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-muted-foreground">
+                {user.username}
+                {roleLabel ? ` · ${roleLabel}` : ""}
+              </p>
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/5 px-3 py-1.5 text-sm font-medium text-destructive shadow-sm hover:bg-destructive hover:text-destructive-foreground transition-colors w-fit"
+                onClick={handleLogoutClick}
+              >
+                <LogOut className="h-4 w-4" />
+                Đăng xuất
+              </button>
+            </div>
           )}
         </div>
 
@@ -142,7 +149,7 @@ export function AppShell({
           <div className="px-3 pb-1 text-xs font-medium uppercase text-muted-foreground">
             Module
           </div>
-          {moduleNavItems.map((item) => (
+          {navItems.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -151,7 +158,7 @@ export function AppShell({
                 "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
                 activeSection === item.id
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {item.icon}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { CustomersPanel } from "@/components/customers/customers-panel";
@@ -13,6 +13,12 @@ import { InvoicesPanel } from "@/components/invoices/invoices-panel";
 import { ProductsPanel } from "@/components/products/products-panel";
 import { SalariesPanel } from "@/components/salaries/salaries-panel";
 import { UsersPanel } from "@/components/users/users-panel";
+import { useAuth } from "@/lib/auth-context";
+import {
+  canAccessSection,
+  isAdmin,
+  sectionsForRole,
+} from "@/lib/permissions";
 
 function SectionPanel({ section }: { section: AppSection }) {
   switch (section) {
@@ -25,7 +31,7 @@ function SectionPanel({ section }: { section: AppSection }) {
     case "invoices":
       return <InvoicesPanel />;
     case "users":
-      return <UsersPanel/>
+      return <UsersPanel />;
     case "salaries":
       return <SalariesPanel />;
     default:
@@ -33,8 +39,28 @@ function SectionPanel({ section }: { section: AppSection }) {
   }
 }
 
+function defaultSection(role: string | undefined): AppSection {
+  return isAdmin(role) ? "products" : "activities";
+}
+
 export default function HomePage() {
-  const [activeSection, setActiveSection] = useState<AppSection>("products");
+  const { user } = useAuth();
+  const [activeSection, setActiveSection] = useState<AppSection>("activities");
+
+  useEffect(() => {
+    if (!user) return;
+    const allowed = sectionsForRole(user.role);
+    if (!canAccessSection(user.role, activeSection)) {
+      setActiveSection(allowed[0] ?? defaultSection(user.role));
+    }
+  }, [user, activeSection]);
+
+  useEffect(() => {
+    if (user?.userId) {
+      setActiveSection(defaultSection(user.role));
+    }
+  }, [user?.userId, user?.role]);
+
   const meta = sectionMeta[activeSection];
 
   return (

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { productsApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import type { Product } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,7 @@ function formatMoney(value: number) {
 }
 
 export function ProductsPanel() {
+  const { isAdmin } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,10 +123,12 @@ export function ProductsPanel() {
             <RefreshCw className="h-4 w-4" />
             Tải lại
           </Button>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            Thêm
-          </Button>
+          {isAdmin && (
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              Thêm
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -145,7 +149,9 @@ export function ProductsPanel() {
                 <TableHead>Tên sản phẩm</TableHead>
                 <TableHead>Đơn giá</TableHead>
                 <TableHead>Tồn kho</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
+                {isAdmin && (
+                  <TableHead className="text-right">Thao tác</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -157,22 +163,24 @@ export function ProductsPanel() {
                   </TableCell>
                   <TableCell>{formatMoney(product.unitPrice)}</TableCell>
                   <TableCell>{product.stockQuantity}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEdit(product)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void handleDelete(product.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit(product)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void handleDelete(product.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

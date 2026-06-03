@@ -21,6 +21,26 @@ const API_BASE =
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
+/** 401 từ các route này không phải "token hết hạn" — không gọi refresh. */
+const AUTH_PATHS_SKIP_TOKEN_REFRESH = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/refresh",
+  "/auth/check",
+  "/auth/logout",
+];
+
+function shouldAttemptTokenRefresh(path: string, status: number): boolean {
+  if (status !== 401) return false;
+  return !AUTH_PATHS_SKIP_TOKEN_REFRESH.some((p) => path.includes(p));
+}
+
+function redirectToLoginIfNeeded() {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname.startsWith("/auth")) return;
+  window.location.href = "/auth";
+}
+
 async function request<T>(
   path: string,
   options?: RequestInit,
@@ -37,12 +57,8 @@ async function request<T>(
 
   let res = await fetch(url, defaultOptions);
 
-  // 1. Kiểm tra nếu lỗi 401 (Unauthorized - Thường là do hết hạn Access Token)
-  if (res.status === 401 && !path.includes("/auth/refresh")) {
-    
-    // Nếu chưa có tiến trình refresh nào đang chạy, thì bắt đầu refresh
+  if (shouldAttemptTokenRefresh(path, res.status)) {
     if (!isRefreshing) {
-      console.log("Refreshing token...")
       isRefreshing = true;
       refreshPromise = (async () => {
         try {
@@ -50,11 +66,10 @@ async function request<T>(
             method: "POST",
             credentials: "include",
           });
-          
+
           if (!refreshRes.ok) throw new Error("Refresh token expired");
         } catch (error) {
-          // Nếu refresh thất bại (hết hạn cả Refresh Token), xóa session và đẩy về login
-          window.location.href = "/auth";
+          redirectToLoginIfNeeded();
           throw error;
         } finally {
           isRefreshing = false;
@@ -64,7 +79,6 @@ async function request<T>(
     }
     await refreshPromise;
 
-    // 2. Thử lại request ban đầu một lần nữa sau khi đã có token mới
     res = await fetch(url, defaultOptions);
   }
 
@@ -285,9 +299,12 @@ export const authApi = {
       method: "GET",
     }),
   check: () =>
-    request<{ user: User; isLoggedIn: boolean }>("/auth/check", {
+    request<{
+      user: { userId: number; username: string; role: string };
+      isLoggedIn: boolean;
+    }>("/auth/check", {
       method: "GET",
-  }),
+    }),
 };
 
 export const salariesApi = {

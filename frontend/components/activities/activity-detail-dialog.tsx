@@ -10,6 +10,7 @@ import {
   orderStatusesApi,
   paymentsApi,
 } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import {
   computePaymentPreview,
   type PendingPaymentLine,
@@ -57,6 +58,8 @@ type ActivityDetailDialogProps = {
   onChanged: () => void;
   users: User[];
   customers: Customer[];
+  /** Admin: xác nhận đơn, chuyển trạng thái, thanh toán */
+  canManageOrder?: boolean;
 };
 
 const emptyLineForm = {
@@ -105,7 +108,9 @@ export function ActivityDetailDialog({
   onChanged,
   users,
   customers,
+  canManageOrder = false,
 }: ActivityDetailDialogProps) {
+  const { user: sessionUser } = useAuth();
   const [activity, setActivity] = useState<Activity | null>(null);
   const [details, setDetails] = useState<ActivityDetail[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -169,9 +174,10 @@ export function ActivityDetailDialog({
         lookupApi.products(),
         orderStatusesApi.getAll(),
       ]);
-      const summary = act.invoiceId
-        ? await paymentsApi.getSummary(activityId)
-        : null;
+      const summary =
+        canManageOrder && act.invoiceId
+          ? await paymentsApi.getSummary(activityId)
+          : null;
       setActivity(act);
       setDetails(detailList);
       setProducts(productList);
@@ -188,7 +194,7 @@ export function ActivityDetailDialog({
     } finally {
       setLoading(false);
     }
-  }, [activityId]);
+  }, [activityId, canManageOrder]);
 
   useEffect(() => {
     if (open && activityId) {
@@ -342,7 +348,9 @@ export function ActivityDetailDialog({
 
   const orderTotal = details.reduce((sum, d) => sum + d.lineTotal, 0);
   const userName =
-    users.find((u) => u.id === activity?.userId)?.fullName ?? "—";
+    users.find((u) => u.id === activity?.userId)?.fullName ??
+    sessionUser?.username ??
+    "—";
   const customerName =
     customers.find((c) => c.id === activity?.customerId)?.companyName ?? "—";
 
@@ -366,7 +374,7 @@ export function ActivityDetailDialog({
             <section className="space-y-3 rounded-lg border p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge>{statusLabel}</Badge>
-                {activity.invoiceId && (
+                {canManageOrder && activity.invoiceId && (
                   <Badge variant="secondary">
                     {isProcessing && paymentPreview
                       ? `${paymentPreview.paymentStatusLabel} (dự kiến)`
@@ -374,16 +382,17 @@ export function ActivityDetailDialog({
                         activity.paymentStatus}
                   </Badge>
                 )}
-                {activity.invoiceId ? (
+                {canManageOrder && activity.invoiceId && (
                   <Badge variant="outline">Hóa đơn #{activity.invoiceId}</Badge>
-                ) : (
+                )}
+                {!activity.invoiceId && (
                   <Badge variant="secondary">Chưa có hóa đơn</Badge>
                 )}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-xs text-muted-foreground">Nhân viên</p>
-                  {isDraft ? (
+                  {isDraft && canManageOrder ? (
                     <Select
                       value={headerForm.userId}
                       onValueChange={(v) =>
@@ -624,7 +633,7 @@ export function ActivityDetailDialog({
               </p>
             </section>
 
-            {activity.invoiceId && paymentSummary && (
+            {canManageOrder && activity.invoiceId && paymentSummary && (
               <section className="space-y-3 rounded-lg border p-4">
                 <h3 className="text-sm font-semibold">Thanh toán</h3>
                 {isProcessing && (
@@ -809,7 +818,7 @@ export function ActivityDetailDialog({
             )}
 
             <section className="flex flex-col gap-2 border-t pt-4">
-              {isDraft && (
+              {canManageOrder && isDraft && (
                 <>
                   <Button disabled={saving} onClick={() => void confirmOrder()}>
                     Xác nhận đơn (tạo hóa đơn)
@@ -820,7 +829,7 @@ export function ActivityDetailDialog({
                   </p>
                 </>
               )}
-              {canAdvance && nextStatus && (
+              {canManageOrder && canAdvance && nextStatus && (
                 <>
                   <Button
                     variant="secondary"

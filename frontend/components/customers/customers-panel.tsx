@@ -5,6 +5,7 @@ import { Eye, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { CustomerDetailDialog } from "@/components/customers/customer-detail-dialog";
 import { customersApi, locationsApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import type { Customer, Location } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,6 +53,7 @@ function locationLabel(loc: Location) {
 }
 
 export function CustomersPanel() {
+  const { isAdmin } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,14 +166,16 @@ export function CustomersPanel() {
             <RefreshCw className="h-4 w-4" />
             Tải lại
           </Button>
-          <Button
-            size="sm"
-            onClick={openCreate}
-            disabled={locations.length === 0}
-          >
-            <Plus className="h-4 w-4" />
-            Thêm
-          </Button>
+          {isAdmin && (
+            <Button
+              size="sm"
+              onClick={openCreate}
+              disabled={locations.length === 0}
+            >
+              <Plus className="h-4 w-4" />
+              Thêm
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -238,21 +242,25 @@ export function CustomersPanel() {
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      title="Sửa"
-                      onClick={() => openEdit(customer)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void handleDelete(customer.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {isAdmin && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Sửa"
+                          onClick={() => openEdit(customer)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleDelete(customer.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -265,6 +273,7 @@ export function CustomersPanel() {
         customerId={detailCustomerId}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        canManageAccount={isAdmin}
         onAccountUpdated={() => void load()}
       />
 

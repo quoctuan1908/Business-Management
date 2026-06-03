@@ -11,6 +11,7 @@ import { Eye, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { ActivityDetailDialog } from "@/components/activities/activity-detail-dialog";
 
 import { activitiesApi, lookupApi, orderStatusesApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 import type { Activity, ActivityWrite, Customer, User } from "@/lib/types";
 
@@ -91,6 +92,7 @@ function formatDate(value: string) {
 
 
 export function ActivitiesPanel() {
+  const { user, isAdmin } = useAuth();
 
   const [activities, setActivities] = useState<Activity[]>([]);
 
@@ -124,19 +126,15 @@ export function ActivitiesPanel() {
 
     try {
 
-      const [activityList, userList, customerList, statuses] =
+      const [activityList, customerList, statuses] = await Promise.all([
+        activitiesApi.getAll(),
+        lookupApi.customers(),
+        orderStatusesApi.getAll(),
+      ]);
 
-        await Promise.all([
-
-          activitiesApi.getAll(),
-
-          lookupApi.users(),
-
-          lookupApi.customers(),
-
-          orderStatusesApi.getAll(),
-
-        ]);
+      const userList = isAdmin
+        ? await lookupApi.users()
+        : [];
 
       setActivities(activityList);
 
@@ -164,7 +162,7 @@ export function ActivitiesPanel() {
 
     }
 
-  }, []);
+  }, [isAdmin]);
 
 
 
@@ -197,8 +195,9 @@ export function ActivitiesPanel() {
     try {
 
       const payload: ActivityWrite = {
-
-        userId: Number(createForm.userId),
+        userId: isAdmin
+          ? Number(createForm.userId)
+          : (user?.userId ?? Number(createForm.userId)),
 
         customerId: Number(createForm.customerId),
 
@@ -279,11 +278,11 @@ export function ActivitiesPanel() {
             size="sm"
 
             onClick={() => {
-
-              setCreateForm(emptyCreateForm);
-
+              setCreateForm({
+                ...emptyCreateForm,
+                userId: user?.userId ? String(user.userId) : "",
+              });
               setCreateOpen(true);
-
             }}
 
           >
@@ -392,19 +391,15 @@ export function ActivitiesPanel() {
 
                     </Button>
 
-                    <Button
-
-                      variant="ghost"
-
-                      size="sm"
-
-                      onClick={() => void handleDelete(activity.id)}
-
-                    >
-
-                      <Trash2 className="h-4 w-4 text-destructive" />
-
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void handleDelete(activity.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
 
                   </TableCell>
 
@@ -434,45 +429,32 @@ export function ActivitiesPanel() {
 
           <form className="grid gap-4" onSubmit={(e) => void handleCreate(e)}>
 
-            <div className="grid gap-2">
-
-              <Label>Nhân viên</Label>
-
-              <Select
-
-                value={createForm.userId}
-
-                onValueChange={(v) =>
-
-                  setCreateForm((f) => ({ ...f, userId: v }))
-
-                }
-
-              >
-
-                <SelectTrigger>
-
-                  <SelectValue placeholder="Chọn nhân viên" />
-
-                </SelectTrigger>
-
-                <SelectContent>
-
-                  {users.map((u) => (
-
-                    <SelectItem key={u.id} value={String(u.id)}>
-
-                      {u.fullName}
-
-                    </SelectItem>
-
-                  ))}
-
-                </SelectContent>
-
-              </Select>
-
-            </div>
+            {isAdmin ? (
+              <div className="grid gap-2">
+                <Label>Nhân viên</Label>
+                <Select
+                  value={createForm.userId}
+                  onValueChange={(v) =>
+                    setCreateForm((f) => ({ ...f, userId: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn nhân viên" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={String(u.id)}>
+                        {u.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Đơn được gán cho: <span className="font-medium">{user?.username}</span>
+              </p>
+            )}
 
             <div className="grid gap-2">
 
@@ -589,6 +571,8 @@ export function ActivitiesPanel() {
         users={users}
 
         customers={customers}
+
+        canManageOrder={isAdmin}
 
       />
 
