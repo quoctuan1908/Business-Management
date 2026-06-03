@@ -1,7 +1,7 @@
 import { isString, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 import { transformIsDate } from '@src/common/utils/validators';
-import { Entity } from './common/types';
+import { AutoCreatePayload, createInsertValidator, Entity } from './common/types';
 
 /******************************************************************************
                                    Constants
@@ -11,7 +11,7 @@ const GetDefaults = (): IUser => ({
   id: 0,
   username: '',
   password: '',
-  role: 'user',
+  role: 'employee',
   fullName: '',
   department: '',
   phoneNumber: '',
@@ -56,6 +56,10 @@ export interface IUser extends Entity {
 
 export type IUserPublic = Omit<IUser, 'password'>;
 
+export type IUserCreate = AutoCreatePayload<IUser>;
+
+const newCreate = createInsertValidator<IUser, IUserCreate>(schema, 'Invalid User Registration');
+
 /******************************************************************************
                                      Setup
 ******************************************************************************/
@@ -91,6 +95,7 @@ function toPublic(user: IUser): IUserPublic {
 
 export default {
   new: new_,
+  newCreate,
   isComplete: isCompleteUser,
   toPublic
 } as const;

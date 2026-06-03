@@ -149,6 +149,8 @@ model Activity {
   details        ActivityDetail[]
   payments       Payment[]
 
+  @@index([user_id])
+  @@index([customer_id])
   @@map("activities")
 }
 
@@ -174,6 +176,8 @@ model ActivityDetail {
   activity    Activity @relation(fields: [activity_id], references: [activity_id], onDelete: Cascade, onUpdate: Cascade)
   product     Product  @relation(fields: [product_id], references: [product_id], onDelete: Restrict, onUpdate: Cascade)
 
+
+  @@index([activity_id])
   @@id([activity_id, product_id])
   @@map("activity_details")
 }

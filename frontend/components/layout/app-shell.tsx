@@ -9,6 +9,7 @@ import {
   Package,
   Users,
   UserCog,
+  LayoutDashboard
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -16,22 +17,23 @@ import { cn } from "@/lib/utils";
 import { authApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { sectionsForRole } from "@/lib/permissions";
+import { useEffect, useState } from "react";
 
-export type AppSection =
-  | "products"
-  | "customers"
-  | "activities"
-  | "invoices"
-  | "salaries"
-  | "users";
+export type AppSection = "user-dashboard" | "products" | "customers" | "activities" | "invoices" | "salaries" | "users";
 
 type NavItem = {
   id: AppSection;
   label: string;
   icon: React.ReactNode;
+  adminOnly?: boolean;
 };
 
 const allNavItems: NavItem[] = [
+  {
+    id: "user-dashboard",
+    label: "Thống kê cá nhân",
+    icon: <LayoutDashboard className="h-4 w-4" />,
+  },
   {
     id: "products",
     label: "Sản phẩm",
@@ -56,12 +58,14 @@ const allNavItems: NavItem[] = [
     id: "users",
     label: "Nhân sự",
     icon: <UserCog className="h-4 w-4" />,
+    adminOnly: true, // Restricted to admins
   },
   {
     id: "salaries",
     label: "Tiền lương",
     icon: <DollarSign className="h-4 w-4" />,
-  },
+    adminOnly: true, // Restricted to admins
+  }
 ];
 
 type AppShellProps = {
@@ -76,7 +80,27 @@ export function AppShell({
   onSectionChange,
 }: AppShellProps) {
   const router = useRouter();
-  const { user, isLoading, clearUser } = useAuth();
+const { user, isLoading, clearUser, refresh } = useAuth();
+  const [isVerifying, setIsVerifying] = useState(true);
+
+  useEffect(() => {
+    const verifySession = async () => {
+      try {
+        await refresh();
+      } catch (error) {
+        console.error("Session verification failed", error);
+      } finally {
+        setIsVerifying(false);
+      }
+    };
+    verifySession();
+  }, []); 
+  
+  useEffect(() => {
+    if (!isVerifying && user && user.role !== "admin") {
+      onSectionChange("user-dashboard");
+    }
+  }, [user, isVerifying, onSectionChange]);
 
   const navItems = allNavItems.filter((item) =>
     sectionsForRole(user?.role).includes(item.id),
@@ -177,6 +201,10 @@ export const sectionMeta: Record<
   AppSection,
   { title: string; description: string }
 > = {
+  "user-dashboard": {
+    title: "Bảng thống kê cá nhân",
+    description: "Theo dõi hiệu suất doanh thu, hoạt động kinh doanh và số liệu thị trường thời gian thực.",
+  },
   products: {
     title: "Sản phẩm",
     description: "Quản lý danh mục sản phẩm và tồn kho",

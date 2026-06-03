@@ -4,13 +4,23 @@ const Paths = {
   _: '/api',
   Users: {
     _: '/users',
+    StatsOverview: '/stats/overview/:userId',
+    StatsLocations: '/stats/locations/:userId',
+    StatsTopProducts: '/stats/top-products/:userId',
+    StatsMonthly: '/stats/monthly/:userId',
+    StatsStatusBreakdown: '/stats/status-breakdown/:userId',
+    StatsRecentSales: '/stats/recent-sales/:userId',
+    StatsSellerOverview: '/stats/seller/overview/:userId',
+    StatsSellerMonthly: '/stats/seller/monthly/:userId',
+    StatsSellerTopDebtors: '/stats/seller/top-debtors/:userId',
+    StatsShipperOverview: '/stats/shipper/overview/:userId',
+    StatsShipperMonthly: '/stats/shipper/monthly/:userId',
     Get: '/all',
     GetOne: '/:id',
     Add: '/add',
     Search: '/search',
     Update: '/update',
     Delete: '/delete/:id',
-
     Login: '/login',
   },
   Products: {
@@ -39,7 +49,6 @@ const Paths = {
     Delete: '/delete/:id',
     Account: '/:id/account',
     ReceivePayment: '/:id/receive-payment',
-    Login: '/login',
   },
   Invoices: {
     _: '/invoices',

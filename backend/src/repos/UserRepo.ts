@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import userModel, { IUser, IUserPublic } from '@src/models/User.model';
+import userModel, { IUser, IUserCreate, IUserPublic } from '@src/models/User.model';
 import prisma from './prisma';
 
 const SALT_ROUNDS = 12;
@@ -74,7 +74,7 @@ async function search(query: string): Promise<IUser[]> {
   return rows.map(row => mapRowToUser(row));
 }
 
-async function add(user: IUser): Promise<IUserPublic> {
+async function add(user: IUserCreate): Promise<IUserPublic> {
   const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
   const row = await prisma.user.create({
     data: {
@@ -84,7 +84,7 @@ async function add(user: IUser): Promise<IUserPublic> {
       full_name: user.fullName,
       department: user.department,
       phone_number: user.phoneNumber,
-      email: user.email,
+      email: user.email,    
     },
   });
   return userModel.toPublic(mapRowToUser(row));
@@ -155,8 +155,419 @@ async function comparePassword(plainText: string, hash: string): Promise<boolean
 }
 
 /******************************************************************************
-                                 Export default
+                                   Statistics
 ******************************************************************************/
+
+/**
+ * Overall employee productivity statistics (Shared/General)
+ */
+export async function getEmployeeOverviewStats(userId: number) {
+  const [totalActivities, validOrdersCount, invoiceAggregate, paymentAggregate] = await Promise.all([
+    prisma.activity.count({ where: { user_id: userId } }),
+    prisma.activity.count({ where: { user_id: userId, NOT: { status: 'draft' } } }),
+    prisma.invoice.aggregate({
+      where: { activity: { user_id: userId } },
+      _sum: { total_amount: true },
+      _count: { invoice_id: true }
+    }),
+    prisma.payment.aggregate({
+      where: { activity: { user_id: userId } },
+      _sum: { paid_amount: true }
+    })
+  ]);
+
+  if (totalActivities === 0) {
+    return { totalActivities: 0, conversionRate: 0, grossRevenue: 0, collectedRevenue: 0, pendingRevenue: 0, averageOrderValue: 0 };
+  }
+
+  const grossRevenue = Number(invoiceAggregate._sum.total_amount) || 0;
+  const collectedRevenue = Number(paymentAggregate._sum.paid_amount) || 0;
+  const completedCount = invoiceAggregate._count.invoice_id || 0;
+
+  return {
+    totalActivities,
+    conversionRate: Number(((validOrdersCount / totalActivities) * 100).toFixed(2)),
+    grossRevenue,
+    collectedRevenue,
+    pendingRevenue: Math.max(0, grossRevenue - collectedRevenue),
+    averageOrderValue: completedCount > 0 ? Number((grossRevenue / completedCount).toFixed(2)) : 0,
+  };
+}
+
+/**
+ * Detailed monthly productivity and individual targets for a specific employee
+ */
+export async function getEmployeeMonthlyStats(userId: number, inputMonth?: number, inputYear?: number) {
+  const now = new Date();
+  const month = inputMonth ?? (now.getMonth() + 1);
+  const year = inputYear ?? now.getFullYear();
+
+  const startOfMonth = new Date(year, month - 1, 1);
+  const startOfNextMonth = new Date(year, month, 1);
+
+  const [tasksReceived, tasksProcessed, monthlyInvoices, monthlyPayments] = await Promise.all([
+    prisma.activity.count({
+      where: { user_id: userId, activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
+    }),
+    prisma.activity.count({
+      where: { user_id: userId, NOT: { status: 'draft' }, activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
+    }),
+    prisma.invoice.aggregate({
+      where: { activity: { user_id: userId }, date: { gte: startOfMonth, lt: startOfNextMonth } },
+      _sum: { total_amount: true }
+    }),
+    prisma.payment.aggregate({
+      where: { activity: { user_id: userId }, payment_date: { gte: startOfMonth, lt: startOfNextMonth } },
+      _sum: { paid_amount: true }
+    })
+  ]);
+
+  const grossRevenue = Number(monthlyInvoices._sum.total_amount) || 0;
+  const collectedRevenue = Number(monthlyPayments._sum.paid_amount) || 0;
+
+  return {
+    period: `${month.toString().padStart(2, '0')}/${year}`,
+    tasksReceived, 
+    tasksProcessed, 
+    monthlyGrossRevenue: grossRevenue, 
+    monthlyCollectedRevenue: collectedRevenue, 
+    monthlyDebtCreated: Math.max(0, grossRevenue - collectedRevenue) 
+  };
+}
+function getDateFilter(month: string, year: string) {
+  if (!year || year === "all") return undefined;
+  
+  const y = parseInt(year);
+  if (month && month !== "all") {
+    const m = parseInt(month);
+    return {
+      gte: new Date(y, m - 1, 1),
+      lt: new Date(y, m, 1),
+    };
+  } else {
+    return {
+      gte: new Date(y, 0, 1),
+      lt: new Date(y + 1, 0, 1),
+    };
+  }
+}
+
+export async function getEmployeeLocationStats(userId: number, month: string, year: string, province?: string) {
+  const dateFilter = getDateFilter(month, year);
+  
+  const locations = await prisma.location.findMany({
+    where: {
+      ...(province && province !== "all" ? { province } : {}),
+      customers: { some: { activities: { some: { user_id: userId } } } }
+    },
+    select: {
+      province: true,
+      ward: true,
+      customers: {
+        where: { activities: { some: { user_id: userId } } },
+        select: {
+          customer_id: true,
+          current_balance: true,
+          activities: {
+            where: { 
+              user_id: userId,
+              ...(dateFilter ? { activity_date: dateFilter } : {})
+            },
+            select: {
+              invoice: { select: { total_amount: true } }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  return {
+    locations: locations.map(loc => {
+      let revenueGenerated = 0;
+      let outstandingDebt = 0;
+
+      loc.customers.forEach(cust => {
+        outstandingDebt += Number(cust.current_balance) || 0;
+        cust.activities.forEach(act => {
+          if (act.invoice) {
+            revenueGenerated += Number(act.invoice.total_amount) || 0;
+          }
+        });
+      });
+
+      return {
+        province: loc.province,
+        ward: loc.ward,
+        activeCustomersCount: loc.customers.length,
+        revenueGenerated,
+        outstandingDebt
+      };
+    })
+  };
+}
+
+export async function getSellerOverviewStats(sellerId: number, month: string, year: string, province?: string) {
+  const dateFilter = getDateFilter(month, year);
+
+  const baseActivityWhere = {
+    user_id: sellerId,
+    ...(dateFilter ? { activity_date: dateFilter } : {}),
+    ...(province && province !== "all" ? { customer: { location: { province } } } : {})
+  };
+
+  const [totalActivities, validOrdersCount, invoiceAggregate] = await Promise.all([
+    prisma.activity.count({ where: baseActivityWhere }),
+    prisma.activity.count({ where: { ...baseActivityWhere, NOT: { status: 'draft' } } }),
+    prisma.invoice.aggregate({
+      where: { activity: baseActivityWhere },
+      _sum: { total_amount: true },
+      _count: { invoice_id: true }
+    })
+  ]);
+
+  const grossRevenue = Number(invoiceAggregate._sum.total_amount) || 0; 
+
+  const sellerActivities = await prisma.activity.findMany({
+    where: baseActivityWhere,
+    select: { activity_id: true }
+  });
+
+  const activityIds = sellerActivities.map(act => act.activity_id);
+
+  const paymentAggregate = await prisma.payment.aggregate({
+    where: { activity_id: { in: activityIds } },
+    _sum: { paid_amount: true }
+  });
+
+  const collectedRevenue = Number(paymentAggregate._sum.paid_amount) || 0; 
+
+  return {
+    totalActivities, 
+    conversionRate: totalActivities > 0 ? Number(((validOrdersCount / totalActivities) * 100).toFixed(2)) : 0, 
+    grossRevenue, 
+    collectedRevenue,
+    pendingRevenue: Math.max(0, grossRevenue - collectedRevenue), 
+    averageOrderValue: invoiceAggregate._count.invoice_id > 0 ? Number((grossRevenue / invoiceAggregate._count.invoice_id).toFixed(0)) : 0
+  };
+}
+
+export async function getEmployeeStatusBreakdown(userId: number, month: string, year: string, province?: string) {
+  const dateFilter = getDateFilter(month, year);
+  
+  const statusCounts = await prisma.activity.groupBy({
+    by: ['status'],
+    where: { 
+      user_id: userId,
+      ...(dateFilter ? { activity_date: dateFilter } : {}),
+      ...(province && province !== "all" ? { customer: { location: { province } } } : {})
+    },
+    _count: { activity_id: true }
+  });
+
+  return {
+    breakdown: statusCounts.map(item => ({
+      statusName: item.status, 
+      count: item._count.activity_id
+    }))
+  };
+}
+
+export async function getEmployeeRecentSalesTimeline(userId: number, month: string, year: string, province?: string) {
+  const dateFilter = getDateFilter(month, year);
+
+  const recentActivities = await prisma.activity.findMany({
+    where: { 
+      user_id: userId, 
+      invoice_id: { not: null },
+      ...(dateFilter ? { activity_date: dateFilter } : {}),
+      ...(province && province !== "all" ? { customer: { location: { province } } } : {})
+    },
+    orderBy: { activity_date: 'desc' },
+    take: 10,
+    select: {
+      activity_date: true,
+      content: true,
+      invoice: { select: { total_amount: true } },
+      customer: { select: { company_name: true } },
+      details: {
+        take: 1,
+        select: { product: { select: { product_name: true } } }
+      }
+    }
+  });
+
+  return {
+    timeline: recentActivities.map(act => ({
+      createdAt: act.activity_date, 
+      customerName: act.customer.company_name,
+      productName: act.details[0]?.product?.product_name || act.content,
+      amount: Number(act.invoice?.total_amount) || 0 
+    }))
+  };
+}
+
+export async function getEmployeeTopDebtors(userId: number, province?: string) {
+  const customers = await prisma.customer.findMany({
+    where: { 
+      activities: { some: { user_id: userId } },
+      current_balance: { gt: 0 },
+      ...(province && province !== "all" ? { location: { province } } : {})
+    },
+    select: {
+      customer_id: true,
+      company_name: true,
+      phone_number: true,
+      current_balance: true
+    },
+    orderBy: { current_balance: 'desc' },
+    take: 5
+  });
+
+  return {
+    debtors: customers.map(cust => ({
+      customerId: cust.customer_id,
+      customerName: cust.company_name,
+      phoneNumber: cust.phone_number,
+      outstandingDebt: Number(cust.current_balance) || 0
+    }))
+  };
+}
+
+export async function getSellerMonthlyStats(sellerId: number, inputMonth?: number, inputYear?: number) {
+  const now = new Date();
+  const month = inputMonth ?? (now.getMonth() + 1);
+  const year = inputYear ?? now.getFullYear();
+
+  const startOfMonth = new Date(year, month - 1, 1);
+  const startOfNextMonth = new Date(year, month, 1);
+
+  const activities = await prisma.activity.findMany({
+    where: {
+      user_id: sellerId,
+      activity_date: { gte: startOfMonth, lt: startOfNextMonth }
+    },
+    select: {
+      activity_id: true,
+      status: true,
+      invoice: { select: { total_amount: true } },
+      payments: { select: { paid_amount: true } }
+    }
+  });
+
+  let successfulDeliveries = 0;
+  let collectedCod = 0;
+
+  activities.forEach(act => {
+    if (act.status === 'completed') successfulDeliveries++;
+    act.payments.forEach(p => {
+      collectedCod += Number(p.paid_amount) || 0;
+    });
+  });
+
+  return [{
+    month: month,
+    period: `${month.toString().padStart(2, '0')}/${year}`,
+    successfulDeliveries,
+    collectedCod
+  }];
+}
+
+export async function getEmployeeTopProducts(userId: number) {
+  const groupedProducts = await prisma.activityDetail.groupBy({
+    by: ['product_id'],
+    where: { activity: { user_id: userId } },
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: 'desc' } },
+    take: 5 
+  });
+
+  if (groupedProducts.length === 0) return { products: [] };
+
+  const productsInfo = await prisma.product.findMany({
+    where: { product_id: { in: groupedProducts.map(p => p.product_id) } },
+    select: { product_id: true, product_name: true }
+  });
+
+  const detailsInfo = await prisma.activityDetail.findMany({
+    where: {
+      product_id: { in: groupedProducts.map(p => p.product_id) },
+      activity: { user_id: userId }
+    },
+    select: { product_id: true, sale_price: true, quantity: true }
+  });
+
+  const products = groupedProducts.map(gp => {
+    const info = productsInfo.find(p => p.product_id === gp.product_id);
+    const totalQty = gp._sum.quantity || 0;
+    
+    const totalSales = detailsInfo
+      .filter(d => d.product_id === gp.product_id)
+      .reduce((sum, d) => sum + (Number(d.sale_price) * (d.quantity || 0)), 0);
+
+    return {
+      productName: info?.product_name || `Unknown`,
+      totalQty,
+      totalSales
+    };
+  });
+
+  return { products };
+}
+
+export async function getShipperOverviewStats(shipperId: number) {
+  const [totalDeliveryTrips, completedDeliveries, moneyCollectedAggregate] = await Promise.all([
+    prisma.activity.count({
+      where: { user_id: shipperId, content: { contains: 'Delivery' } } 
+    }),
+    prisma.activity.count({
+      where: { user_id: shipperId, status: 'completed' }
+    }),
+    prisma.payment.aggregate({
+      where: { activity: { user_id: shipperId } },
+      _sum: { paid_amount: true }
+    })
+  ]);
+
+  return {
+    totalDeliveryTrips,
+    completedDeliveries,
+    deliverySuccessRate: totalDeliveryTrips > 0 ? Number(((completedDeliveries / totalDeliveryTrips) * 100).toFixed(2)) : 0,
+    totalMoneyCollected: Number(moneyCollectedAggregate._sum.paid_amount) || 0 
+  };
+}
+
+export async function getShipperMonthlyStats(shipperId: number, inputMonth?: number, inputYear?: number) {
+  const now = new Date();
+  const month = inputMonth ?? (now.getMonth() + 1);
+  const year = inputYear ?? now.getFullYear();
+
+  const startOfMonth = new Date(year, month - 1, 1);
+  const startOfNextMonth = new Date(year, month, 1);
+
+  const [monthlyTrips, monthlySuccess, monthlyPayments] = await Promise.all([
+    prisma.activity.count({
+      where: { user_id: shipperId, content: { contains: 'Delivery' }, activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
+    }),
+    prisma.activity.count({
+      where: { user_id: shipperId, status: 'completed', activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
+    }),
+    prisma.payment.aggregate({
+      where: { activity: { user_id: shipperId }, payment_date: { gte: startOfMonth, lt: startOfNextMonth } },
+      _sum: { paid_amount: true }
+    })
+  ]);
+
+  return {
+    period: `${month.toString().padStart(2, '0')}/${year}`,
+    monthlyTrips,
+    monthlySuccess,
+    monthlyMoneyCollected: Number(monthlyPayments._sum.paid_amount) || 0
+  };
+}
+/* ==========================================================================
+   PART 5: EXPORT REPOSITORY OBJECT
+   ========================================================================== */
 
 export default {
   getOne,
@@ -169,4 +580,21 @@ export default {
   deleteAllUsers,
   insertMultiple,
   comparePassword,
+
+  // General Statistics
+  getEmployeeOverviewStats,
+  getEmployeeMonthlyStats,
+  getEmployeeLocationStats,
+  getEmployeeTopProducts,
+  getEmployeeStatusBreakdown,
+  getEmployeeRecentSalesTimeline,
+
+  // Seller Statistics
+  getSellerOverviewStats,
+  getSellerMonthlyStats,
+  getEmployeeTopDebtors,
+
+  // Shipper Statistics
+  getShipperOverviewStats,
+  getShipperMonthlyStats,
 } as const;

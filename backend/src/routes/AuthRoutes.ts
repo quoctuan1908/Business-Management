@@ -65,7 +65,6 @@ async function register(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Username already exists');
   }
   await UserRepo.add({
-    id: 0, 
     username,
     password,
     role: role || 'user',
@@ -73,9 +72,6 @@ async function register(req: Req, res: Res) {
     department: '',
     phoneNumber: '',
     email: '',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    deletedAt: null
   });
 
   return res.status(HttpStatusCodes.CREATED).json({ message: 'Register successfully!' });
@@ -92,7 +88,7 @@ async function login(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
   }
   const sessionUser: ISessionUser = {
-    userId: user.id,
+    id: user.id,
     username: user.username,
     role: user.role,
   };
@@ -102,7 +98,7 @@ async function login(req: Req, res: Res) {
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
-  await AuthRepo.saveToken(sessionUser.userId, refreshToken, expiresAt);
+  await AuthRepo.saveToken(sessionUser.id, refreshToken, expiresAt);
 
   res.cookie('accessToken', accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
   res.cookie('refreshToken', refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
@@ -116,26 +112,67 @@ async function login(req: Req, res: Res) {
  */
 async function refresh(req: Req, res: Res) {
   const { refreshToken } = req.cookies;
+  
+  // 1. Kiểm tra xem Cookie Client gửi lên có đúng Token không
+  console.log('====== DEBUG REFRESH: START ======');
+  console.log('1. Raw RefreshToken từ Cookie:', refreshToken);
+
   if (!refreshToken) {
+    console.log('❌ Lỗi: Không tìm thấy refreshToken trong Cookie');
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'No refresh token provided');
   }
 
+  // 2. Kiểm tra dữ liệu tìm được trong Database
   const tokenDb = await AuthRepo.findToken(refreshToken);
-  if (!tokenDb || tokenDb.expires_at < new Date()) {
-    if (tokenDb) await AuthRepo.deleteToken(refreshToken);
+  console.log('2. Dữ liệu Token lấy từ DB:', JSON.stringify(tokenDb, null, 2));
+
+  if (!tokenDb) {
+    console.log('❌ Lỗi: Token này không tồn tại trong Database (Có thể đã bị xóa hoặc Logout trước đó)');
     throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Session expired');
   }
 
-  await JwtUtils.verifyToken(refreshToken,EnvVars.JwtRefreshTokenKey);
+  console.log('3. So sánh thời gian hết hạn:', {
+    'Hạn của Token (expires_at)': tokenDb.expires_at,
+    'Thời gian hiện tại (now)': new Date(),
+    'Đã hết hạn chưa?': tokenDb.expires_at < new Date()
+  });
+
+  if (tokenDb.expires_at < new Date()) {
+    console.log('❌ Lỗi: Token trong DB đã hết hạn. Đang tiến hành xóa...');
+    await AuthRepo.deleteToken(refreshToken);
+    throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Session expired');
+  }
+
+  // 3. Kiểm tra tính hợp lệ về mặt chữ ký mã hóa của JWT
+  try {
+    await JwtUtils.verifyToken(refreshToken, EnvVars.JwtRefreshTokenKey);
+    console.log('4. Xác thực chữ ký JWT: Thành công (Token hợp lệ)');
+  } catch (jwtErr) {
+    console.log('❌ Lỗi: Chữ ký JWT không hợp lệ hoặc sai Secret Key:', jwtErr);
+    throw jwtErr;
+  }
+
+  // 4. Kiểm tra cấu trúc định danh User truyền vào Access Token mới
+  console.log('5. Kiểm tra dữ liệu user thô từ DB:', {
+    user_id: tokenDb.user?.user_id,
+    id: (tokenDb.user as any)?.id,
+    username: tokenDb.user?.username,
+    role: tokenDb.user?.role
+  });
 
   const sessionUser: ISessionUser = {
-    userId: tokenDb.user.user_id,
+    id: tokenDb.user.user_id,
     username: tokenDb.user.username,
     role: tokenDb.user.role,
   };
+  
+  console.log('6. Cấu trúc Object Session nạp vào Access Token mới:', sessionUser);
+
   const newAccessToken = JwtUtils.generateAccessToken(sessionUser);
+  console.log('7. Access Token mới sinh ra thành công:', newAccessToken);
 
   res.cookie('accessToken', newAccessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
+  console.log('====== DEBUG REFRESH: END ======');
 
   return res.status(HttpStatusCodes.OK).json({ message: 'Token refreshed' });
 }

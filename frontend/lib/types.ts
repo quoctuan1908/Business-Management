@@ -139,6 +139,16 @@ export interface User {
   deletedAt: string | null;
 }
 
+export interface UserCreate {
+  username: string;
+  password?: string;
+  role: string;
+  fullName: string; 
+  department: string;
+  phoneNumber: string;
+  email: string;
+}
+
 export type UserPublic = Omit<User, "password">;
 
 export interface Salary {
