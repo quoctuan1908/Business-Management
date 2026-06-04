@@ -26,12 +26,13 @@ const auth = authMiddleware.auth;
 const adminOnly = [auth, authMiddleware.authorize(Roles.ADMIN)];
 
 const userRouter = Router();
-//userRouter.use(...adminOnly);
-userRouter.get(Paths.Users.Get, UserRoutes.getAll);
-userRouter.get(Paths.Users.Search, UserRoutes.search);
-userRouter.post(Paths.Users.Add, UserRoutes.add);
-userRouter.put(Paths.Users.Update, UserRoutes.update);
-userRouter.delete(Paths.Users.Delete, UserRoutes.delete);
+userRouter.get(Paths.Users.Get, adminOnly, UserRoutes.getAll);
+userRouter.get(Paths.Users.Search, adminOnly, UserRoutes.search);
+userRouter.post(Paths.Users.Add, adminOnly, UserRoutes.add);
+userRouter.put(Paths.Users.Update, adminOnly, UserRoutes.update);
+userRouter.delete(Paths.Users.Delete, adminOnly, UserRoutes.delete);
+userRouter.get(Paths.Users.GetOne, adminOnly, UserRoutes.getOne);
+
 userRouter.get(Paths.Users.StatsOverview, UserRoutes.getOverviewStats);
 userRouter.get(Paths.Users.StatsMonthly, UserRoutes.getMonthlyStats);
 userRouter.get(Paths.Users.StatsLocations, UserRoutes.getLocationStats);
@@ -43,7 +44,6 @@ userRouter.get(Paths.Users.StatsSellerMonthly, UserRoutes.getSellerMonthlyStats)
 userRouter.get(Paths.Users.StatsSellerTopDebtors, UserRoutes.getEmployeeTopDebtors);
 userRouter.get(Paths.Users.StatsShipperOverview, UserRoutes.getShipperOverviewStats);
 userRouter.get(Paths.Users.StatsShipperMonthly, UserRoutes.getShipperMonthlyStats);
-userRouter.get(Paths.Users.GetOne, UserRoutes.getOne);
 apiRouter.use(Paths.Users._, userRouter);
 
 const salaryRouter = Router();
