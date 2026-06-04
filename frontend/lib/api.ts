@@ -369,7 +369,7 @@ export const usersApi = {
     }),
 
   getProfile: () => 
-    request<{ user: User; isLoggedIn: boolean }>("/auth/check"),
+    request<{ user: User; isLoggedIn: boolean }>(`/users/profile`),
 
   getOverviewStats: (userId: number | string) => 
     request<any>(`/users/stats/overview/${userId}`),

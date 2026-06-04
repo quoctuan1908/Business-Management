@@ -7,7 +7,7 @@ export interface Entity {
 }
 
 export interface ISessionUser {
-  id: number;
+  userId: number;
   username: string;
   role: string;
 }

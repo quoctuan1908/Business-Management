@@ -26,7 +26,7 @@ const auth = authMiddleware.auth;
 const adminOnly = [auth, authMiddleware.authorize(Roles.ADMIN)];
 
 const userRouter = Router();
-userRouter.use(...adminOnly);
+//userRouter.use(...adminOnly);
 userRouter.get(Paths.Users.Get, UserRoutes.getAll);
 userRouter.get(Paths.Users.Search, UserRoutes.search);
 userRouter.post(Paths.Users.Add, UserRoutes.add);
@@ -43,6 +43,7 @@ userRouter.get(Paths.Users.StatsSellerMonthly, UserRoutes.getSellerMonthlyStats)
 userRouter.get(Paths.Users.StatsSellerTopDebtors, UserRoutes.getEmployeeTopDebtors);
 userRouter.get(Paths.Users.StatsShipperOverview, UserRoutes.getShipperOverviewStats);
 userRouter.get(Paths.Users.StatsShipperMonthly, UserRoutes.getShipperMonthlyStats);
+userRouter.get(Paths.Users.GetOne, UserRoutes.getOne);
 apiRouter.use(Paths.Users._, userRouter);
 
 const salaryRouter = Router();

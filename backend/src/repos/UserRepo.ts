@@ -34,7 +34,7 @@ function mapRowToUser(row: any): IUser {
 async function getOne(username: string): Promise<IUser | null> {
   const row = await prisma.user.findFirst({
     where: { 
-      username,
+      username: username,
       deleted_at: null,
     },
   });
