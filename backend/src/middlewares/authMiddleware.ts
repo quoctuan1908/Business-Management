@@ -34,6 +34,7 @@ async function auth(req: Req, res: Res, next: NextFunction) {
 function authorize(...allowedRoles: string[]) {
   return (req: Req, res: Res, next: NextFunction) => {
     const user = res.locals.sessionUser;
+    console.log(user)
     if (!user || !allowedRoles.includes(user.role)) {
       return next(
         new RouteError(HttpStatusCodes.FORBIDDEN, 'Permission denied'),

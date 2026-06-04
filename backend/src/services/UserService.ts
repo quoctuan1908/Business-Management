@@ -12,6 +12,13 @@ import UserRepo from '@src/repos/UserRepo';
 /**
  * Get all users.
  */
+async function getOne(username: string): Promise<IUser | null> {
+  return UserRepo.getOne(username);
+}
+
+/**
+ * Get all users.
+ */
 function getAll(): Promise<IUserPublic[]> {
   return UserRepo.getAll();
 }
@@ -162,6 +169,7 @@ async function getShipperMonthlyStats(shipperId: number, month?: number, year?: 
 ******************************************************************************/
 
 export default {
+  getOne,
   getAll,
   search,
   addOne,

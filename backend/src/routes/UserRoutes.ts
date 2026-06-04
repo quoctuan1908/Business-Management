@@ -8,7 +8,10 @@ import UserService from '@src/services/UserService';
 import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
 import UserModel from '@src/models/User.model';
-
+import { RouteError } from '@src/common/utils/route-errors';
+import { ISessionUser } from '@src/models/common/types';
+import JwtUtils from '@src/common/utils/session-authenticate';
+import EnvVars from '@src/common/constants/env';
 
 /******************************************************************************
                                    Constants
@@ -17,7 +20,7 @@ import UserModel from '@src/models/User.model';
 const reqValidators = {
   add: parseReq({ user: User.isComplete }),
   update: parseReq({ user: User.isComplete }),
-  getOne: parseReq({ id: transform(Number, isNumber) }),
+  getOne: parseReq({ username: transform(String, isString) }),
   delete: parseReq({ id: transform(Number, isNumber) }),
   search: parseReq({ query: isString }),
   authenticate: parseReq({ 
@@ -36,6 +39,36 @@ const reqValidators = {
 /******************************************************************************
                                    Functions
 ******************************************************************************/
+
+
+/**
+ * Get one user by id.
+ * @route GET /api/users/profile
+ */
+async function getOne(req: Req, res: Res) {
+  const token = req.cookies?.accessToken;
+
+  if (!token) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'No session found. Please login.');
+  }
+
+  try {
+    const sessionUser = await JwtUtils.verifyToken(token, EnvVars.JwtTokenKey) as ISessionUser;
+    console.log(sessionUser)
+    if (!sessionUser || !sessionUser.username) {
+      throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Invalid session token');
+    }
+    const userProfile = await UserService.getOne(sessionUser.username);
+
+    if (!userProfile) {
+      throw new RouteError(HttpStatusCodes.NOT_FOUND, 'User profile not found');
+    }
+    return res.status(HttpStatusCodes.OK).json({ user: userProfile });
+
+  } catch (error) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Session expired or invalid');
+  }
+}
 
 /**
  * Get all users.
@@ -221,6 +254,7 @@ async function getShipperMonthlyStats(req: Req, res: Res) {
 ******************************************************************************/
 
 export default {
+  getOne,
   getAll,
   search,
   add,

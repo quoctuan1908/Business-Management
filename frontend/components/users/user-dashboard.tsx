@@ -20,6 +20,7 @@ export function UserDashboard() {
       try {
         setLoading(true);
         const data = await usersApi.getProfile();
+        console.log(data)
         setCurrentUser(data.user);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to authenticate session");

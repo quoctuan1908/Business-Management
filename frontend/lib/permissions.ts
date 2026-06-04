@@ -19,6 +19,7 @@ const ADMIN_SECTIONS: AppSection[] = [
 ];
 
 const EMPLOYEE_SECTIONS: AppSection[] = [
+  "user-dashboard",
   "products",
   "customers",
   "activities",

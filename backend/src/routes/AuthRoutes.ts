@@ -88,7 +88,7 @@ async function login(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
   }
   const sessionUser: ISessionUser = {
-    id: user.id,
+    userId: user.id,
     username: user.username,
     role: user.role,
   };
@@ -98,7 +98,7 @@ async function login(req: Req, res: Res) {
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
-  await AuthRepo.saveToken(sessionUser.id, refreshToken, expiresAt);
+  await AuthRepo.saveToken(sessionUser.userId, refreshToken, expiresAt);
 
   res.cookie('accessToken', accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
   res.cookie('refreshToken', refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
@@ -112,8 +112,6 @@ async function login(req: Req, res: Res) {
  */
 async function refresh(req: Req, res: Res) {
   const { refreshToken } = req.cookies;
-  
-  // 1. Kiểm tra xem Cookie Client gửi lên có đúng Token không
   console.log('====== DEBUG REFRESH: START ======');
   console.log('1. Raw RefreshToken từ Cookie:', refreshToken);
 
@@ -121,8 +119,6 @@ async function refresh(req: Req, res: Res) {
     console.log('❌ Lỗi: Không tìm thấy refreshToken trong Cookie');
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'No refresh token provided');
   }
-
-  // 2. Kiểm tra dữ liệu tìm được trong Database
   const tokenDb = await AuthRepo.findToken(refreshToken);
   console.log('2. Dữ liệu Token lấy từ DB:', JSON.stringify(tokenDb, null, 2));
 
@@ -143,7 +139,6 @@ async function refresh(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Session expired');
   }
 
-  // 3. Kiểm tra tính hợp lệ về mặt chữ ký mã hóa của JWT
   try {
     await JwtUtils.verifyToken(refreshToken, EnvVars.JwtRefreshTokenKey);
     console.log('4. Xác thực chữ ký JWT: Thành công (Token hợp lệ)');
@@ -161,7 +156,7 @@ async function refresh(req: Req, res: Res) {
   });
 
   const sessionUser: ISessionUser = {
-    id: tokenDb.user.user_id,
+    userId: tokenDb.user.user_id,
     username: tokenDb.user.username,
     role: tokenDb.user.role,
   };

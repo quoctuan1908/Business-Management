@@ -80,7 +80,7 @@ export function AppShell({
   onSectionChange,
 }: AppShellProps) {
   const router = useRouter();
-const { user, isLoading, clearUser, refresh } = useAuth();
+  const { user, isLoading, clearUser, refresh } = useAuth();
   const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
@@ -120,7 +120,7 @@ const { user, isLoading, clearUser, refresh } = useAuth();
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isVerifying) {
     return null;
   }
 
