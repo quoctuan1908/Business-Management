@@ -31,7 +31,7 @@ userRouter.get(Paths.Users.Search, adminOnly, UserRoutes.search);
 userRouter.post(Paths.Users.Add, adminOnly, UserRoutes.add);
 userRouter.put(Paths.Users.Update, adminOnly, UserRoutes.update);
 userRouter.delete(Paths.Users.Delete, adminOnly, UserRoutes.delete);
-userRouter.get(Paths.Users.GetOne, adminOnly, UserRoutes.getOne);
+userRouter.get(Paths.Users.GetOne, UserRoutes.getOne);
 
 userRouter.get(Paths.Users.StatsOverview, UserRoutes.getOverviewStats);
 userRouter.get(Paths.Users.StatsMonthly, UserRoutes.getMonthlyStats);

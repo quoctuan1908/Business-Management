@@ -252,12 +252,13 @@ function getDateFilter(month: string, year: string) {
   }
 }
 
-export async function getEmployeeLocationStats(userId: number, month: string, year: string, province?: string) {
+export async function getEmployeeLocationStats(userId: number, month: string, year: string, province?: string, ward?: string) {
   const dateFilter = getDateFilter(month, year);
   
   const locations = await prisma.location.findMany({
     where: {
       ...(province && province !== "all" ? { province } : {}),
+      ...(ward && ward !== "all" ? { ward } : {}),
       customers: { some: { activities: { some: { user_id: userId } } } }
     },
     select: {
@@ -307,13 +308,17 @@ export async function getEmployeeLocationStats(userId: number, month: string, ye
   };
 }
 
-export async function getSellerOverviewStats(sellerId: number, month: string, year: string, province?: string) {
+export async function getSellerOverviewStats(sellerId: number, month: string, year: string, province?: string, ward?: string) {
   const dateFilter = getDateFilter(month, year);
+
+  const locationFilter: any = {};
+  if (province && province !== "all") locationFilter.province = province;
+  if (ward && ward !== "all") locationFilter.ward = ward;
 
   const baseActivityWhere = {
     user_id: sellerId,
     ...(dateFilter ? { activity_date: dateFilter } : {}),
-    ...(province && province !== "all" ? { customer: { location: { province } } } : {})
+    ...(Object.keys(locationFilter).length > 0 ? { customer: { location: locationFilter } } : {})
   };
 
   const [totalActivities, validOrdersCount, invoiceAggregate] = await Promise.all([
@@ -352,15 +357,19 @@ export async function getSellerOverviewStats(sellerId: number, month: string, ye
   };
 }
 
-export async function getEmployeeStatusBreakdown(userId: number, month: string, year: string, province?: string) {
+export async function getEmployeeStatusBreakdown(userId: number, month: string, year: string, province?: string, ward?: string) {
   const dateFilter = getDateFilter(month, year);
   
+  const locationFilter: any = {};
+  if (province && province !== "all") locationFilter.province = province;
+  if (ward && ward !== "all") locationFilter.ward = ward;
+
   const statusCounts = await prisma.activity.groupBy({
     by: ['status'],
     where: { 
       user_id: userId,
       ...(dateFilter ? { activity_date: dateFilter } : {}),
-      ...(province && province !== "all" ? { customer: { location: { province } } } : {})
+      ...(Object.keys(locationFilter).length > 0 ? { customer: { location: locationFilter } } : {})
     },
     _count: { activity_id: true }
   });
@@ -373,15 +382,20 @@ export async function getEmployeeStatusBreakdown(userId: number, month: string, 
   };
 }
 
-export async function getEmployeeRecentSalesTimeline(userId: number, month: string, year: string, province?: string) {
+
+export async function getEmployeeRecentSalesTimeline(userId: number, month: string, year: string, province?: string, ward?: string) {
   const dateFilter = getDateFilter(month, year);
+
+  const locationFilter: any = {};
+  if (province && province !== "all") locationFilter.province = province;
+  if (ward && ward !== "all") locationFilter.ward = ward;
 
   const recentActivities = await prisma.activity.findMany({
     where: { 
       user_id: userId, 
       invoice_id: { not: null },
       ...(dateFilter ? { activity_date: dateFilter } : {}),
-      ...(province && province !== "all" ? { customer: { location: { province } } } : {})
+      ...(Object.keys(locationFilter).length > 0 ? { customer: { location: locationFilter } } : {})
     },
     orderBy: { activity_date: 'desc' },
     take: 10,
@@ -407,12 +421,17 @@ export async function getEmployeeRecentSalesTimeline(userId: number, month: stri
   };
 }
 
-export async function getEmployeeTopDebtors(userId: number, province?: string) {
+
+export async function getEmployeeTopDebtors(userId: number, province?: string, ward?: string) {
+  const locationFilter: any = {};
+  if (province && province !== "all") locationFilter.province = province;
+  if (ward && ward !== "all") locationFilter.ward = ward;
+
   const customers = await prisma.customer.findMany({
     where: { 
       activities: { some: { user_id: userId } },
       current_balance: { gt: 0 },
-      ...(province && province !== "all" ? { location: { province } } : {})
+      ...(Object.keys(locationFilter).length > 0 ? { location: locationFilter } : {})
     },
     select: {
       customer_id: true,
