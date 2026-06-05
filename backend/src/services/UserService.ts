@@ -86,12 +86,12 @@ async function getEmployeeMonthlyStats(userId: number, month?: number, year?: nu
 /**
  * Get employee sales revenue and customer distribution broken down by territory (Location).
  */
-async function getEmployeeLocationStats(userId: number, month: string, year: string, province?: string) {
+async function getEmployeeLocationStats(userId: number, month: string, year: string, province?: string, ward?: string) {
   const exists = await UserRepo.persists(userId);
   if (!exists) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
-  return UserRepo.getEmployeeLocationStats(userId, month, year, province);
+  return UserRepo.getEmployeeLocationStats(userId, month, year, province, ward);
 }
 
 async function getEmployeeTopProducts(userId: number) {
@@ -102,28 +102,28 @@ async function getEmployeeTopProducts(userId: number) {
   return UserRepo.getEmployeeTopProducts(userId);
 }
 
-async function getEmployeeStatusBreakdown(userId: number, month: string, year: string, province?: string) {
+async function getEmployeeStatusBreakdown(userId: number, month: string, year: string, province?: string, ward?: string) {
   const exists = await UserRepo.persists(userId);
   if (!exists) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
-  return UserRepo.getEmployeeStatusBreakdown(userId, month, year, province);
+  return UserRepo.getEmployeeStatusBreakdown(userId, month, year, province, ward);
 }
 
-async function getEmployeeRecentSalesTimeline(userId: number, month: string, year: string, province?: string) {
+async function getEmployeeRecentSalesTimeline(userId: number, month: string, year: string, province?: string, ward?: string) {
   const exists = await UserRepo.persists(userId);
   if (!exists) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
-  return UserRepo.getEmployeeRecentSalesTimeline(userId, month, year, province);
+  return UserRepo.getEmployeeRecentSalesTimeline(userId, month, year, province, ward);
 }
 
-async function getSellerOverviewStats(sellerId: number, month: string, year: string, province?: string) {
+async function getSellerOverviewStats(sellerId: number, month: string, year: string, province?: string, ward?: string) {
   const exists = await UserRepo.persists(sellerId);
   if (!exists) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
-  return UserRepo.getSellerOverviewStats(sellerId, month, year, province);
+  return UserRepo.getSellerOverviewStats(sellerId, month, year, province, ward);
 }
 
 async function getSellerMonthlyStats(sellerId: number, month?: number, year?: number) {
@@ -134,12 +134,12 @@ async function getSellerMonthlyStats(sellerId: number, month?: number, year?: nu
   return UserRepo.getSellerMonthlyStats(sellerId, month, year);
 }
 
-async function getEmployeeTopDebtors(userId: number, province?: string) {
+async function getEmployeeTopDebtors(userId: number, province?: string, ward?: string) {
   const exists = await UserRepo.persists(userId);
   if (!exists) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
-  return UserRepo.getEmployeeTopDebtors(userId, province);
+  return UserRepo.getEmployeeTopDebtors(userId, province, ward);
 }
 
 /**
