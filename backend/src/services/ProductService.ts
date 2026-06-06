@@ -1,19 +1,8 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { ProductErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import { IProduct } from '@src/models/Product.model';
 import ProductRepo from '@src/repos/ProductRepo';
-
-/******************************************************************************
-                                Constants
-******************************************************************************/
-
-const Errors = {
-  PRODUCT_NOT_FOUND: 'Product not found',
-} as const;
-
-/******************************************************************************
-                                Functions
-******************************************************************************/
 
 async function getAll() {
   return ProductRepo.getAll();

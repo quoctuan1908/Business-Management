@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { ImportDetailErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import { IImportDetail } from '@src/models/ImportDetail.model';
 import ImportDetailRepo from '@src/repos/ImportDetailRepo';
@@ -8,16 +9,6 @@ import ImportRepo from '@src/repos/ImportRepo';
 import ProductRepo from '@src/repos/ProductRepo';
 import { toImportDetailView } from '@src/repos/common/mappers';
 import prisma from '@src/repos/common/prisma';
-
-const Errors = {
-  IMPORT_NOT_FOUND: 'Import not found',
-  PRODUCT_NOT_FOUND: 'Product not found',
-  DETAIL_NOT_FOUND: 'Import detail not found',
-  DETAIL_ALREADY_EXISTS: 'Product already exists in this import',
-  INVALID_QUANTITY: 'Quantity must be greater than 0',
-  INVALID_PRICE: 'Import price must be greater than zero',
-  INSUFFICIENT_STOCK: 'Insufficient stock to remove this quantity',
-} as const;
 
 async function applyStockDelta(
   productId: number,

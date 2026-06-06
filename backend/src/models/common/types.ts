@@ -12,11 +12,7 @@ export interface ISessionUser {
   role: string;
 }
 
-export const Errors = {
-  USER_NOT_FOUND: 'User not found',
-  EMPLOYEE_NOT_FOUND: 'Employee not found',
-  INVALID_CREDENTIALS: 'Invalid username or password',
-} as const;
+export { AuthErrors as Errors } from '@src/common/constants/service-errors';
 
 export const COOKIE_OPTIONS = {
   httpOnly: true,

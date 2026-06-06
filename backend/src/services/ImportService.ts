@@ -1,16 +1,11 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { ImportErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import type { IImportWrite } from '@src/models/Import.model';
 import ImportDetailRepo from '@src/repos/ImportDetailRepo';
 import ImportRepo from '@src/repos/ImportRepo';
 import SupplierRepo from '@src/repos/SupplierRepo';
 import prisma from '@src/repos/common/prisma';
-
-const Errors = {
-  IMPORT_NOT_FOUND: 'Import not found',
-  SUPPLIER_NOT_FOUND: 'Supplier not found',
-  HAS_DETAILS: 'Cannot delete import that has detail lines',
-} as const;
 
 async function assertSupplierExists(supplierId: number) {
   if (!(await SupplierRepo.persists(supplierId))) {

@@ -6,14 +6,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Eye, Plus, RefreshCw, Trash2 } from "lucide-react";
 
-
-
 import { ActivityDetailDialog } from "@/components/activities/activity-detail-dialog";
 
 import { activitiesApi, lookupApi, orderStatusesApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
-import type { Activity, ActivityWrite, Customer, User } from "@/lib/types";
+import type { Activity, Customer, User } from "@/lib/types";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -22,64 +20,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import {
-
-  Dialog,
-
-  DialogContent,
-
-  DialogHeader,
-
-  DialogTitle,
-
-} from "@/components/ui/dialog";
-
-import { Input } from "@/components/ui/input";
-
-import { Label } from "@/components/ui/label";
-
-import {
-
-  Select,
-
-  SelectContent,
-
-  SelectItem,
-
-  SelectTrigger,
-
-  SelectValue,
-
-} from "@/components/ui/select";
-
-import {
-
   Table,
-
   TableBody,
-
   TableCell,
-
   TableHead,
-
   TableHeader,
-
   TableRow,
-
 } from "@/components/ui/table";
-
-
-
-const emptyCreateForm = {
-
-  userId: "",
-
-  customerId: "",
-
-  activityDate: new Date().toISOString().slice(0, 16),
-
-  content: "",
-
-};
 
 
 
@@ -106,15 +53,11 @@ export function ActivitiesPanel() {
 
   const [error, setError] = useState<string | null>(null);
 
-  const [createOpen, setCreateOpen] = useState(false);
-
   const [detailOpen, setDetailOpen] = useState(false);
 
+  const [createMode, setCreateMode] = useState(false);
+
   const [selectedId, setSelectedId] = useState<number | null>(null);
-
-  const [saving, setSaving] = useState(false);
-
-  const [createForm, setCreateForm] = useState(emptyCreateForm);
 
 
 
@@ -176,6 +119,8 @@ export function ActivitiesPanel() {
 
   function openDetail(activity: Activity) {
 
+    setCreateMode(false);
+
     setSelectedId(activity.id);
 
     setDetailOpen(true);
@@ -184,50 +129,13 @@ export function ActivitiesPanel() {
 
 
 
-  async function handleCreate(e: React.FormEvent) {
+  function openCreate() {
 
-    e.preventDefault();
+    setSelectedId(null);
 
-    setSaving(true);
+    setCreateMode(true);
 
-    setError(null);
-
-    try {
-
-      const payload: ActivityWrite = {
-        userId: isAdmin
-          ? Number(createForm.userId)
-          : (user?.userId ?? Number(createForm.userId)),
-
-        customerId: Number(createForm.customerId),
-
-        activityDate: new Date(createForm.activityDate).toISOString(),
-
-        content: createForm.content,
-
-      };
-
-      const created = await activitiesApi.add(payload);
-
-      setCreateOpen(false);
-
-      setCreateForm(emptyCreateForm);
-
-      await load();
-
-      setSelectedId(created.id);
-
-      setDetailOpen(true);
-
-    } catch (err) {
-
-      setError(err instanceof Error ? err.message : "Tạo hoạt động thất bại");
-
-    } finally {
-
-      setSaving(false);
-
-    }
+    setDetailOpen(true);
 
   }
 
@@ -273,19 +181,7 @@ export function ActivitiesPanel() {
 
           </Button>
 
-          <Button
-
-            size="sm"
-
-            onClick={() => {
-              setCreateForm({
-                ...emptyCreateForm,
-                userId: user?.userId ? String(user.userId) : "",
-              });
-              setCreateOpen(true);
-            }}
-
-          >
+          <Button size="sm" onClick={openCreate}>
 
             <Plus className="h-4 w-4" />
 
@@ -417,154 +313,28 @@ export function ActivitiesPanel() {
 
 
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-
-        <DialogContent>
-
-          <DialogHeader>
-
-            <DialogTitle>Tạo hoạt động mới</DialogTitle>
-
-          </DialogHeader>
-
-          <form className="grid gap-4" onSubmit={(e) => void handleCreate(e)}>
-
-            {isAdmin ? (
-              <div className="grid gap-2">
-                <Label>Nhân viên</Label>
-                <Select
-                  value={createForm.userId}
-                  onValueChange={(v) =>
-                    setCreateForm((f) => ({ ...f, userId: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Chọn nhân viên" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((u) => (
-                      <SelectItem key={u.id} value={String(u.id)}>
-                        {u.fullName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Đơn được gán cho: <span className="font-medium">{user?.username}</span>
-              </p>
-            )}
-
-            <div className="grid gap-2">
-
-              <Label>Khách hàng</Label>
-
-              <Select
-
-                value={createForm.customerId}
-
-                onValueChange={(v) =>
-
-                  setCreateForm((f) => ({ ...f, customerId: v }))
-
-                }
-
-              >
-
-                <SelectTrigger>
-
-                  <SelectValue placeholder="Chọn khách hàng" />
-
-                </SelectTrigger>
-
-                <SelectContent>
-
-                  {customers.map((c) => (
-
-                    <SelectItem key={c.id} value={String(c.id)}>
-
-                      {c.companyName}
-
-                    </SelectItem>
-
-                  ))}
-
-                </SelectContent>
-
-              </Select>
-
-            </div>
-
-            <div className="grid gap-2">
-
-              <Label>Ngày hoạt động</Label>
-
-              <Input
-
-                type="datetime-local"
-
-                required
-
-                value={createForm.activityDate}
-
-                onChange={(e) =>
-
-                  setCreateForm((f) => ({
-
-                    ...f,
-
-                    activityDate: e.target.value,
-
-                  }))
-
-                }
-
-              />
-
-            </div>
-
-            <div className="grid gap-2">
-
-              <Label>Nội dung</Label>
-
-              <Input
-
-                required
-
-                value={createForm.content}
-
-                onChange={(e) =>
-
-                  setCreateForm((f) => ({ ...f, content: e.target.value }))
-
-                }
-
-              />
-
-            </div>
-
-            <Button type="submit" disabled={saving}>
-
-              {saving ? "Đang tạo..." : "Tạo và mở chi tiết"}
-
-            </Button>
-
-          </form>
-
-        </DialogContent>
-
-      </Dialog>
-
-
-
       <ActivityDetailDialog
 
         activityId={selectedId}
 
+        createMode={createMode}
+
+        defaultUserId={user?.userId}
+
         open={detailOpen}
 
-        onOpenChange={setDetailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) {
+            setCreateMode(false);
+            setSelectedId(null);
+          }
+        }}
+
+        onCreated={(id) => {
+          setSelectedId(id);
+          setCreateMode(false);
+        }}
 
         onChanged={() => void load()}
 

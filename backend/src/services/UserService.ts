@@ -1,6 +1,6 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { AuthErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
-import { Errors } from '@src/models/common/types';
 import User,{ IUser, IUserCreate, IUserPublic } from '@src/models/User.model';
 import UserRepo, { type SellerScope } from '@src/repos/UserRepo';
 import {
@@ -152,6 +152,7 @@ async function getShipperMonthlyStats(shipperId: number, month?: number, year?: 
 ******************************************************************************/
 
 export default {
+  Errors,
   getOne,
   getAll,
   search,

@@ -1,5 +1,7 @@
 import { OrderStatusCodes } from '@src/common/constants/order-status';
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { PaymentStatuses } from '@src/common/constants/payment-status';
+import { ActivityErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import { IActivityWrite } from '@src/models/Activity.model';
 import type { IPaymentRecordInput } from '@src/models/Payment.model';
@@ -8,22 +10,10 @@ import ActivityRepo from '@src/repos/ActivityRepo';
 import CustomerRepo from '@src/repos/CustomerRepo';
 import OrderStatusRepo from '@src/repos/OrderStatusRepo';
 import UserRepo from '@src/repos/UserRepo';
-import { PaymentStatuses } from '@src/common/constants/payment-status';
-import { invoiceToPrismaData, toOrderStatus } from '@src/repos/common/mappers';
+import { invoiceToPrismaData, toActivity, toOrderStatus } from '@src/repos/common/mappers';
 import prisma from '@src/repos/common/prisma';
-import PaymentService from '@src/services/PaymentService';
-
-const Errors = {
-  ACTIVITY_NOT_FOUND: 'Activity not found',
-  USER_NOT_FOUND: 'User not found',
-  CUSTOMER_NOT_FOUND: 'Customer not found',
-  INVALID_STATUS: 'Invalid order status',
-  ORDER_NOT_DRAFT: 'Order can only be edited in draft status',
-  ORDER_EMPTY: 'Order must have at least one product line',
-  NO_NEXT_STATUS: 'No next status available',
-  STATUS_IS_TERMINAL: 'Order is already in a terminal status',
-  MUST_CONFIRM_FIRST: 'Confirm the order before advancing status',
-} as const;
+import ActivityStockService from '@src/services/activity-stock';
+import { settlePendingPaymentsInTx } from '@src/services/PaymentService';
 
 async function assertUserAndCustomer(input: IActivityWrite) {
   if (!(await UserRepo.persists(input.userId))) {
@@ -77,22 +67,35 @@ async function confirmOrder(activityId: number) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.ORDER_EMPTY);
   }
 
-  const total = await ActivityDetailRepo.sumLineTotals(activityId);
-  const invoice = await prisma.invoice.create({
-    data: invoiceToPrismaData({
-      totalAmount: total,
-      date: new Date(),
-    }),
+  return prisma.$transaction(async (tx) => {
+    const locked = await tx.activity.findUnique({
+      where: { activity_id: activityId },
+    });
+    if (!locked || locked.status !== OrderStatusCodes.DRAFT) {
+      throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.ORDER_NOT_DRAFT);
+    }
+
+    await ActivityStockService.validateStockForConfirmedOrder(activityId, tx);
+
+    const total = await ActivityDetailRepo.sumLineTotals(activityId);
+    const invoice = await tx.invoice.create({
+      data: invoiceToPrismaData({
+        totalAmount: total,
+        date: new Date(),
+      }),
+    });
+
+    const row = await tx.activity.update({
+      where: { activity_id: activityId },
+      data: {
+        invoice_id: invoice.invoice_id,
+        status: OrderStatusCodes.CONFIRMED,
+        payment_status: PaymentStatuses.UNPAID,
+      },
+    });
+
+    return { activity: toActivity(row), invoiceId: invoice.invoice_id };
   });
-
-  const updated = await ActivityRepo.linkInvoice(
-    activityId,
-    invoice.invoice_id,
-    OrderStatusCodes.CONFIRMED,
-    PaymentStatuses.UNPAID,
-  );
-
-  return { activity: updated, invoiceId: invoice.invoice_id };
 }
 
 export interface IAdvanceStatusOptions {
@@ -128,17 +131,44 @@ async function advanceStatus(
   }
   const next = toOrderStatus(nextRow);
 
+  let updated;
+
   if (
     current.statusCode === OrderStatusCodes.PROCESSING &&
     next.statusCode === OrderStatusCodes.COMPLETED
   ) {
-    await PaymentService.settlePendingPayments(activityId, {
-      pendingPayments: options?.pendingPayments ?? [],
-      applyCustomerBalance: options?.applyCustomerBalance,
+    updated = await prisma.$transaction(async (tx) => {
+      const locked = await tx.activity.findUnique({
+        where: { activity_id: activityId },
+      });
+      if (!locked) {
+        throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.ACTIVITY_NOT_FOUND);
+      }
+      if (locked.status !== OrderStatusCodes.PROCESSING) {
+        throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.INVALID_STATUS);
+      }
+
+      await ActivityStockService.deductStockForCompletedOrder(activityId, tx);
+      await settlePendingPaymentsInTx(
+        activityId,
+        locked.customer_id,
+        {
+          pendingPayments: options?.pendingPayments ?? [],
+          applyCustomerBalance: options?.applyCustomerBalance,
+        },
+        tx,
+      );
+
+      const row = await tx.activity.update({
+        where: { activity_id: activityId },
+        data: { status: next.statusCode },
+      });
+      return toActivity(row);
     });
+  } else {
+    updated = await ActivityRepo.setStatus(activityId, next.statusCode);
   }
 
-  const updated = await ActivityRepo.setStatus(activityId, next.statusCode);
   return {
     activity: updated,
     previousStatus: current.statusCode,

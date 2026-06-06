@@ -1,12 +1,8 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { SupplierErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import { ISupplier } from '@src/models/Supplier.model';
 import SupplierRepo from '@src/repos/SupplierRepo';
-
-const Errors = {
-  SUPPLIER_NOT_FOUND: 'Supplier not found',
-  SUPPLIER_HAS_IMPORTS: 'Cannot delete supplier that has imports',
-} as const;
 
 async function getAll() {
   return SupplierRepo.getAll();
