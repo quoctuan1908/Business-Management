@@ -6,24 +6,9 @@ import { Eye, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { ImportDetailDialog } from "@/components/imports/import-detail-dialog";
 import { importsApi, lookupApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type { ImportView, ImportWrite, Supplier } from "@/lib/types";
+import type { ImportView, Supplier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -32,12 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-const emptyCreateForm = {
-  supplierId: "",
-  importDate: new Date().toISOString().slice(0, 16),
-  content: "",
-};
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("vi-VN");
@@ -53,11 +32,9 @@ export function ImportsPanel() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [createMode, setCreateMode] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [createForm, setCreateForm] = useState(emptyCreateForm);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,31 +58,15 @@ export function ImportsPanel() {
   }, [load]);
 
   function openDetail(record: ImportView) {
+    setCreateMode(false);
     setSelectedId(record.id);
     setDetailOpen(true);
   }
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      const payload: ImportWrite = {
-        supplierId: Number(createForm.supplierId),
-        importDate: new Date(createForm.importDate).toISOString(),
-        content: createForm.content,
-      };
-      const created = await importsApi.add(payload);
-      setCreateOpen(false);
-      setCreateForm(emptyCreateForm);
-      await load();
-      setSelectedId(created.id);
-      setDetailOpen(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Tạo phiếu nhập thất bại");
-    } finally {
-      setSaving(false);
-    }
+  function openCreate() {
+    setSelectedId(null);
+    setCreateMode(true);
+    setDetailOpen(true);
   }
 
   async function handleDelete(id: number) {
@@ -135,7 +96,7 @@ export function ImportsPanel() {
             Tải lại
           </Button>
           {isAdmin && (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button size="sm" onClick={openCreate}>
               <Plus className="h-4 w-4" />
               Tạo phiếu nhập
             </Button>
@@ -206,65 +167,21 @@ export function ImportsPanel() {
         )}
       </CardContent>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tạo phiếu nhập mới</DialogTitle>
-          </DialogHeader>
-          <form className="grid gap-4" onSubmit={(e) => void handleCreate(e)}>
-            <div className="grid gap-2">
-              <Label>Nhà cung cấp</Label>
-              <Select
-                value={createForm.supplierId}
-                onValueChange={(v) =>
-                  setCreateForm((f) => ({ ...f, supplierId: v }))
-                }
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn nhà cung cấp" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.supplierName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Ngày nhập</Label>
-              <Input
-                type="datetime-local"
-                required
-                value={createForm.importDate}
-                onChange={(e) =>
-                  setCreateForm((f) => ({ ...f, importDate: e.target.value }))
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Nội dung</Label>
-              <Input
-                required
-                value={createForm.content}
-                onChange={(e) =>
-                  setCreateForm((f) => ({ ...f, content: e.target.value }))
-                }
-              />
-            </div>
-            <Button type="submit" disabled={saving || !createForm.supplierId}>
-              {saving ? "Đang tạo..." : "Tạo và mở chi tiết"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       <ImportDetailDialog
         importId={selectedId}
+        createMode={createMode}
         open={detailOpen}
-        onOpenChange={setDetailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) {
+            setCreateMode(false);
+            setSelectedId(null);
+          }
+        }}
+        onCreated={(id) => {
+          setSelectedId(id);
+          setCreateMode(false);
+        }}
         onChanged={() => void load()}
         suppliers={suppliers}
         canManage={isAdmin}

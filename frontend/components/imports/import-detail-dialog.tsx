@@ -3,12 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
-import {
-  importDetailsApi,
-  importsApi,
-  lookupApi,
-} from "@/lib/api";
-import type { Import, ImportDetail, Product, Supplier } from "@/lib/types";
+import { importDetailsApi, importsApi, lookupApi } from "@/lib/api";
+import type { Import, ImportDetail, ImportWrite, Product, Supplier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,6 +36,9 @@ type ImportDetailDialogProps = {
   onOpenChange: (open: boolean) => void;
   onChanged: () => void;
   suppliers: Supplier[];
+  /** Mở dialog tạo mới — nhập header và chi tiết trong cùng một màn hình */
+  createMode?: boolean;
+  onCreated?: (id: number) => void;
   canManage?: boolean;
 };
 
@@ -57,14 +56,30 @@ function formatMoney(value: number) {
   return new Intl.NumberFormat("vi-VN").format(value);
 }
 
+function buildDraftImport(): Import {
+  const now = new Date().toISOString();
+  return {
+    id: 0,
+    supplierId: 0,
+    importDate: now,
+    content: "",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export function ImportDetailDialog({
   importId,
   open,
   onOpenChange,
   onChanged,
   suppliers,
+  createMode = false,
+  onCreated,
   canManage = false,
 }: ImportDetailDialogProps) {
+  const [resolvedImportId, setResolvedImportId] = useState<number | null>(null);
+  const effectiveImportId = importId ?? resolvedImportId;
   const [importRecord, setImportRecord] = useState<Import | null>(null);
   const [details, setDetails] = useState<ImportDetail[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -79,44 +94,111 @@ export function ImportDetailDialog({
     content: "",
   });
 
-  const load = useCallback(async () => {
-    if (!importId) return;
+  const load = useCallback(
+    async (overrideId?: number) => {
+      const id = overrideId ?? effectiveImportId;
+      if (!id) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const [record, detailList, productList] = await Promise.all([
+          importsApi.getOne(id),
+          importDetailsApi.getByImport(id),
+          lookupApi.products(),
+        ]);
+        setImportRecord(record);
+        setDetails(detailList);
+        setProducts(productList);
+        setHeaderForm({
+          supplierId: String(record.supplierId),
+          importDate: record.importDate.slice(0, 16),
+          content: record.content,
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [effectiveImportId],
+  );
+
+  const initCreateMode = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [record, detailList, productList] = await Promise.all([
-        importsApi.getOne(importId),
-        importDetailsApi.getByImport(importId),
-        lookupApi.products(),
-      ]);
-      setImportRecord(record);
-      setDetails(detailList);
+      const productList = await lookupApi.products();
+      setImportRecord(buildDraftImport());
+      setDetails([]);
       setProducts(productList);
       setHeaderForm({
-        supplierId: String(record.supplierId),
-        importDate: record.importDate.slice(0, 16),
-        content: record.content,
+        supplierId: "",
+        importDate: new Date().toISOString().slice(0, 16),
+        content: "",
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
     } finally {
       setLoading(false);
     }
-  }, [importId]);
+  }, []);
 
   useEffect(() => {
-    if (open && importId) {
-      setLineForm(emptyLineForm);
-      setEditingProductId(null);
+    if (!open) {
+      setResolvedImportId(null);
+      return;
+    }
+    setLineForm(emptyLineForm);
+    setEditingProductId(null);
+
+    if (createMode && !importId) {
+      void initCreateMode();
+      return;
+    }
+    if (effectiveImportId) {
       void load();
     }
-  }, [open, importId, load]);
+  }, [open, importId, createMode, effectiveImportId, load, initCreateMode]);
+
+  function validateHeaderForCreate() {
+    if (!headerForm.supplierId) {
+      throw new Error("Vui lòng chọn nhà cung cấp");
+    }
+    if (!headerForm.content.trim()) {
+      throw new Error("Vui lòng nhập nội dung");
+    }
+    if (!headerForm.importDate) {
+      throw new Error("Vui lòng chọn ngày nhập");
+    }
+  }
+
+  async function ensureImportCreated(): Promise<Import> {
+    if (importRecord && importRecord.id > 0) {
+      return importRecord;
+    }
+    validateHeaderForCreate();
+    const payload: ImportWrite = {
+      supplierId: Number(headerForm.supplierId),
+      importDate: new Date(headerForm.importDate).toISOString(),
+      content: headerForm.content.trim(),
+    };
+    const created = await importsApi.add(payload);
+    setImportRecord(created);
+    setResolvedImportId(created.id);
+    onCreated?.(created.id);
+    onChanged();
+    return created;
+  }
 
   async function saveHeader() {
     if (!importRecord) return;
     setSaving(true);
     setError(null);
     try {
+      if (importRecord.id === 0) {
+        await ensureImportCreated();
+        return;
+      }
       const updated = await importsApi.update(importRecord.id, {
         supplierId: Number(headerForm.supplierId),
         importDate: new Date(headerForm.importDate).toISOString(),
@@ -146,8 +228,9 @@ export function ImportDetailDialog({
     setSaving(true);
     setError(null);
     try {
+      const record = await ensureImportCreated();
       const payload = {
-        importId: importRecord.id,
+        importId: record.id,
         productId: Number(lineForm.productId),
         quantity: Number(lineForm.quantity),
         importPrice: Number(lineForm.importPrice),
@@ -159,7 +242,7 @@ export function ImportDetailDialog({
       }
       setLineForm(emptyLineForm);
       setEditingProductId(null);
-      await load();
+      await load(record.id);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lưu dòng hàng thất bại");
@@ -169,13 +252,17 @@ export function ImportDetailDialog({
   }
 
   async function deleteLine(productId: number) {
-    if (!importRecord || !confirm("Xóa sản phẩm khỏi phiếu nhập? Tồn kho sẽ giảm tương ứng.")) {
+    if (
+      !importRecord ||
+      importRecord.id === 0 ||
+      !confirm("Xóa sản phẩm khỏi phiếu nhập? Tồn kho sẽ giảm tương ứng.")
+    ) {
       return;
     }
     setError(null);
     try {
       await importDetailsApi.delete(importRecord.id, productId);
-      await load();
+      await load(importRecord.id);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xóa thất bại");
@@ -196,7 +283,11 @@ export function ImportDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Chi tiết phiếu nhập #{importId}</DialogTitle>
+          <DialogTitle>
+            {createMode && importRecord?.id === 0
+              ? "Tạo phiếu nhập mới"
+              : `Chi tiết phiếu nhập #${effectiveImportId ?? importId}`}
+          </DialogTitle>
         </DialogHeader>
 
         {loading || !importRecord ? (
@@ -222,7 +313,7 @@ export function ImportDetailDialog({
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Chọn nhà cung cấp" />
                       </SelectTrigger>
                       <SelectContent>
                         {suppliers.map((s) => (
@@ -268,14 +359,24 @@ export function ImportDetailDialog({
                 </div>
               </div>
               {canManage && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={saving}
-                  onClick={() => void saveHeader()}
-                >
-                  Lưu thông tin phiếu
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={saving}
+                    onClick={() => void saveHeader()}
+                  >
+                    {importRecord.id === 0
+                      ? "Lưu phiếu nhập"
+                      : "Lưu thông tin phiếu"}
+                  </Button>
+                  {importRecord.id === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Chọn nhà cung cấp và nội dung trước khi thêm sản phẩm, hoặc
+                      nhấn &quot;Lưu phiếu nhập&quot; để tạo phiếu.
+                    </p>
+                  )}
+                </>
               )}
             </section>
 
@@ -436,10 +537,16 @@ export function ImportDetailDialog({
               )}
             </section>
 
-            <Button variant="outline" size="sm" onClick={() => void load()}>
-              <RefreshCw className="h-4 w-4" />
-              Tải lại
-            </Button>
+            {effectiveImportId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void load()}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Tải lại
+              </Button>
+            )}
           </div>
         )}
       </DialogContent>
