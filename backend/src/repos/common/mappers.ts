@@ -2,11 +2,14 @@ import type {
   Activity,
   ActivityDetail,
   Customer,
+  Import,
+  ImportDetail,
   Invoice,
   Location,
   OrderStatus,
   Payment,
   Product,
+  Supplier,
   User,
 } from '@prisma/client';
 
@@ -14,10 +17,13 @@ import type { PaymentStatusCode } from '@src/common/constants/payment-status';
 import type { IActivity, IActivityWrite } from '@src/models/Activity.model';
 import type { IActivityDetail, IActivityDetailView } from '@src/models/ActivityDetail.model';
 import type { ICustomer } from '@src/models/Customer.model';
+import type { IImport, IImportWrite } from '@src/models/Import.model';
+import type { IImportDetail, IImportDetailView } from '@src/models/ImportDetail.model';
 import type { IInvoice } from '@src/models/Invoice.model';
 import type { IPayment } from '@src/models/Payment.model';
 import type { ILocation } from '@src/models/Location.model';
 import type { IProduct } from '@src/models/Product.model';
+import type { ISupplier } from '@src/models/Supplier.model';
 import type { IUser } from '@src/models/User.model';
 
 /** Domain shape for order_statuses (camelCase). */
@@ -226,5 +232,78 @@ export function activityDetailToPrismaData(detail: IActivityDetail) {
     product_id: detail.productId,
     quantity: detail.quantity,
     sale_price: detail.salePrice,
+  };
+}
+
+export function toSupplier(row: Supplier): ISupplier {
+  return {
+    id: row.supplier_id,
+    supplierName: row.supplier_name,
+    businessType: row.business_type,
+    address: row.address,
+    phoneNumber: row.phone_number,
+    email: row.email,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function supplierToPrismaData(
+  supplier: Pick<
+    ISupplier,
+    'supplierName' | 'businessType' | 'address' | 'phoneNumber' | 'email'
+  >,
+) {
+  return {
+    supplier_name: supplier.supplierName,
+    business_type: supplier.businessType,
+    address: supplier.address,
+    phone_number: supplier.phoneNumber,
+    email: supplier.email,
+  };
+}
+
+export function toImport(row: Import): IImport {
+  return {
+    id: row.import_id,
+    supplierId: row.supplier_id,
+    importDate: row.import_date,
+    content: row.content,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function importWriteToPrismaData(input: IImportWrite) {
+  return {
+    supplier_id: input.supplierId,
+    import_date: input.importDate,
+    content: input.content,
+  };
+}
+
+type ImportDetailWithProduct = ImportDetail & { product: Product };
+
+export function toImportDetailView(
+  row: ImportDetailWithProduct,
+): IImportDetailView {
+  const importPrice = Number(row.import_price);
+  return {
+    importId: row.import_id,
+    productId: row.product_id,
+    quantity: row.quantity,
+    importPrice,
+    productName: row.product.product_name,
+    unitPrice: Number(row.product.unit_price),
+    lineTotal: importPrice * row.quantity,
+  };
+}
+
+export function importDetailToPrismaData(detail: IImportDetail) {
+  return {
+    import_id: detail.importId,
+    product_id: detail.productId,
+    quantity: detail.quantity,
+    import_price: detail.importPrice,
   };
 }

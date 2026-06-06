@@ -138,8 +138,11 @@ async function main() {
   await prisma.activityDetail.deleteMany();
   await prisma.activity.deleteMany();
   await prisma.invoice.deleteMany();
+  await prisma.importDetail.deleteMany();
+  await prisma.import.deleteMany();
   await prisma.customer.deleteMany();
   await prisma.product.deleteMany();
+  await prisma.supplier.deleteMany();
   await prisma.salary.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
@@ -248,22 +251,105 @@ async function main() {
       {
         product_name: "CRM Basic Package",
         unit_price: "2990000.00",
-        stock_quantity: 50,
+        stock_quantity: 10,
       },
       {
         product_name: "Sales Dashboard Pro",
         unit_price: "5990000.00",
-        stock_quantity: 25,
+        stock_quantity: 5,
       },
       {
         product_name: "Email Automation Tool",
         unit_price: "1990000.00",
-        stock_quantity: 100,
+        stock_quantity: 20,
       },
     ],
   });
 
   const products = await prisma.product.findMany({ orderBy: { product_id: "asc" } });
+
+  const suppliers = await Promise.all([
+    prisma.supplier.create({
+      data: {
+        supplier_name: "Cong ty Phan Mem ABC",
+        business_type: "Phan phoi phan mem",
+        address: "123 Nguyen Van Cu, Q1, TP.HCM",
+        phone_number: "0281234567",
+        email: "contact@abc-soft.vn",
+      },
+    }),
+    prisma.supplier.create({
+      data: {
+        supplier_name: "Nha cung cap TechVN",
+        business_type: "Nhap khau thiet bi",
+        address: "45 Le Loi, Hai Chau, Da Nang",
+        phone_number: "0236378901",
+        email: "sales@techvn.vn",
+      },
+    }),
+    prisma.supplier.create({
+      data: {
+        supplier_name: "Dai ly SaaS Mekong",
+        business_type: "Dich vu cloud",
+        address: "88 Tran Hung Dao, Ninh Kieu, Can Tho",
+        phone_number: "0292387654",
+        email: "hello@mekongsaas.vn",
+      },
+    }),
+  ]);
+
+  const import1 = await prisma.import.create({
+    data: {
+      supplier_id: suppliers[0].supplier_id,
+      import_date: new Date("2026-04-05T08:00:00Z"),
+      content: "Nhap dot 1 quy 2",
+    },
+  });
+  const import2 = await prisma.import.create({
+    data: {
+      supplier_id: suppliers[1].supplier_id,
+      import_date: new Date("2026-04-20T14:30:00Z"),
+      content: "Bo sung ton kho thang 4",
+    },
+  });
+
+  if (products.length >= 3) {
+    await prisma.importDetail.createMany({
+      data: [
+        {
+          import_id: import1.import_id,
+          product_id: products[0].product_id,
+          quantity: 30,
+          import_price: "2400000.00",
+        },
+        {
+          import_id: import1.import_id,
+          product_id: products[2].product_id,
+          quantity: 50,
+          import_price: "1500000.00",
+        },
+        {
+          import_id: import2.import_id,
+          product_id: products[1].product_id,
+          quantity: 15,
+          import_price: "4800000.00",
+        },
+      ],
+    });
+
+    await prisma.product.update({
+      where: { product_id: products[0].product_id },
+      data: { stock_quantity: { increment: 30 } },
+    });
+    await prisma.product.update({
+      where: { product_id: products[2].product_id },
+      data: { stock_quantity: { increment: 50 } },
+    });
+    await prisma.product.update({
+      where: { product_id: products[1].product_id },
+      data: { stock_quantity: { increment: 15 } },
+    });
+  }
 
   let activities = [];
   if (staffUsers.length >= 2 && customers.length >= 3) {
@@ -364,12 +450,18 @@ async function main() {
   const activityDetailCount = await prisma.activityDetail.count();
   const paymentCount = await prisma.payment.count();
   const salaryCount = await prisma.salary.count();
+  const supplierCount = await prisma.supplier.count();
+  const importCount = await prisma.import.count();
+  const importDetailCount = await prisma.importDetail.count();
 
   console.log("Seed completed:", {
     adminUserId: adminUser.user_id,
     staffUserIds: staffUsers.map((u) => u.user_id),
     canThoLocationCount: locationCount,
     customerCount: customers.length,
+    supplierCount,
+    importCount,
+    importDetailCount,
     invoiceCount,
     activityCount,
     activityDetailCount,

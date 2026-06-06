@@ -7,6 +7,8 @@ import {
   LogIn,
   LogOut,
   Package,
+  PackagePlus,
+  Truck,
   Users,
   UserCog,
   LayoutDashboard,
@@ -20,7 +22,7 @@ import { useAuth } from "@/lib/auth-context";
 import { sectionsForRole } from "@/lib/permissions";
 import { useEffect, useState } from "react";
 
-export type AppSection = "user-dashboard" | "admin-sales-dashboard" | "products" | "customers" | "activities" | "invoices" | "salaries" | "users";
+export type AppSection = "user-dashboard" | "admin-sales-dashboard" | "products" | "suppliers" | "imports" | "customers" | "activities" | "invoices" | "salaries" | "users";
 
 type NavItem = {
   id: AppSection;
@@ -45,6 +47,18 @@ const allNavItems: NavItem[] = [
     id: "products",
     label: "Sản phẩm",
     icon: <Package className="h-4 w-4" />,
+  },
+  {
+    id: "suppliers",
+    label: "Nhà cung cấp",
+    icon: <Truck className="h-4 w-4" />,
+    adminOnly: true,
+  },
+  {
+    id: "imports",
+    label: "Nhập kho",
+    icon: <PackagePlus className="h-4 w-4" />,
+    adminOnly: true,
   },
   {
     id: "customers",
@@ -219,6 +233,14 @@ export const sectionMeta: Record<
   products: {
     title: "Sản phẩm",
     description: "Quản lý danh mục sản phẩm và tồn kho",
+  },
+  suppliers: {
+    title: "Nhà cung cấp",
+    description: "Quản lý thông tin nhà cung cấp và đối tác nhập hàng",
+  },
+  imports: {
+    title: "Nhập kho",
+    description: "Tạo phiếu nhập, chi tiết hàng và cập nhật tồn kho",
   },
   customers: {
     title: "Khách hàng",

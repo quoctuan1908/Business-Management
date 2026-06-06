@@ -1,0 +1,448 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+
+import {
+  importDetailsApi,
+  importsApi,
+  lookupApi,
+} from "@/lib/api";
+import type { Import, ImportDetail, Product, Supplier } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+type ImportDetailDialogProps = {
+  importId: number | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onChanged: () => void;
+  suppliers: Supplier[];
+  canManage?: boolean;
+};
+
+const emptyLineForm = {
+  productId: "",
+  quantity: "1",
+  importPrice: "",
+};
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString("vi-VN");
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("vi-VN").format(value);
+}
+
+export function ImportDetailDialog({
+  importId,
+  open,
+  onOpenChange,
+  onChanged,
+  suppliers,
+  canManage = false,
+}: ImportDetailDialogProps) {
+  const [importRecord, setImportRecord] = useState<Import | null>(null);
+  const [details, setDetails] = useState<ImportDetail[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [lineForm, setLineForm] = useState(emptyLineForm);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [headerForm, setHeaderForm] = useState({
+    supplierId: "",
+    importDate: "",
+    content: "",
+  });
+
+  const load = useCallback(async () => {
+    if (!importId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [record, detailList, productList] = await Promise.all([
+        importsApi.getOne(importId),
+        importDetailsApi.getByImport(importId),
+        lookupApi.products(),
+      ]);
+      setImportRecord(record);
+      setDetails(detailList);
+      setProducts(productList);
+      setHeaderForm({
+        supplierId: String(record.supplierId),
+        importDate: record.importDate.slice(0, 16),
+        content: record.content,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
+    } finally {
+      setLoading(false);
+    }
+  }, [importId]);
+
+  useEffect(() => {
+    if (open && importId) {
+      setLineForm(emptyLineForm);
+      setEditingProductId(null);
+      void load();
+    }
+  }, [open, importId, load]);
+
+  async function saveHeader() {
+    if (!importRecord) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await importsApi.update(importRecord.id, {
+        supplierId: Number(headerForm.supplierId),
+        importDate: new Date(headerForm.importDate).toISOString(),
+        content: headerForm.content,
+      });
+      setImportRecord(updated);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Lưu thông tin thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function onProductChange(productId: string) {
+    const product = products.find((p) => p.id === Number(productId));
+    setLineForm((f) => ({
+      ...f,
+      productId,
+      importPrice: product ? String(product.unitPrice) : f.importPrice,
+    }));
+  }
+
+  async function saveLine(e: React.FormEvent) {
+    e.preventDefault();
+    if (!importRecord) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        importId: importRecord.id,
+        productId: Number(lineForm.productId),
+        quantity: Number(lineForm.quantity),
+        importPrice: Number(lineForm.importPrice),
+      };
+      if (editingProductId !== null) {
+        await importDetailsApi.update(payload);
+      } else {
+        await importDetailsApi.add(payload);
+      }
+      setLineForm(emptyLineForm);
+      setEditingProductId(null);
+      await load();
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Lưu dòng hàng thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteLine(productId: number) {
+    if (!importRecord || !confirm("Xóa sản phẩm khỏi phiếu nhập? Tồn kho sẽ giảm tương ứng.")) {
+      return;
+    }
+    setError(null);
+    try {
+      await importDetailsApi.delete(importRecord.id, productId);
+      await load();
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xóa thất bại");
+    }
+  }
+
+  const orderTotal = details.reduce((sum, d) => sum + d.lineTotal, 0);
+  const supplierName =
+    suppliers.find((s) => s.id === importRecord?.supplierId)?.supplierName ??
+    "—";
+
+  const usedProductIds = new Set(details.map((d) => d.productId));
+  const availableProducts = products.filter(
+    (p) => editingProductId === p.id || !usedProductIds.has(p.id),
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Chi tiết phiếu nhập #{importId}</DialogTitle>
+        </DialogHeader>
+
+        {loading || !importRecord ? (
+          <p className="text-sm text-muted-foreground">Đang tải...</p>
+        ) : (
+          <div className="space-y-6">
+            {error && (
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            )}
+
+            <section className="space-y-3 rounded-lg border p-4">
+              <h3 className="text-sm font-semibold">Thông tin phiếu</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Nhà cung cấp</p>
+                  {canManage ? (
+                    <Select
+                      value={headerForm.supplierId}
+                      onValueChange={(v) =>
+                        setHeaderForm((f) => ({ ...f, supplierId: v }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suppliers.map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)}>
+                            {s.supplierName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm font-medium">{supplierName}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Ngày nhập</p>
+                  {canManage ? (
+                    <Input
+                      type="datetime-local"
+                      value={headerForm.importDate}
+                      onChange={(e) =>
+                        setHeaderForm((f) => ({
+                          ...f,
+                          importDate: e.target.value,
+                        }))
+                      }
+                    />
+                  ) : (
+                    <p className="text-sm">{formatDate(importRecord.importDate)}</p>
+                  )}
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-xs text-muted-foreground">Nội dung</p>
+                  {canManage ? (
+                    <Input
+                      value={headerForm.content}
+                      onChange={(e) =>
+                        setHeaderForm((f) => ({ ...f, content: e.target.value }))
+                      }
+                    />
+                  ) : (
+                    <p className="text-sm">{importRecord.content}</p>
+                  )}
+                </div>
+              </div>
+              {canManage && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={saving}
+                  onClick={() => void saveHeader()}
+                >
+                  Lưu thông tin phiếu
+                </Button>
+              )}
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold">Chi tiết nhập hàng</h3>
+
+              {canManage && (
+                <form
+                  className="grid gap-3 rounded-lg border p-4"
+                  onSubmit={(e) => void saveLine(e)}
+                >
+                  <p className="text-sm font-medium">
+                    {editingProductId !== null
+                      ? "Sửa sản phẩm"
+                      : "Thêm sản phẩm"}
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-2">
+                      <Label>Sản phẩm</Label>
+                      <Select
+                        value={lineForm.productId}
+                        onValueChange={onProductChange}
+                        disabled={editingProductId !== null}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableProducts.map((p) => (
+                            <SelectItem key={p.id} value={String(p.id)}>
+                              {p.productName} (TK: {p.stockQuantity})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Số lượng</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        required
+                        value={lineForm.quantity}
+                        onChange={(e) =>
+                          setLineForm((f) => ({
+                            ...f,
+                            quantity: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Giá nhập</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        required
+                        value={lineForm.importPrice}
+                        onChange={(e) =>
+                          setLineForm((f) => ({
+                            ...f,
+                            importPrice: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm" disabled={saving}>
+                      <Plus className="h-4 w-4" />
+                      {editingProductId !== null ? "Cập nhật" : "Thêm"}
+                    </Button>
+                    {editingProductId !== null && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingProductId(null);
+                          setLineForm(emptyLineForm);
+                        }}
+                      >
+                        Hủy
+                      </Button>
+                    )}
+                  </div>
+                </form>
+              )}
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Sản phẩm</TableHead>
+                    <TableHead>Giá bán</TableHead>
+                    <TableHead>Giá nhập</TableHead>
+                    <TableHead>SL</TableHead>
+                    <TableHead>Thành tiền</TableHead>
+                    {canManage && (
+                      <TableHead className="text-right">Thao tác</TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {details.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={canManage ? 6 : 5}
+                        className="text-center text-muted-foreground"
+                      >
+                        Chưa có sản phẩm
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    details.map((d) => (
+                      <TableRow key={d.productId}>
+                        <TableCell>{d.productName}</TableCell>
+                        <TableCell>{formatMoney(d.unitPrice)}</TableCell>
+                        <TableCell>{formatMoney(d.importPrice)}</TableCell>
+                        <TableCell>{d.quantity}</TableCell>
+                        <TableCell>{formatMoney(d.lineTotal)}</TableCell>
+                        {canManage && (
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingProductId(d.productId);
+                                setLineForm({
+                                  productId: String(d.productId),
+                                  quantity: String(d.quantity),
+                                  importPrice: String(d.importPrice),
+                                });
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => void deleteLine(d.productId)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+              <p className="text-right text-sm font-semibold">
+                Tổng giá trị nhập: {formatMoney(orderTotal)} đ
+              </p>
+              {canManage && (
+                <p className="text-xs text-muted-foreground">
+                  Thêm hoặc sửa dòng sẽ cập nhật tồn kho sản phẩm tự động.
+                </p>
+              )}
+            </section>
+
+            <Button variant="outline" size="sm" onClick={() => void load()}>
+              <RefreshCw className="h-4 w-4" />
+              Tải lại
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -15,6 +15,9 @@ import UserRoutes from './UserRoutes';
 import AuthRoutes from './AuthRoutes';
 import authMiddleware from '@src/middlewares/authMiddleware';
 import SalaryRoutes from './SalaryRoutes';
+import SupplierRoutes from './SupplierRoutes';
+import ImportRoutes from './ImportRoutes';
+import ImportDetailRoutes from './ImportDetailRoutes';
 
 /******************************************************************************
                                 Setup
@@ -56,6 +59,30 @@ salaryRouter.post(Paths.Salaries.Add, SalaryRoutes.add);
 salaryRouter.put(Paths.Salaries.Update, SalaryRoutes.update);
 salaryRouter.delete(Paths.Salaries.Delete, SalaryRoutes.delete);
 apiRouter.use(Paths.Salaries._, salaryRouter);
+
+const supplierRouter = Router();
+supplierRouter.get(Paths.Suppliers.Get, auth, SupplierRoutes.getAll);
+supplierRouter.get(Paths.Suppliers.GetOne, auth, SupplierRoutes.getOne);
+supplierRouter.post(Paths.Suppliers.Add, ...adminOnly, SupplierRoutes.add);
+supplierRouter.put(Paths.Suppliers.Update, ...adminOnly, SupplierRoutes.update);
+supplierRouter.delete(Paths.Suppliers.Delete, ...adminOnly, SupplierRoutes.delete);
+apiRouter.use(Paths.Suppliers._, supplierRouter);
+
+const importRouter = Router();
+importRouter.get(Paths.Imports.Get, auth, ImportRoutes.getAll);
+importRouter.get(Paths.Imports.GetOne, auth, ImportRoutes.getOne);
+importRouter.post(Paths.Imports.Add, ...adminOnly, ImportRoutes.add);
+importRouter.put(Paths.Imports.Update, ...adminOnly, ImportRoutes.update);
+importRouter.delete(Paths.Imports.Delete, ...adminOnly, ImportRoutes.delete);
+importRouter.get(Paths.Imports.DetailsGet, auth, ImportDetailRoutes.getByImport);
+importRouter.post(Paths.Imports.DetailsAdd, ...adminOnly, ImportDetailRoutes.add);
+importRouter.put(Paths.Imports.DetailsUpdate, ...adminOnly, ImportDetailRoutes.update);
+importRouter.delete(
+  Paths.Imports.DetailsDelete,
+  ...adminOnly,
+  ImportDetailRoutes.delete,
+);
+apiRouter.use(Paths.Imports._, importRouter);
 
 const productRouter = Router();
 productRouter.get(Paths.Products.Get, auth, ProductRoutes.getAll);

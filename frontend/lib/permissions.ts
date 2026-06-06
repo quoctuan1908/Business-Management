@@ -12,6 +12,8 @@ export function isAdmin(role: string | undefined): boolean {
 const ADMIN_SECTIONS: AppSection[] = [
   "admin-sales-dashboard",
   "products",
+  "suppliers",
+  "imports",
   "customers",
   "activities",
   "invoices",

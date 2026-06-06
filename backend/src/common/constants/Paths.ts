@@ -99,6 +99,26 @@ const Paths = {
     Update: '/update',
     Delete: '/delete/:id',
   },
+  Suppliers: {
+    _: '/suppliers',
+    Get: '/all',
+    GetOne: '/:id',
+    Add: '/add',
+    Update: '/update',
+    Delete: '/delete/:id',
+  },
+  Imports: {
+    _: '/imports',
+    Get: '/all',
+    GetOne: '/:id',
+    Add: '/add',
+    Update: '/update/:id',
+    Delete: '/delete/:id',
+    DetailsGet: '/:importId/details',
+    DetailsAdd: '/details/add',
+    DetailsUpdate: '/details/update',
+    DetailsDelete: '/details/delete/:importId/:productId',
+  },
 } as const;
 
 export const JetPaths = jetPaths(Paths);
