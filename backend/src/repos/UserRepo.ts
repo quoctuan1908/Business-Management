@@ -158,6 +158,27 @@ async function comparePassword(plainText: string, hash: string): Promise<boolean
                                    Statistics
 ******************************************************************************/
 
+export type SellerScope = { mode: 'all' } | { mode: 'seller'; sellerId: number };
+
+function userIdFilter(scope: SellerScope): { user_id?: number } {
+  if (scope.mode === 'all') return {};
+  return { user_id: scope.sellerId };
+}
+
+function activityScopeWhere(
+  scope: SellerScope,
+  dateFilter?: { gte: Date; lt: Date },
+  locationFilter?: Record<string, string>,
+) {
+  return {
+    ...userIdFilter(scope),
+    ...(dateFilter ? { activity_date: dateFilter } : {}),
+    ...(locationFilter && Object.keys(locationFilter).length > 0
+      ? { customer: { location: locationFilter } }
+      : {}),
+  };
+}
+
 /**
  * Overall employee productivity statistics (Shared/General)
  */
@@ -252,27 +273,43 @@ function getDateFilter(month: string, year: string) {
   }
 }
 
-export async function getEmployeeLocationStats(userId: number, month: string, year: string, province?: string, ward?: string) {
+export async function getEmployeeLocationStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
   const dateFilter = getDateFilter(month, year);
+  const userFilter = userIdFilter(scope);
   
   const locations = await prisma.location.findMany({
     where: {
       ...(province && province !== "all" ? { province } : {}),
       ...(ward && ward !== "all" ? { ward } : {}),
-      customers: { some: { activities: { some: { user_id: userId } } } }
+      customers: {
+        some: {
+          activities: {
+            some: {
+              ...userFilter,
+              ...(dateFilter ? { activity_date: dateFilter } : {}),
+            },
+          },
+        },
+      },
     },
     select: {
       province: true,
       ward: true,
       customers: {
-        where: { activities: { some: { user_id: userId } } },
+        where: {
+          activities: {
+            some: {
+              ...userFilter,
+            },
+          },
+        },
         select: {
           customer_id: true,
           current_balance: true,
           activities: {
-            where: { 
-              user_id: userId,
-              ...(dateFilter ? { activity_date: dateFilter } : {})
+            where: {
+              ...userFilter,
+              ...(dateFilter ? { activity_date: dateFilter } : {}),
             },
             select: {
               invoice: { select: { total_amount: true } }
@@ -308,18 +345,14 @@ export async function getEmployeeLocationStats(userId: number, month: string, ye
   };
 }
 
-export async function getSellerOverviewStats(sellerId: number, month: string, year: string, province?: string, ward?: string) {
+export async function getSellerOverviewStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
   const dateFilter = getDateFilter(month, year);
 
-  const locationFilter: any = {};
+  const locationFilter: Record<string, string> = {};
   if (province && province !== "all") locationFilter.province = province;
   if (ward && ward !== "all") locationFilter.ward = ward;
 
-  const baseActivityWhere = {
-    user_id: sellerId,
-    ...(dateFilter ? { activity_date: dateFilter } : {}),
-    ...(Object.keys(locationFilter).length > 0 ? { customer: { location: locationFilter } } : {})
-  };
+  const baseActivityWhere = activityScopeWhere(scope, dateFilter, locationFilter);
 
   const [totalActivities, validOrdersCount, invoiceAggregate] = await Promise.all([
     prisma.activity.count({ where: baseActivityWhere }),
@@ -340,10 +373,12 @@ export async function getSellerOverviewStats(sellerId: number, month: string, ye
 
   const activityIds = sellerActivities.map(act => act.activity_id);
 
-  const paymentAggregate = await prisma.payment.aggregate({
-    where: { activity_id: { in: activityIds } },
-    _sum: { paid_amount: true }
-  });
+  const paymentAggregate = activityIds.length > 0
+    ? await prisma.payment.aggregate({
+        where: { activity_id: { in: activityIds } },
+        _sum: { paid_amount: true }
+      })
+    : { _sum: { paid_amount: null } };
 
   const collectedRevenue = Number(paymentAggregate._sum.paid_amount) || 0; 
 
@@ -357,20 +392,16 @@ export async function getSellerOverviewStats(sellerId: number, month: string, ye
   };
 }
 
-export async function getEmployeeStatusBreakdown(userId: number, month: string, year: string, province?: string, ward?: string) {
+export async function getEmployeeStatusBreakdown(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
   const dateFilter = getDateFilter(month, year);
   
-  const locationFilter: any = {};
+  const locationFilter: Record<string, string> = {};
   if (province && province !== "all") locationFilter.province = province;
   if (ward && ward !== "all") locationFilter.ward = ward;
 
   const statusCounts = await prisma.activity.groupBy({
     by: ['status'],
-    where: { 
-      user_id: userId,
-      ...(dateFilter ? { activity_date: dateFilter } : {}),
-      ...(Object.keys(locationFilter).length > 0 ? { customer: { location: locationFilter } } : {})
-    },
+    where: activityScopeWhere(scope, dateFilter, locationFilter),
     _count: { activity_id: true }
   });
 
@@ -383,19 +414,17 @@ export async function getEmployeeStatusBreakdown(userId: number, month: string, 
 }
 
 
-export async function getEmployeeRecentSalesTimeline(userId: number, month: string, year: string, province?: string, ward?: string) {
+export async function getEmployeeRecentSalesTimeline(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
   const dateFilter = getDateFilter(month, year);
 
-  const locationFilter: any = {};
+  const locationFilter: Record<string, string> = {};
   if (province && province !== "all") locationFilter.province = province;
   if (ward && ward !== "all") locationFilter.ward = ward;
 
   const recentActivities = await prisma.activity.findMany({
     where: { 
-      user_id: userId, 
+      ...activityScopeWhere(scope, dateFilter, locationFilter),
       invoice_id: { not: null },
-      ...(dateFilter ? { activity_date: dateFilter } : {}),
-      ...(Object.keys(locationFilter).length > 0 ? { customer: { location: locationFilter } } : {})
     },
     orderBy: { activity_date: 'desc' },
     take: 10,
@@ -422,14 +451,16 @@ export async function getEmployeeRecentSalesTimeline(userId: number, month: stri
 }
 
 
-export async function getEmployeeTopDebtors(userId: number, province?: string, ward?: string) {
-  const locationFilter: any = {};
+export async function getEmployeeTopDebtors(scope: SellerScope, province?: string, ward?: string) {
+  const locationFilter: Record<string, string> = {};
   if (province && province !== "all") locationFilter.province = province;
   if (ward && ward !== "all") locationFilter.ward = ward;
 
+  const userFilter = userIdFilter(scope);
+
   const customers = await prisma.customer.findMany({
     where: { 
-      activities: { some: { user_id: userId } },
+      activities: { some: userFilter },
       current_balance: { gt: 0 },
       ...(Object.keys(locationFilter).length > 0 ? { location: locationFilter } : {})
     },

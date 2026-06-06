@@ -16,6 +16,7 @@ const Paths = {
     StatsShipperOverview: '/stats/shipper/overview/:userId',
     StatsShipperMonthly: '/stats/shipper/monthly/:userId',
     Get: '/all',
+    Profile: '/profile',
     GetOne: '/:id',
     Add: '/add',
     Search: '/search',

@@ -10,8 +10,12 @@ import parseReq from './common/parseReq';
 import UserModel from '@src/models/User.model';
 import { RouteError } from '@src/common/utils/route-errors';
 import { ISessionUser } from '@src/models/common/types';
-import JwtUtils from '@src/common/utils/session-authenticate';
-import EnvVars from '@src/common/constants/env';
+import {
+  assertOwnUserStatsAccess,
+  assertSellerStatsAccess,
+  parseSellerScope,
+} from '@src/services/stats-access';
+import type { SellerScope } from '@src/repos/UserRepo';
 
 /******************************************************************************
                                    Constants
@@ -28,13 +32,34 @@ const reqValidators = {
     password: isNonEmptyString 
   }),
   getStats: parseReq({ userId: transform(Number, isNumber) }),
+  getStatsScope: parseReq({ userId: transform(String, isString) }),
   // Validator for parsing optional query strings along with the userId parameter
   getMonthlyStats: parseReq({
     userId: transform(Number, isNumber),
     month: transform((val) => (val !== undefined ? Number(val) : undefined), (val) => val === undefined || isNumber(val)),
     year: transform((val) => (val !== undefined ? Number(val) : undefined), (val) => val === undefined || isNumber(val)),
   }),
+  getMonthlyStatsScope: parseReq({
+    userId: transform(String, isString),
+    month: transform((val) => (val !== undefined ? Number(val) : undefined), (val) => val === undefined || isNumber(val)),
+    year: transform((val) => (val !== undefined ? Number(val) : undefined), (val) => val === undefined || isNumber(val)),
+  }),
 } as const;
+
+function resolveSellerScope(req: Req, res: Res): SellerScope {
+  const { userId } = reqValidators.getStatsScope(req.params);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = parseSellerScope(userId);
+  assertSellerStatsAccess(sessionUser, scope);
+  return scope;
+}
+
+function resolveOwnUserId(req: Req, res: Res): number {
+  const { userId } = reqValidators.getStats(req.params);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  assertOwnUserStatsAccess(sessionUser, userId);
+  return userId;
+}
 
 /******************************************************************************
                                    Functions
@@ -42,32 +67,33 @@ const reqValidators = {
 
 
 /**
- * Get one user by id.
+ * Hồ sơ user đang đăng nhập.
  * @route GET /api/users/profile
  */
+async function getProfile(req: Req, res: Res) {
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  if (!sessionUser?.username) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Invalid session');
+  }
+  const userProfile = await UserService.getOne(sessionUser.username);
+  if (!userProfile) {
+    throw new RouteError(HttpStatusCodes.NOT_FOUND, 'User profile not found');
+  }
+  return res.status(HttpStatusCodes.OK).json({ user: userProfile });
+}
+
+/**
+ * Get one user by id (admin).
+ * @route GET /api/users/:id
+ */
 async function getOne(req: Req, res: Res) {
-  const token = req.cookies?.accessToken;
-
-  if (!token) {
-    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'No session found. Please login.');
+  const { id } = reqValidators.delete(req.params);
+  const users = await UserService.getAll();
+  const user = users.find((u) => u.id === id);
+  if (!user) {
+    throw new RouteError(HttpStatusCodes.NOT_FOUND, 'User not found');
   }
-
-  try {
-    const sessionUser = await JwtUtils.verifyToken(token, EnvVars.JwtTokenKey) as ISessionUser;
-    console.log(sessionUser)
-    if (!sessionUser || !sessionUser.username) {
-      throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Invalid session token');
-    }
-    const userProfile = await UserService.getOne(sessionUser.username);
-
-    if (!userProfile) {
-      throw new RouteError(HttpStatusCodes.NOT_FOUND, 'User profile not found');
-    }
-    return res.status(HttpStatusCodes.OK).json({ user: userProfile });
-
-  } catch (error) {
-    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Session expired or invalid');
-  }
+  res.status(HttpStatusCodes.OK).json({ user });
 }
 
 /**
@@ -148,10 +174,10 @@ async function getMonthlyStats(req: Req, res: Res) {
  * @route GET /api/users/stats/locations/:userId
  */
 async function getLocationStats(req: Req, res: Res) {
-  const { userId } = reqValidators.getStats(req.params);
+  const scope = resolveSellerScope(req, res);
   const { month, year, province } = req.query as Record<string, string>;
-  const stats = await UserService.getEmployeeLocationStats(userId, month, year, province);
-  res.status(HttpStatusCodes.OK).json({ locations: stats });
+  const stats = await UserService.getEmployeeLocationStats(scope, month, year, province);
+  res.status(HttpStatusCodes.OK).json(stats);
 }
 
 /**
@@ -169,10 +195,10 @@ async function getTopProducts(req: Req, res: Res) {
  * @route GET /api/users/stats/status-breakdown/:userId
  */
 async function getStatusBreakdown(req: Req, res: Res) {
-  const { userId } = reqValidators.getStats(req.params);
+  const scope = resolveSellerScope(req, res);
   const { month, year, province } = req.query as Record<string, string>;
-  const stats = await UserService.getEmployeeStatusBreakdown(userId, month, year, province);
-  res.status(HttpStatusCodes.OK).json({ breakdown: stats });
+  const stats = await UserService.getEmployeeStatusBreakdown(scope, month, year, province);
+  res.status(HttpStatusCodes.OK).json(stats);
 }
 
 /**
@@ -180,10 +206,10 @@ async function getStatusBreakdown(req: Req, res: Res) {
  * @route GET /api/users/stats/recent-sales/:userId
  */
 async function getRecentSalesTimeline(req: Req, res: Res) {
-  const { userId } = reqValidators.getStats(req.params);
+  const scope = resolveSellerScope(req, res);
   const { month, year, province } = req.query as Record<string, string>;
-  const stats = await UserService.getEmployeeRecentSalesTimeline(userId, month, year, province);
-  res.status(HttpStatusCodes.OK).json({ timeline: stats });
+  const stats = await UserService.getEmployeeRecentSalesTimeline(scope, month, year, province);
+  res.status(HttpStatusCodes.OK).json(stats);
 }
 
 /******************************************************************************
@@ -195,9 +221,9 @@ async function getRecentSalesTimeline(req: Req, res: Res) {
  * @route GET /api/users/stats/seller/overview/:userId
  */
 async function getSellerOverviewStats(req: Req, res: Res) {
-  const { userId } = reqValidators.getStats(req.params);
+  const scope = resolveSellerScope(req, res);
   const { month, year, province } = req.query as Record<string, string>;
-  const stats = await UserService.getSellerOverviewStats(userId, month, year, province);
+  const stats = await UserService.getSellerOverviewStats(scope, month, year, province);
   res.status(HttpStatusCodes.OK).json(stats);
 }
 
@@ -218,10 +244,10 @@ async function getSellerMonthlyStats(req: Req, res: Res) {
  * @route GET /api/users/stats/seller/top-debtors/:userId
  */
 async function getEmployeeTopDebtors(req: Req, res: Res) {
-  const { userId } = reqValidators.getStats(req.params);
+  const scope = resolveSellerScope(req, res);
   const { province } = req.query as Record<string, string>;
-  const stats = await UserService.getEmployeeTopDebtors(userId, province);
-  res.status(HttpStatusCodes.OK).json({ debtors: stats });
+  const stats = await UserService.getEmployeeTopDebtors(scope, province);
+  res.status(HttpStatusCodes.OK).json(stats);
 }
 
 
@@ -234,7 +260,7 @@ async function getEmployeeTopDebtors(req: Req, res: Res) {
  * @route GET /api/users/stats/shipper/overview/:userId
  */
 async function getShipperOverviewStats(req: Req, res: Res) {
-  const { userId } = reqValidators.getStats(req.params);
+  const userId = resolveOwnUserId(req, res);
   const stats = await UserService.getShipperOverviewStats(userId);
   res.status(HttpStatusCodes.OK).json(stats);
 }
@@ -245,6 +271,8 @@ async function getShipperOverviewStats(req: Req, res: Res) {
  */
 async function getShipperMonthlyStats(req: Req, res: Res) {
   const { userId, month, year } = reqValidators.getMonthlyStats({ ...req.params, ...req.query });
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  assertOwnUserStatsAccess(sessionUser, userId);
   const stats = await UserService.getShipperMonthlyStats(userId, month, year);
   res.status(HttpStatusCodes.OK).json(stats);
 }
@@ -254,6 +282,7 @@ async function getShipperMonthlyStats(req: Req, res: Res) {
 ******************************************************************************/
 
 export default {
+  getProfile,
   getOne,
   getAll,
   search,

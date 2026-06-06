@@ -26,24 +26,25 @@ const auth = authMiddleware.auth;
 const adminOnly = [auth, authMiddleware.authorize(Roles.ADMIN)];
 
 const userRouter = Router();
+userRouter.get(Paths.Users.Profile, auth, UserRoutes.getProfile);
 userRouter.get(Paths.Users.Get, adminOnly, UserRoutes.getAll);
 userRouter.get(Paths.Users.Search, adminOnly, UserRoutes.search);
 userRouter.post(Paths.Users.Add, adminOnly, UserRoutes.add);
 userRouter.put(Paths.Users.Update, adminOnly, UserRoutes.update);
 userRouter.delete(Paths.Users.Delete, adminOnly, UserRoutes.delete);
-userRouter.get(Paths.Users.GetOne, UserRoutes.getOne);
+userRouter.get(Paths.Users.GetOne, adminOnly, UserRoutes.getOne);
 
-userRouter.get(Paths.Users.StatsOverview, UserRoutes.getOverviewStats);
-userRouter.get(Paths.Users.StatsMonthly, UserRoutes.getMonthlyStats);
-userRouter.get(Paths.Users.StatsLocations, UserRoutes.getLocationStats);
-userRouter.get(Paths.Users.StatsTopProducts, UserRoutes.getTopProducts);
-userRouter.get(Paths.Users.StatsStatusBreakdown, UserRoutes.getStatusBreakdown);
-userRouter.get(Paths.Users.StatsRecentSales, UserRoutes.getRecentSalesTimeline);
-userRouter.get(Paths.Users.StatsSellerOverview, UserRoutes.getSellerOverviewStats);
-userRouter.get(Paths.Users.StatsSellerMonthly, UserRoutes.getSellerMonthlyStats);
-userRouter.get(Paths.Users.StatsSellerTopDebtors, UserRoutes.getEmployeeTopDebtors);
-userRouter.get(Paths.Users.StatsShipperOverview, UserRoutes.getShipperOverviewStats);
-userRouter.get(Paths.Users.StatsShipperMonthly, UserRoutes.getShipperMonthlyStats);
+userRouter.get(Paths.Users.StatsOverview, auth, UserRoutes.getOverviewStats);
+userRouter.get(Paths.Users.StatsMonthly, auth, UserRoutes.getMonthlyStats);
+userRouter.get(Paths.Users.StatsLocations, auth, UserRoutes.getLocationStats);
+userRouter.get(Paths.Users.StatsTopProducts, auth, UserRoutes.getTopProducts);
+userRouter.get(Paths.Users.StatsStatusBreakdown, auth, UserRoutes.getStatusBreakdown);
+userRouter.get(Paths.Users.StatsRecentSales, auth, UserRoutes.getRecentSalesTimeline);
+userRouter.get(Paths.Users.StatsSellerOverview, auth, UserRoutes.getSellerOverviewStats);
+userRouter.get(Paths.Users.StatsSellerMonthly, auth, UserRoutes.getSellerMonthlyStats);
+userRouter.get(Paths.Users.StatsSellerTopDebtors, auth, UserRoutes.getEmployeeTopDebtors);
+userRouter.get(Paths.Users.StatsShipperOverview, auth, UserRoutes.getShipperOverviewStats);
+userRouter.get(Paths.Users.StatsShipperMonthly, auth, UserRoutes.getShipperMonthlyStats);
 apiRouter.use(Paths.Users._, userRouter);
 
 const salaryRouter = Router();

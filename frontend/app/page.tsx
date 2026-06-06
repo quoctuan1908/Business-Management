@@ -20,6 +20,7 @@ import {
   sectionsForRole,
 } from "@/lib/permissions";
 import { UserDashboard } from "@/components/users/user-dashboard";
+import { AdminSalesDashboard } from "@/components/users/admin-sales-dashboard";
 
 function SectionPanel({ section }: { section: AppSection }) {
   switch (section) {
@@ -38,13 +39,15 @@ function SectionPanel({ section }: { section: AppSection }) {
     // Added: Handler to render the employee dashboard view
     case "user-dashboard":
       return <UserDashboard />;
+    case "admin-sales-dashboard":
+      return <AdminSalesDashboard />;
     default:
       return null;
   }
 }
 
 function defaultSection(role: string | undefined): AppSection {
-  return isAdmin(role) ? "products" : "activities";
+  return isAdmin(role) ? "admin-sales-dashboard" : "user-dashboard";
 }
 
 export default function HomePage() {

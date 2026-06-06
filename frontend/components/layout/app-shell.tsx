@@ -9,7 +9,8 @@ import {
   Package,
   Users,
   UserCog,
-  LayoutDashboard
+  LayoutDashboard,
+  BarChart3,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -19,7 +20,7 @@ import { useAuth } from "@/lib/auth-context";
 import { sectionsForRole } from "@/lib/permissions";
 import { useEffect, useState } from "react";
 
-export type AppSection = "user-dashboard" | "products" | "customers" | "activities" | "invoices" | "salaries" | "users";
+export type AppSection = "user-dashboard" | "admin-sales-dashboard" | "products" | "customers" | "activities" | "invoices" | "salaries" | "users";
 
 type NavItem = {
   id: AppSection;
@@ -33,6 +34,12 @@ const allNavItems: NavItem[] = [
     id: "user-dashboard",
     label: "Thống kê cá nhân",
     icon: <LayoutDashboard className="h-4 w-4" />,
+  },
+  {
+    id: "admin-sales-dashboard",
+    label: "Thống kê doanh số",
+    icon: <BarChart3 className="h-4 w-4" />,
+    adminOnly: true,
   },
   {
     id: "products",
@@ -204,6 +211,10 @@ export const sectionMeta: Record<
   "user-dashboard": {
     title: "Bảng thống kê cá nhân",
     description: "Theo dõi hiệu suất doanh thu, hoạt động kinh doanh và số liệu thị trường thời gian thực.",
+  },
+  "admin-sales-dashboard": {
+    title: "Thống kê doanh số",
+    description: "Tổng quan doanh số toàn hệ thống và theo từng nhân viên kinh doanh.",
   },
   products: {
     title: "Sản phẩm",
