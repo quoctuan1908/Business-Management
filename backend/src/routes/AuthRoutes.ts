@@ -5,11 +5,14 @@ import AuthService from '@src/services/AuthService';
 import JwtUtils from '@src/common/utils/session-authenticate';
 import { RouteError } from '@src/common/utils/route-errors';
 import { isNonEmptyString, isString } from 'jet-validators';
-
+import bcrypt from 'bcrypt'
 import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
 import EnvVars from '@src/common/constants/env';
 import UserRepo from '@src/repos/UserRepo';
+import crypto from 'node:crypto';
+import redisClient from '@src/common/utils/redis';
+import UserService from '@src/services/UserService';
 
 /******************************************************************************
                                 Constants
@@ -23,6 +26,7 @@ const reqValidators = {
   register: parseReq({
     username: isNonEmptyString,
     password: isNonEmptyString,
+    email: isNonEmptyString,
     role: isString,
   }),
 } as const;
@@ -54,28 +58,95 @@ async function check(req: Req, res: Res) {
 }
 
 /**
- * Register a new user.
+ * Register a new user - Step 1: Save temporary data to Redis & Send Link
  * @route POST /api/auth/register
  */
 async function register(req: Req, res: Res) {
-  const { username, password, role } = reqValidators.register(req.body);
+  const { username, password, email, role } = reqValidators.register(req.body);
   
   const existingUser = await UserRepo.getOne(username);
   if (existingUser) {
-    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Username already exists');
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Username already exists in the system');
   }
-  await UserRepo.add({
+
+  const token = crypto.randomBytes(32).toString('hex');
+
+  const SALT_ROUNDS = 12;
+
+  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+  const pendingUserData = {
     username,
-    password,
-    role: role || 'user',
+    password:hashedPassword,
+    email: email || '',
+    role: role || 'employee',
     fullName: '',
     department: '',
-    phoneNumber: '',
-    email: '',
+    phoneNumber: ''
+  };
+
+  const redisKey = `pending_user:${token}`;
+  await redisClient.set(redisKey, JSON.stringify(pendingUserData), {
+    EX: 3600 
   });
 
-  return res.status(HttpStatusCodes.CREATED).json({ message: 'Register successfully!' });
+  try {
+    if (email) {
+      await AuthService.sendVerificationLinkEmail(email, username, token);
+    }
+  } catch (mailError) {
+    console.error('Failed to dispatch activation email:', mailError);
+    await redisClient.del(redisKey);
+    throw new RouteError(HttpStatusCodes.INTERNAL_SERVER_ERROR, 'Mailer service error. Registration rolled back.');
+  }
+
+  return res.status(HttpStatusCodes.CREATED).json({ 
+    message: 'Registration link sent! Please verify your email within 1 hour to complete registration.' 
+  });
 }
+
+
+/**
+ * Verify Email - Step 2: Extract from Redis and officially write to Database
+ * @route GET /api/auth/verify-email
+ */
+async function verifyEmail(req: Req, res: Res) {
+  const token = req.query.token as string;
+  if (!token) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Verification token is required.');
+  }
+  const redisKey = `pending_user:${token}`;
+  const rawData = await redisClient.get(redisKey);
+
+  if (!rawData) {
+    const ttl = await redisClient.ttl(redisKey);
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'The activation link is invalid or has expired.');
+  }
+  if (!rawData) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'The activation link is invalid or has expired.');
+  }
+
+  const pendingUser = JSON.parse(rawData);
+
+  await UserService.addOne({
+    username: pendingUser.username,
+    password: pendingUser.password,
+    role: pendingUser.role,
+    fullName: pendingUser.fullName,
+    department: pendingUser.department,
+    phoneNumber: pendingUser.phoneNumber,
+    email: pendingUser.email,
+    isActivated: false, 
+  });
+
+  await redisClient.del(redisKey);
+
+  return res.status(HttpStatusCodes.OK).json({
+    message: 'Account successfully activated and registered! Please wait for administator to activate your account'
+  });
+}
+
+
 
 /**
  * Login user.
@@ -116,14 +187,14 @@ async function refresh(req: Req, res: Res) {
   console.log('1. Raw RefreshToken từ Cookie:', refreshToken);
 
   if (!refreshToken) {
-    console.log('❌ Lỗi: Không tìm thấy refreshToken trong Cookie');
+    console.log('Lỗi: Không tìm thấy refreshToken trong Cookie');
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'No refresh token provided');
   }
   const tokenDb = await AuthRepo.findToken(refreshToken);
   console.log('2. Dữ liệu Token lấy từ DB:', JSON.stringify(tokenDb, null, 2));
 
   if (!tokenDb) {
-    console.log('❌ Lỗi: Token này không tồn tại trong Database (Có thể đã bị xóa hoặc Logout trước đó)');
+    console.log('Lỗi: Token này không tồn tại trong Database (Có thể đã bị xóa hoặc Logout trước đó)');
     throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Session expired');
   }
 
@@ -134,7 +205,7 @@ async function refresh(req: Req, res: Res) {
   });
 
   if (tokenDb.expires_at < new Date()) {
-    console.log('❌ Lỗi: Token trong DB đã hết hạn. Đang tiến hành xóa...');
+    console.log('Lỗi: Token trong DB đã hết hạn. Đang tiến hành xóa...');
     await AuthRepo.deleteToken(refreshToken);
     throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Session expired');
   }
@@ -195,5 +266,6 @@ export default {
   refresh,
   logout,
   register,
+  verifyEmail,
   check
 } as const;

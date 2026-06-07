@@ -34,6 +34,7 @@ model User {
   department    String
   phone_number  String
   email         String    @unique
+  is_activated   Boolean
   
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt

@@ -286,7 +286,7 @@ export const customersApi = {
 };
 
 export const authApi = {
-  register: (data: Pick<User, "username" | "password" | "role">) =>
+  register: (data: Pick<User, "username" | "password" | "email" | "role">) =>
     request<{ message: string }>("/auth/register", {
       method: "POST",
       body: JSON.stringify(data),
@@ -295,6 +295,10 @@ export const authApi = {
     request<{ message: string }>("/auth/login", {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+  verifyEmail: (token: string) =>
+    request<{ message: string }>(`/auth/verify-email?token=${encodeURIComponent(token)}`, {
+      method: "GET",
     }),
   refresh: () =>
     request<{ message: string }>("/auth/refresh", {

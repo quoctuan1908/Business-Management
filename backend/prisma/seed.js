@@ -159,6 +159,7 @@ async function main() {
       department: "IT",
       phone_number: "0900000000",
       email: "admin@company.com",
+      is_activated: true
     },
   });
   const sellerUser01 = await prisma.user.create({
@@ -170,6 +171,7 @@ async function main() {
       department: "Sales",
       phone_number: "0912345678",
       email: "seller01@company.com",
+      is_activated: true
     },
   });
   const sellerUser02 = await prisma.user.create({
@@ -181,6 +183,7 @@ async function main() {
       department: "Marketing",
       phone_number: "0987654321",
       email: "seller02@company.com",
+      is_activated: true
     },
   });
 

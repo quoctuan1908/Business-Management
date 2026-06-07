@@ -185,6 +185,7 @@ authRouter.post(Paths.Auth.Refresh, AuthRoutes.refresh);
 authRouter.get(Paths.Auth.Logout, AuthRoutes.logout);
 authRouter.post(Paths.Auth.Register, AuthRoutes.register);
 authRouter.get(Paths.Auth.Check, AuthRoutes.check);
+authRouter.get(Paths.Auth.VerifyEmail, AuthRoutes.verifyEmail);
 apiRouter.use(Paths.Auth._, authRouter);
 
 /******************************************************************************

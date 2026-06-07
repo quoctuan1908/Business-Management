@@ -21,6 +21,7 @@ function mapRowToUser(row: any): IUser {
     department: row.department,
     phoneNumber: row.phone_number,
     email: row.email,
+    isActivated: row.isActivated,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -75,16 +76,16 @@ async function search(query: string): Promise<IUser[]> {
 }
 
 async function add(user: IUserCreate): Promise<IUserPublic> {
-  const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
   const row = await prisma.user.create({
     data: {
       username: user.username,
-      password: hashedPassword,
+      password: user.password,
       role: user.role,
       full_name: user.fullName,
       department: user.department,
       phone_number: user.phoneNumber,
       email: user.email,    
+      is_activated: user.isActivated
     },
   });
   return userModel.toPublic(mapRowToUser(row));
@@ -145,6 +146,7 @@ async function insertMultiple(users: IUser[]): Promise<void> {
       department: u.department,
       phone_number: u.phoneNumber,
       email: u.email,
+      is_activated: u.isActivated
     })),
   );
   await prisma.user.createMany({ data });
