@@ -8,23 +8,13 @@ import {
   PaymentStatuses,
   type PaymentStatusCode,
 } from '@src/common/constants/payment-status';
+import { PaymentErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import type { IPaymentRecordInput, IPaymentSummary } from '@src/models/Payment.model';
 import ActivityRepo from '@src/repos/ActivityRepo';
 import PaymentRepo from '@src/repos/PaymentRepo';
 import { toPayment } from '@src/repos/common/mappers';
 import prisma from '@src/repos/common/prisma';
-
-const Errors = {
-  ACTIVITY_NOT_FOUND: 'Activity not found',
-  PAYMENT_NOT_FOUND: 'Payment not found',
-  NO_INVOICE: 'Activity has no invoice yet',
-  NOT_PROCESSING: 'Order is not in processing status',
-  PAYMENTS_DEFERRED:
-    'Payments are only saved when completing the order. Use advance to completed with pending payments.',
-  INVALID_AMOUNT: 'Payment amount must be greater than zero',
-  CUSTOMER_NOT_FOUND: 'Customer not found',
-} as const;
 
 type Tx = Prisma.TransactionClient;
 
@@ -218,6 +208,24 @@ async function buildSummaryInTx(activityId: number, tx: Tx): Promise<IPaymentSum
 }
 
 /** Ghi toàn bộ thanh toán tạm khi hoàn thành đơn (chỉ gọi từ advance → completed). */
+async function settlePendingPaymentsInTx(
+  activityId: number,
+  customerId: number,
+  options: ISettlePaymentsOptions,
+  tx: Tx,
+): Promise<void> {
+  if (options.applyCustomerBalance !== false) {
+    await applyCustomerBalanceInternal(activityId, customerId, tx);
+  }
+
+  for (const entry of options.pendingPayments) {
+    await recordPaymentEntryInternal(activityId, customerId, entry, tx);
+  }
+
+  await syncActivityPaymentStatus(activityId, tx);
+}
+
+/** Ghi toàn bộ thanh toán tạm khi hoàn thành đơn (chỉ gọi từ advance → completed). */
 async function settlePendingPayments(
   activityId: number,
   options: ISettlePaymentsOptions,
@@ -225,20 +233,12 @@ async function settlePendingPayments(
   const activity = await assertActivityProcessing(activityId);
 
   return prisma.$transaction(async (tx) => {
-    if (options.applyCustomerBalance !== false) {
-      await applyCustomerBalanceInternal(activityId, activity.customerId, tx);
-    }
-
-    for (const entry of options.pendingPayments) {
-      await recordPaymentEntryInternal(
-        activityId,
-        activity.customerId,
-        entry,
-        tx,
-      );
-    }
-
-    await syncActivityPaymentStatus(activityId, tx);
+    await settlePendingPaymentsInTx(
+      activityId,
+      activity.customerId,
+      options,
+      tx,
+    );
     return buildSummaryInTx(activityId, tx);
   });
 }
@@ -366,7 +366,7 @@ async function deleteOne(paymentId: number): Promise<void> {
   });
 }
 
-export { recordPaymentEntryInternal, sumPayments, resolvePaymentStatus };
+export { recordPaymentEntryInternal, sumPayments, resolvePaymentStatus, settlePendingPaymentsInTx };
 
 export default {
   Errors,

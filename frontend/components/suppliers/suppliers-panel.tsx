@@ -1,0 +1,277 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+
+import { suppliersApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import type { Supplier } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+const emptyForm = {
+  id: 0,
+  supplierName: "",
+  businessType: "",
+  address: "",
+  phoneNumber: "",
+  email: "",
+};
+
+export function SuppliersPanel() {
+  const { isAdmin } = useAuth();
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await suppliersApi.getAll();
+      setSuppliers(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function openCreate() {
+    setForm(emptyForm);
+    setDialogOpen(true);
+  }
+
+  function openEdit(supplier: Supplier) {
+    setForm({
+      id: supplier.id,
+      supplierName: supplier.supplierName,
+      businessType: supplier.businessType,
+      address: supplier.address,
+      phoneNumber: supplier.phoneNumber,
+      email: supplier.email,
+    });
+    setDialogOpen(true);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        id: form.id,
+        supplierName: form.supplierName,
+        businessType: form.businessType,
+        address: form.address,
+        phoneNumber: form.phoneNumber,
+        email: form.email,
+      };
+      if (form.id === 0) {
+        const { id: _id, ...createPayload } = payload;
+        await suppliersApi.add(createPayload);
+      } else {
+        const existing = suppliers.find((s) => s.id === form.id);
+        await suppliersApi.update({
+          ...payload,
+          createdAt: existing?.createdAt ?? new Date().toISOString(),
+          updatedAt: existing?.updatedAt ?? new Date().toISOString(),
+        });
+      }
+      setDialogOpen(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Lưu thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm("Xóa nhà cung cấp này?")) return;
+    setError(null);
+    try {
+      await suppliersApi.delete(id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xóa thất bại");
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle>Nhà cung cấp</CardTitle>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => void load()}>
+            <RefreshCw className="h-4 w-4" />
+            Tải lại
+          </Button>
+          {isAdmin && (
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              Thêm
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Đang tải...</p>
+        ) : suppliers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Chưa có nhà cung cấp.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Tên</TableHead>
+                <TableHead>Loại hình</TableHead>
+                <TableHead>Địa chỉ</TableHead>
+                <TableHead>Điện thoại</TableHead>
+                <TableHead>Email</TableHead>
+                {isAdmin && (
+                  <TableHead className="text-right">Thao tác</TableHead>
+                )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {suppliers.map((supplier) => (
+                <TableRow key={supplier.id}>
+                  <TableCell>{supplier.id}</TableCell>
+                  <TableCell className="font-medium">
+                    {supplier.supplierName}
+                  </TableCell>
+                  <TableCell>{supplier.businessType}</TableCell>
+                  <TableCell className="max-w-[180px] truncate">
+                    {supplier.address}
+                  </TableCell>
+                  <TableCell>{supplier.phoneNumber}</TableCell>
+                  <TableCell>{supplier.email}</TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit(supplier)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void handleDelete(supplier.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {form.id === 0 ? "Thêm nhà cung cấp" : "Sửa nhà cung cấp"}
+            </DialogTitle>
+          </DialogHeader>
+          <form className="grid gap-4" onSubmit={(e) => void handleSubmit(e)}>
+            <div className="grid gap-2">
+              <Label htmlFor="supplierName">Tên nhà cung cấp</Label>
+              <Input
+                id="supplierName"
+                required
+                value={form.supplierName}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, supplierName: e.target.value }))
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="businessType">Loại hình kinh doanh</Label>
+              <Input
+                id="businessType"
+                required
+                value={form.businessType}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, businessType: e.target.value }))
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="address">Địa chỉ</Label>
+              <Input
+                id="address"
+                required
+                value={form.address}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, address: e.target.value }))
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phoneNumber">Số điện thoại</Label>
+              <Input
+                id="phoneNumber"
+                required
+                maxLength={10}
+                value={form.phoneNumber}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, phoneNumber: e.target.value }))
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, email: e.target.value }))
+                }
+              />
+            </div>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Đang lưu..." : "Lưu"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}

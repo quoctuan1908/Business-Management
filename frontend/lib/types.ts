@@ -125,6 +125,45 @@ export interface Product {
 
 }
 
+export interface Supplier {
+  id: number;
+  supplierName: string;
+  businessType: string;
+  address: string;
+  phoneNumber: string;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportWrite {
+  supplierId: number;
+  importDate: string;
+  content: string;
+}
+
+export interface Import extends ImportWrite {
+  id: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportView extends Import {
+  supplierName?: string;
+  totalAmount?: number;
+  lineCount?: number;
+}
+
+export interface ImportDetail {
+  importId: number;
+  productId: number;
+  quantity: number;
+  importPrice: number;
+  productName: string;
+  unitPrice: number;
+  lineTotal: number;
+}
+
 export interface User {
   id: number;
   username: string;

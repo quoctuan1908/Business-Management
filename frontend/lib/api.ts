@@ -14,6 +14,11 @@ import type {
   Salary,
   UserPublic,
   UserCreate,
+  Supplier,
+  Import,
+  ImportWrite,
+  ImportView,
+  ImportDetail,
 } from "@/lib/types";
 
 const API_BASE =
@@ -452,9 +457,84 @@ export const usersApi = {
   },
 };
 
+export const suppliersApi = {
+  getAll: () =>
+    request<{ suppliers: Supplier[] }>("/suppliers/all").then(
+      (d) => d.suppliers,
+    ),
+  getOne: (id: number) =>
+    request<{ supplier: Supplier }>(`/suppliers/${id}`).then(
+      (d) => d.supplier,
+    ),
+  add: (supplier: Omit<Supplier, "id" | "createdAt" | "updatedAt">) =>
+    request<{ supplier: Supplier }>("/suppliers/add", {
+      method: "POST",
+      body: JSON.stringify({ supplier: { ...supplier, id: 0 } }),
+    }).then((d) => d.supplier),
+  update: (supplier: Supplier) =>
+    request<{ supplier: Supplier }>("/suppliers/update", {
+      method: "PUT",
+      body: JSON.stringify({ supplier }),
+    }).then((d) => d.supplier),
+  delete: (id: number) =>
+    request<void>(`/suppliers/delete/${id}`, { method: "DELETE" }),
+};
+
+export const importsApi = {
+  getAll: () =>
+    request<{ imports: ImportView[] }>("/imports/all").then((d) => d.imports),
+  getOne: (id: number) =>
+    request<{ import: Import }>(`/imports/${id}`).then((d) => d.import),
+  add: (importRecord: ImportWrite) =>
+    request<{ import: Import }>("/imports/add", {
+      method: "POST",
+      body: JSON.stringify({ import: importRecord }),
+    }).then((d) => d.import),
+  update: (id: number, importRecord: ImportWrite) =>
+    request<{ import: Import }>(`/imports/update/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ import: importRecord }),
+    }).then((d) => d.import),
+  delete: (id: number) =>
+    request<void>(`/imports/delete/${id}`, { method: "DELETE" }),
+};
+
+export const importDetailsApi = {
+  getByImport: (importId: number) =>
+    request<{ details: ImportDetail[] }>(
+      `/imports/${importId}/details`,
+    ).then((d) => d.details),
+  add: (detail: {
+    importId: number;
+    productId: number;
+    quantity: number;
+    importPrice: number;
+  }) =>
+    request<{ detail: ImportDetail }>("/imports/details/add", {
+      method: "POST",
+      body: JSON.stringify({ detail }),
+    }).then((d) => d.detail),
+  update: (detail: {
+    importId: number;
+    productId: number;
+    quantity: number;
+    importPrice: number;
+  }) =>
+    request<{ detail: ImportDetail }>("/imports/details/update", {
+      method: "PUT",
+      body: JSON.stringify({ detail }),
+    }).then((d) => d.detail),
+  delete: (importId: number, productId: number) =>
+    request<void>(
+      `/imports/details/delete/${importId}/${productId}`,
+      { method: "DELETE" },
+    ),
+};
+
 export const lookupApi = {
   users: () => usersApi.getAll(),
   customers: () => customersApi.getAll(),
   invoices: () => invoicesApi.getAll(),
   products: () => productsApi.getAll(),
+  suppliers: () => suppliersApi.getAll(),
 };

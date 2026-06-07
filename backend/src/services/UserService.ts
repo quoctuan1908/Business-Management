@@ -1,10 +1,13 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { AuthErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
-import { Errors } from '@src/models/common/types';
 import User,{ IUser, IUserCreate, IUserPublic } from '@src/models/User.model';
-import UserRepo from '@src/repos/UserRepo';
-
-
+import UserRepo, { type SellerScope } from '@src/repos/UserRepo';
+import {
+  assertOwnUserStatsAccess,
+  assertSellerStatsAccess,
+  parseSellerScope,
+} from '@src/services/stats-access';
 /******************************************************************************
                                    Functions
 ******************************************************************************/
@@ -86,12 +89,8 @@ async function getEmployeeMonthlyStats(userId: number, month?: number, year?: nu
 /**
  * Get employee sales revenue and customer distribution broken down by territory (Location).
  */
-async function getEmployeeLocationStats(userId: number, month: string, year: string, province?: string, ward?: string) {
-  const exists = await UserRepo.persists(userId);
-  if (!exists) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
-  }
-  return UserRepo.getEmployeeLocationStats(userId, month, year, province, ward);
+async function getEmployeeLocationStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
+  return UserRepo.getEmployeeLocationStats(scope, month, year, province, ward);
 }
 
 async function getEmployeeTopProducts(userId: number) {
@@ -102,28 +101,16 @@ async function getEmployeeTopProducts(userId: number) {
   return UserRepo.getEmployeeTopProducts(userId);
 }
 
-async function getEmployeeStatusBreakdown(userId: number, month: string, year: string, province?: string, ward?: string) {
-  const exists = await UserRepo.persists(userId);
-  if (!exists) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
-  }
-  return UserRepo.getEmployeeStatusBreakdown(userId, month, year, province, ward);
+async function getEmployeeStatusBreakdown(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
+  return UserRepo.getEmployeeStatusBreakdown(scope, month, year, province, ward);
 }
 
-async function getEmployeeRecentSalesTimeline(userId: number, month: string, year: string, province?: string, ward?: string) {
-  const exists = await UserRepo.persists(userId);
-  if (!exists) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
-  }
-  return UserRepo.getEmployeeRecentSalesTimeline(userId, month, year, province, ward);
+async function getEmployeeRecentSalesTimeline(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
+  return UserRepo.getEmployeeRecentSalesTimeline(scope, month, year, province, ward);
 }
 
-async function getSellerOverviewStats(sellerId: number, month: string, year: string, province?: string, ward?: string) {
-  const exists = await UserRepo.persists(sellerId);
-  if (!exists) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
-  }
-  return UserRepo.getSellerOverviewStats(sellerId, month, year, province, ward);
+async function getSellerOverviewStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
+  return UserRepo.getSellerOverviewStats(scope, month, year, province, ward);
 }
 
 async function getSellerMonthlyStats(sellerId: number, month?: number, year?: number) {
@@ -134,12 +121,8 @@ async function getSellerMonthlyStats(sellerId: number, month?: number, year?: nu
   return UserRepo.getSellerMonthlyStats(sellerId, month, year);
 }
 
-async function getEmployeeTopDebtors(userId: number, province?: string, ward?: string) {
-  const exists = await UserRepo.persists(userId);
-  if (!exists) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
-  }
-  return UserRepo.getEmployeeTopDebtors(userId, province, ward);
+async function getEmployeeTopDebtors(scope: SellerScope, province?: string, ward?: string) {
+  return UserRepo.getEmployeeTopDebtors(scope, province, ward);
 }
 
 /**
@@ -169,6 +152,7 @@ async function getShipperMonthlyStats(shipperId: number, month?: number, year?: 
 ******************************************************************************/
 
 export default {
+  Errors,
   getOne,
   getAll,
   search,

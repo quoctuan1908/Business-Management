@@ -5,6 +5,7 @@ import {
   PaymentStatusLabels,
   PaymentStatuses,
 } from '@src/common/constants/payment-status';
+import { CustomerErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import type {
   ICustomerAccount,
@@ -22,22 +23,6 @@ import PaymentService, {
   resolvePaymentStatus,
   sumPayments,
 } from '@src/services/PaymentService';
-
-/******************************************************************************
-                                Constants
-******************************************************************************/
-
-const Errors = {
-  CUSTOMER_NOT_FOUND: 'Customer not found',
-  LOCATION_NOT_FOUND: 'Location not found',
-  CUSTOMER_HAS_ACTIVITIES: 'Cannot delete customer that has activities',
-  INVALID_AMOUNT: 'Payment amount must be greater than zero',
-  INVALID_METHOD: 'Payment method is required',
-} as const;
-
-/******************************************************************************
-                                Functions
-******************************************************************************/
 
 async function assertLocationExists(locationId: number) {
   const exists = await LocationRepo.persists(locationId);

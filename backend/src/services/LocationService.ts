@@ -1,22 +1,9 @@
 import { CAN_THO_PROVINCE_NAME } from '@src/common/constants/provinces-api';
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { LocationErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import { ILocation } from '@src/models/Location.model';
 import LocationRepo from '@src/repos/LocationRepo';
-
-/******************************************************************************
-                                Constants
-******************************************************************************/
-
-const Errors = {
-  LOCATION_NOT_FOUND: 'Location not found',
-  LOCATION_IN_USE: 'Cannot delete location that has customers',
-  ONLY_CAN_THO: 'Only locations in Thành phố Cần Thơ are allowed',
-} as const;
-
-/******************************************************************************
-                                Functions
-******************************************************************************/
 
 function assertCanThoProvince(province: string) {
   if (province !== CAN_THO_PROVINCE_NAME) {

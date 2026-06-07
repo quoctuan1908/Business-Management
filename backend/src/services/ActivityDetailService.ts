@@ -1,24 +1,12 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { isOrderEditable } from '@src/common/constants/order-status';
+import { ActivityDetailErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import { IActivityDetail } from '@src/models/ActivityDetail.model';
 import ActivityDetailRepo from '@src/repos/ActivityDetailRepo';
 import ActivityRepo from '@src/repos/ActivityRepo';
 import ProductRepo from '@src/repos/ProductRepo';
-import { isOrderEditable } from '@src/common/constants/order-status';
 import prisma from '@src/repos/common/prisma';
-
-/******************************************************************************
-                                Constants
-******************************************************************************/
-
-const Errors = {
-  ACTIVITY_NOT_FOUND: 'Activity not found',
-  PRODUCT_NOT_FOUND: 'Product not found',
-  DETAIL_NOT_FOUND: 'Activity detail not found',
-  DETAIL_ALREADY_EXISTS: 'Product already exists in this activity order',
-  INVALID_QUANTITY: 'Quantity must be greater than 0',
-  ORDER_NOT_DRAFT: 'Order lines can only be changed in draft status',
-} as const;
 
 async function assertDraftOrder(activityId: number) {
   const activity = await ActivityRepo.getOne(activityId);

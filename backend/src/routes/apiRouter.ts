@@ -15,6 +15,9 @@ import UserRoutes from './UserRoutes';
 import AuthRoutes from './AuthRoutes';
 import authMiddleware from '@src/middlewares/authMiddleware';
 import SalaryRoutes from './SalaryRoutes';
+import SupplierRoutes from './SupplierRoutes';
+import ImportRoutes from './ImportRoutes';
+import ImportDetailRoutes from './ImportDetailRoutes';
 
 /******************************************************************************
                                 Setup
@@ -26,24 +29,25 @@ const auth = authMiddleware.auth;
 const adminOnly = [auth, authMiddleware.authorize(Roles.ADMIN)];
 
 const userRouter = Router();
+userRouter.get(Paths.Users.Profile, auth, UserRoutes.getProfile);
 userRouter.get(Paths.Users.Get, adminOnly, UserRoutes.getAll);
 userRouter.get(Paths.Users.Search, adminOnly, UserRoutes.search);
 userRouter.post(Paths.Users.Add, adminOnly, UserRoutes.add);
 userRouter.put(Paths.Users.Update, adminOnly, UserRoutes.update);
 userRouter.delete(Paths.Users.Delete, adminOnly, UserRoutes.delete);
-userRouter.get(Paths.Users.GetOne, UserRoutes.getOne);
+userRouter.get(Paths.Users.GetOne, adminOnly, UserRoutes.getOne);
 
-userRouter.get(Paths.Users.StatsOverview, UserRoutes.getOverviewStats);
-userRouter.get(Paths.Users.StatsMonthly, UserRoutes.getMonthlyStats);
-userRouter.get(Paths.Users.StatsLocations, UserRoutes.getLocationStats);
-userRouter.get(Paths.Users.StatsTopProducts, UserRoutes.getTopProducts);
-userRouter.get(Paths.Users.StatsStatusBreakdown, UserRoutes.getStatusBreakdown);
-userRouter.get(Paths.Users.StatsRecentSales, UserRoutes.getRecentSalesTimeline);
-userRouter.get(Paths.Users.StatsSellerOverview, UserRoutes.getSellerOverviewStats);
-userRouter.get(Paths.Users.StatsSellerMonthly, UserRoutes.getSellerMonthlyStats);
-userRouter.get(Paths.Users.StatsSellerTopDebtors, UserRoutes.getEmployeeTopDebtors);
-userRouter.get(Paths.Users.StatsShipperOverview, UserRoutes.getShipperOverviewStats);
-userRouter.get(Paths.Users.StatsShipperMonthly, UserRoutes.getShipperMonthlyStats);
+userRouter.get(Paths.Users.StatsOverview, auth, UserRoutes.getOverviewStats);
+userRouter.get(Paths.Users.StatsMonthly, auth, UserRoutes.getMonthlyStats);
+userRouter.get(Paths.Users.StatsLocations, auth, UserRoutes.getLocationStats);
+userRouter.get(Paths.Users.StatsTopProducts, auth, UserRoutes.getTopProducts);
+userRouter.get(Paths.Users.StatsStatusBreakdown, auth, UserRoutes.getStatusBreakdown);
+userRouter.get(Paths.Users.StatsRecentSales, auth, UserRoutes.getRecentSalesTimeline);
+userRouter.get(Paths.Users.StatsSellerOverview, auth, UserRoutes.getSellerOverviewStats);
+userRouter.get(Paths.Users.StatsSellerMonthly, auth, UserRoutes.getSellerMonthlyStats);
+userRouter.get(Paths.Users.StatsSellerTopDebtors, auth, UserRoutes.getEmployeeTopDebtors);
+userRouter.get(Paths.Users.StatsShipperOverview, auth, UserRoutes.getShipperOverviewStats);
+userRouter.get(Paths.Users.StatsShipperMonthly, auth, UserRoutes.getShipperMonthlyStats);
 apiRouter.use(Paths.Users._, userRouter);
 
 const salaryRouter = Router();
@@ -55,6 +59,30 @@ salaryRouter.post(Paths.Salaries.Add, SalaryRoutes.add);
 salaryRouter.put(Paths.Salaries.Update, SalaryRoutes.update);
 salaryRouter.delete(Paths.Salaries.Delete, SalaryRoutes.delete);
 apiRouter.use(Paths.Salaries._, salaryRouter);
+
+const supplierRouter = Router();
+supplierRouter.get(Paths.Suppliers.Get, auth, SupplierRoutes.getAll);
+supplierRouter.get(Paths.Suppliers.GetOne, auth, SupplierRoutes.getOne);
+supplierRouter.post(Paths.Suppliers.Add, ...adminOnly, SupplierRoutes.add);
+supplierRouter.put(Paths.Suppliers.Update, ...adminOnly, SupplierRoutes.update);
+supplierRouter.delete(Paths.Suppliers.Delete, ...adminOnly, SupplierRoutes.delete);
+apiRouter.use(Paths.Suppliers._, supplierRouter);
+
+const importRouter = Router();
+importRouter.get(Paths.Imports.Get, auth, ImportRoutes.getAll);
+importRouter.get(Paths.Imports.GetOne, auth, ImportRoutes.getOne);
+importRouter.post(Paths.Imports.Add, ...adminOnly, ImportRoutes.add);
+importRouter.put(Paths.Imports.Update, ...adminOnly, ImportRoutes.update);
+importRouter.delete(Paths.Imports.Delete, ...adminOnly, ImportRoutes.delete);
+importRouter.get(Paths.Imports.DetailsGet, auth, ImportDetailRoutes.getByImport);
+importRouter.post(Paths.Imports.DetailsAdd, ...adminOnly, ImportDetailRoutes.add);
+importRouter.put(Paths.Imports.DetailsUpdate, ...adminOnly, ImportDetailRoutes.update);
+importRouter.delete(
+  Paths.Imports.DetailsDelete,
+  ...adminOnly,
+  ImportDetailRoutes.delete,
+);
+apiRouter.use(Paths.Imports._, importRouter);
 
 const productRouter = Router();
 productRouter.get(Paths.Products.Get, auth, ProductRoutes.getAll);

@@ -58,6 +58,10 @@ type ActivityDetailDialogProps = {
   onChanged: () => void;
   users: User[];
   customers: Customer[];
+  /** Mở dialog tạo mới — nhập header và chi tiết trong cùng một màn hình */
+  createMode?: boolean;
+  defaultUserId?: number;
+  onCreated?: (id: number) => void;
   /** Admin: xác nhận đơn, chuyển trạng thái, thanh toán */
   canManageOrder?: boolean;
 };
@@ -101,6 +105,22 @@ function getNextOrderStatus(
   return sorted.find((s) => s.sortOrder > current.sortOrder);
 }
 
+function buildDraftActivity(userId: number): Activity {
+  const now = new Date().toISOString();
+  return {
+    id: 0,
+    userId,
+    customerId: 0,
+    invoiceId: null,
+    status: "draft",
+    paymentStatus: "unpaid",
+    activityDate: now,
+    content: "",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export function ActivityDetailDialog({
   activityId,
   open,
@@ -108,9 +128,16 @@ export function ActivityDetailDialog({
   onChanged,
   users,
   customers,
+  createMode = false,
+  defaultUserId,
+  onCreated,
   canManageOrder = false,
 }: ActivityDetailDialogProps) {
   const { user: sessionUser } = useAuth();
+  const [resolvedActivityId, setResolvedActivityId] = useState<number | null>(
+    null,
+  );
+  const effectiveActivityId = activityId ?? resolvedActivityId;
   const [activity, setActivity] = useState<Activity | null>(null);
   const [details, setDetails] = useState<ActivityDetail[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -163,20 +190,21 @@ export function ActivityDetailDialog({
     );
   }, [paymentSummary, isProcessing, pendingPayments, useBalanceOnComplete]);
 
-  const load = useCallback(async () => {
-    if (!activityId) return;
+  const load = useCallback(async (overrideId?: number) => {
+    const id = overrideId ?? effectiveActivityId;
+    if (!id) return;
     setLoading(true);
     setError(null);
     try {
       const [act, detailList, productList, statusList] = await Promise.all([
-        activitiesApi.getOne(activityId),
-        activityDetailsApi.getByActivity(activityId),
+        activitiesApi.getOne(id),
+        activityDetailsApi.getByActivity(id),
         lookupApi.products(),
         orderStatusesApi.getAll(),
       ]);
       const summary =
         canManageOrder && act.invoiceId
-          ? await paymentsApi.getSummary(activityId)
+          ? await paymentsApi.getSummary(id)
           : null;
       setActivity(act);
       setDetails(detailList);
@@ -194,18 +222,88 @@ export function ActivityDetailDialog({
     } finally {
       setLoading(false);
     }
-  }, [activityId, canManageOrder]);
+  }, [effectiveActivityId, canManageOrder]);
+
+  const initCreateMode = useCallback(async () => {
+    const userId = defaultUserId ?? sessionUser?.userId ?? 0;
+    setLoading(true);
+    setError(null);
+    try {
+      const [productList, statusList] = await Promise.all([
+        lookupApi.products(),
+        orderStatusesApi.getAll(),
+      ]);
+      setActivity(buildDraftActivity(userId));
+      setDetails([]);
+      setProducts(productList);
+      setStatuses(statusList);
+      setPaymentSummary(null);
+      setHeaderForm({
+        userId: String(userId),
+        customerId: "",
+        activityDate: new Date().toISOString().slice(0, 16),
+        content: "",
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
+    } finally {
+      setLoading(false);
+    }
+  }, [defaultUserId, sessionUser?.userId]);
 
   useEffect(() => {
-    if (open && activityId) {
-      setLineForm(emptyLineForm);
-      setEditingProductId(null);
-      setPaymentForm(emptyPaymentForm);
-      setPendingPayments([]);
-      setUseBalanceOnComplete(true);
+    if (!open) {
+      setResolvedActivityId(null);
+      return;
+    }
+    setLineForm(emptyLineForm);
+    setEditingProductId(null);
+    setPaymentForm(emptyPaymentForm);
+    setPendingPayments([]);
+    setUseBalanceOnComplete(true);
+
+    if (createMode && !activityId) {
+      void initCreateMode();
+      return;
+    }
+    if (effectiveActivityId) {
       void load();
     }
-  }, [open, activityId, load]);
+  }, [open, activityId, createMode, effectiveActivityId, load, initCreateMode]);
+
+  function validateHeaderForCreate() {
+    if (!headerForm.userId) {
+      throw new Error("Vui lòng chọn nhân viên");
+    }
+    if (!headerForm.customerId) {
+      throw new Error("Vui lòng chọn khách hàng");
+    }
+    if (!headerForm.content.trim()) {
+      throw new Error("Vui lòng nhập nội dung");
+    }
+    if (!headerForm.activityDate) {
+      throw new Error("Vui lòng chọn ngày hoạt động");
+    }
+  }
+
+  async function ensureActivityCreated(): Promise<Activity> {
+    if (activity && activity.id > 0) {
+      return activity;
+    }
+    validateHeaderForCreate();
+    const payload: ActivityWrite = {
+      userId: Number(headerForm.userId),
+      customerId: Number(headerForm.customerId),
+      activityDate: new Date(headerForm.activityDate).toISOString(),
+      content: headerForm.content.trim(),
+    };
+    const created = await activitiesApi.add(payload);
+    setActivity(created);
+    setResolvedActivityId(created.id);
+    onCreated?.(created.id);
+    onChanged();
+    return created;
+  }
 
   function addPendingPayment(e: React.FormEvent) {
     e.preventDefault();
@@ -235,6 +333,10 @@ export function ActivityDetailDialog({
     setSaving(true);
     setError(null);
     try {
+      if (activity.id === 0) {
+        await ensureActivityCreated();
+        return;
+      }
       const payload = {
         id: activity.id,
         userId: Number(headerForm.userId),
@@ -269,8 +371,9 @@ export function ActivityDetailDialog({
     setSaving(true);
     setError(null);
     try {
+      const act = await ensureActivityCreated();
       const payload = {
-        activityId: activity.id,
+        activityId: act.id,
         productId: Number(lineForm.productId),
         quantity: Number(lineForm.quantity),
         salePrice: Number(lineForm.salePrice),
@@ -282,7 +385,7 @@ export function ActivityDetailDialog({
       }
       setLineForm(emptyLineForm);
       setEditingProductId(null);
-      await load();
+      await load(act.id);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lưu dòng hàng thất bại");
@@ -308,8 +411,9 @@ export function ActivityDetailDialog({
     setSaving(true);
     setError(null);
     try {
-      await activitiesApi.confirm(activity.id);
-      await load();
+      const act = await ensureActivityCreated();
+      await activitiesApi.confirm(act.id);
+      await load(act.id);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xác nhận đơn thất bại");
@@ -358,7 +462,11 @@ export function ActivityDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Chi tiết hoạt động #{activityId}</DialogTitle>
+          <DialogTitle>
+            {createMode && activity?.id === 0
+              ? "Tạo hoạt động mới"
+              : `Chi tiết hoạt động #${effectiveActivityId ?? activityId}`}
+          </DialogTitle>
         </DialogHeader>
 
         {loading || !activity ? (
@@ -470,14 +578,22 @@ export function ActivityDetailDialog({
                 </div>
               </div>
               {isDraft && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={saving}
-                  onClick={() => void saveHeader()}
-                >
-                  Lưu thông tin hoạt động
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={saving}
+                    onClick={() => void saveHeader()}
+                  >
+                    {activity.id === 0 ? "Lưu hoạt động" : "Lưu thông tin hoạt động"}
+                  </Button>
+                  {activity.id === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Chọn khách hàng và nội dung trước khi thêm sản phẩm, hoặc
+                      nhấn &quot;Lưu hoạt động&quot; để tạo đơn nháp.
+                    </p>
+                  )}
+                </>
               )}
             </section>
 

@@ -1,21 +1,9 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { InvoiceErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import { IInvoice } from '@src/models/Invoice.model';
 import ActivityRepo from '@src/repos/ActivityRepo';
 import InvoiceRepo from '@src/repos/InvoiceRepo';
-
-/******************************************************************************
-                                Constants
-******************************************************************************/
-
-const Errors = {
-  INVOICE_NOT_FOUND: 'Invoice not found',
-  INVOICE_LINKED_TO_ACTIVITY: 'Cannot delete invoice linked to an activity',
-} as const;
-
-/******************************************************************************
-                                Functions
-******************************************************************************/
 
 async function getAll() {
   return InvoiceRepo.getAll();

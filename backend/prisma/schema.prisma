@@ -72,6 +72,7 @@ model Product {
   created_at      DateTime         @default(now())
   updated_at      DateTime         @updatedAt
   activityDetails ActivityDetail[]
+  importDetails   ImportDetail[]
 
   @@map("products")
 }
@@ -181,4 +182,45 @@ model ActivityDetail {
   @@index([activity_id])
   @@id([activity_id, product_id])
   @@map("activity_details")
+}
+
+model Supplier {
+  supplier_id   Int      @id @default(autoincrement())
+  supplier_name String   @db.VarChar(50)
+  business_type String   @db.VarChar(50)
+  address       String   @db.VarChar(50)
+  phone_number  String   @db.VarChar(10)
+  email         String   @db.VarChar(50)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  imports       Import[]
+
+  @@map("suppliers")
+}
+
+model Import {
+  import_id   Int            @id @default(autoincrement())
+  supplier_id Int
+  import_date DateTime
+  content     String         @db.VarChar(50)
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+  supplier    Supplier       @relation(fields: [supplier_id], references: [supplier_id], onDelete: Restrict, onUpdate: Cascade)
+  details     ImportDetail[]
+
+  @@index([supplier_id])
+  @@map("imports")
+}
+
+model ImportDetail {
+  import_id    Int
+  product_id   Int
+  quantity     Int
+  import_price Decimal @db.Decimal(15, 2)
+  import       Import  @relation(fields: [import_id], references: [import_id], onDelete: Cascade, onUpdate: Cascade)
+  product      Product @relation(fields: [product_id], references: [product_id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([import_id, product_id])
+  @@index([import_id])
+  @@map("import_details")
 }

@@ -1,0 +1,92 @@
+import { isNonEmptyString, isUnsignedInteger } from 'jet-validators';
+import { parseObject, Schema, testObject } from 'jet-validators/utils';
+import { transformIsDate } from '@src/common/utils/validators';
+
+import { Entity } from './common/types';
+
+const GetDefaults = (): IImport => ({
+  id: 0,
+  supplierId: 0,
+  importDate: new Date(),
+  content: '',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+const schema: Schema<IImport> = {
+  id: isUnsignedInteger,
+  supplierId: isUnsignedInteger,
+  importDate: transformIsDate,
+  content: isNonEmptyString,
+};
+
+/**
+ * @entity imports
+ */
+export interface IImport extends Entity {
+  supplierId: number;
+  importDate: Date;
+  content: string;
+}
+
+export interface IImportWrite {
+  supplierId: number;
+  importDate: Date;
+  content: string;
+}
+
+export interface IImportView extends IImport {
+  supplierName?: string;
+  totalAmount?: number;
+  lineCount?: number;
+}
+
+const parseImport = parseObject<IImport>(schema);
+
+const isCompleteImport = testObject<IImport>({
+  id: isUnsignedInteger,
+  supplierId: isUnsignedInteger,
+  importDate: transformIsDate,
+  content: isNonEmptyString,
+});
+
+const writeSchema: Schema<IImportWrite> = {
+  supplierId: isUnsignedInteger,
+  importDate: transformIsDate,
+  content: isNonEmptyString,
+};
+
+const parseImportWrite = parseObject<IImportWrite>(writeSchema);
+
+const isCompleteImportWrite = testObject<IImportWrite>(writeSchema);
+
+function new_(record?: Partial<IImport>): IImport {
+  return parseImport({ ...GetDefaults(), ...record }, (errors) => {
+    throw new Error(
+      'Setup new import failed ' + JSON.stringify(errors, null, 2),
+    );
+  });
+}
+
+function newWrite(record?: Partial<IImportWrite>): IImportWrite {
+  return parseImportWrite(
+    {
+      supplierId: 0,
+      importDate: new Date(),
+      content: '',
+      ...record,
+    },
+    (errors) => {
+      throw new Error(
+        'Setup import write failed ' + JSON.stringify(errors, null, 2),
+      );
+    },
+  );
+}
+
+export default {
+  new: new_,
+  newWrite,
+  isComplete: isCompleteImport,
+  isCompleteWrite: isCompleteImportWrite,
+} as const;
