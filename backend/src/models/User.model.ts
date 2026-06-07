@@ -1,4 +1,4 @@
-import { isString, isUnsignedInteger } from 'jet-validators';
+import { isBoolean, isString, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 import { transformIsDate } from '@src/common/utils/validators';
 import { AutoCreatePayload, createInsertValidator, Entity } from './common/types';
@@ -16,6 +16,7 @@ const GetDefaults = (): IUser => ({
   department: '',
   phoneNumber: '',
   email: '',
+  isActivated: false,
   createdAt: new Date(),
   updatedAt: new Date(),
   deletedAt: null,
@@ -30,6 +31,7 @@ const schema: Schema<IUser> = {
   department: isString,
   phoneNumber: isString,
   email: isString,
+  isActivated: isBoolean,
   createdAt: transformIsDate,
   updatedAt: transformIsDate,
   deletedAt: (() => true) as any,
@@ -50,6 +52,7 @@ export interface IUser extends Entity {
   department: string;
   phoneNumber: string;
   email: string;
+  isActivated: boolean;
 
   deletedAt: Date | null
 }

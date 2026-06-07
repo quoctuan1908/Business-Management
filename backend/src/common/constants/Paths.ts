@@ -87,7 +87,8 @@ const Paths = {
     Refresh: '/refresh',
     Logout: '/logout',
     Register: '/register',
-    Check: '/check'
+    Check: '/check',
+    VerifyEmail: '/verify-email',
   },
   Salaries: {
     _: '/salaries',

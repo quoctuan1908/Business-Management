@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff, Lock, User, UserPlus, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Lock, User, UserPlus, ShieldCheck, Mail } from "lucide-react";
 import { authApi } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,10 @@ export function SignUpForm() {
 
     const formData = new FormData(e.currentTarget);
     const username = formData.get("username") as string;
+    const email = formData.get("email") as string;
     const password = formData.get("password") as string;
     const confirmPassword = formData.get("confirmPassword") as string;
 
-    // Kiểm tra khớp mật khẩu
     if (password !== confirmPassword) {
       setError("Mật khẩu xác nhận không khớp");
       setLoading(false);
@@ -39,9 +39,10 @@ export function SignUpForm() {
     }
 
     try {
-      // Gửi role mặc định là 'user' vì là hệ thống tư nhân
+
       await authApi.register({
         username,
+        email, 
         password,
         role: "user", 
       });
@@ -58,13 +59,13 @@ export function SignUpForm() {
     return (
       <Card className="w-full shadow-lg border-none text-center p-8">
         <div className="flex justify-center mb-4">
-          <div className="rounded-full bg-green-100 p-3">
-            <ShieldCheck className="h-8 w-8 text-green-600" />
+          <div className="rounded-full bg-blue-100 p-3">
+            <Mail className="h-8 w-8 text-blue-600 animate-pulse" />
           </div>
         </div>
-        <CardTitle className="text-xl font-bold text-green-700">Đăng ký thành công!</CardTitle>
-        <CardDescription className="mt-2 text-base">
-          Tài khoản đã được tạo. Bây giờ bạn có thể đăng nhập vào hệ thống.
+        <CardTitle className="text-xl font-bold text-blue-700">Kiểm tra Email của bạn!</CardTitle>
+        <CardDescription className="mt-2 text-base leading-relaxed">
+          Một liên kết kích hoạt đã được gửi tới email của bạn. Vui lòng bấm vào liên kết trong vòng <strong>1 giờ</strong> để hoàn tất quá trình khởi tạo tài khoản hệ thống.
         </CardDescription>
       </Card>
     );
@@ -90,7 +91,7 @@ export function SignUpForm() {
             </div>
           )}
 
-          {/* Username */}
+          {/* Username Input Field */}
           <div className="grid gap-2">
             <Label htmlFor="username">Tên đăng nhập</Label>
             <div className="relative">
@@ -105,7 +106,23 @@ export function SignUpForm() {
             </div>
           </div>
 
-          {/* Mật khẩu */}
+          {/* ADDED: Mandatory Email Input Architecture */}
+          <div className="grid gap-2">
+            <Label htmlFor="email">Địa chỉ Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="email"
+                name="email"
+                type="email" // Enforces structural browser validation constraints for standard emails
+                placeholder="name@example.com"
+                required // Guaranteed field presence before allowing submission
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Password Input Field */}
           <div className="grid gap-2">
             <Label htmlFor="password">Mật khẩu</Label>
             <div className="relative">
@@ -127,7 +144,7 @@ export function SignUpForm() {
             </div>
           </div>
 
-          {/* Xác nhận mật khẩu */}
+          {/* Confirm Password Input Field */}
           <div className="grid gap-2">
             <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
             <div className="relative">
