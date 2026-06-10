@@ -130,6 +130,7 @@ apiRouter.use(Paths.OrderStatuses._, orderStatusRouter);
 
 const activityRouter = Router();
 activityRouter.get(Paths.Activities.Get, auth, ActivityRoutes.getAll);
+activityRouter.get(Paths.Activities.Export, auth, ActivityRoutes.exportExcel);
 activityRouter.get(Paths.Activities.GetOne, auth, ActivityRoutes.getOne);
 activityRouter.post(Paths.Activities.Add, auth, ActivityRoutes.add);
 activityRouter.put(Paths.Activities.Update, auth, ActivityRoutes.update);

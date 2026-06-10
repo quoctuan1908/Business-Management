@@ -105,6 +105,53 @@ async function request<T>(
   return JSON.parse(text) as T;
 }
 
+async function downloadBlob(path: string, filename: string): Promise<void> {
+  const url = `${API_BASE}${path}`;
+  const options: RequestInit = { credentials: "include" };
+
+  let res = await fetch(url, options);
+
+  if (shouldAttemptTokenRefresh(path, res.status)) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshPromise = (async () => {
+        try {
+          const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+            method: "POST",
+            credentials: "include",
+          });
+          if (!refreshRes.ok) throw new Error("Refresh token expired");
+        } catch (error) {
+          redirectToLoginIfNeeded();
+          throw error;
+        } finally {
+          isRefreshing = false;
+          refreshPromise = null;
+        }
+      })();
+    }
+    await refreshPromise;
+    res = await fetch(url, options);
+  }
+
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const body = await res.json();
+      message = body.error ?? message;
+    } catch { }
+    throw new Error(message);
+  }
+
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(blobUrl);
+}
+
 export const orderStatusesApi = {
   getAll: () =>
     request<{ statuses: OrderStatus[] }>("/order-statuses/all").then(
@@ -151,6 +198,11 @@ export const activitiesApi = {
     }),
   delete: (id: number) =>
     request<void>(`/activities/delete/${id}`, { method: "DELETE" }),
+  exportExcel: (fromDate: string, toDate: string) =>
+    downloadBlob(
+      `/activities/export?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}`,
+      `hoat-dong_${fromDate}_${toDate}.xlsx`,
+    ),
 };
 
 export const paymentsApi = {

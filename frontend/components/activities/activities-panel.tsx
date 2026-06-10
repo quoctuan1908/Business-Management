@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Eye, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Eye, FileDown, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { ActivityDetailDialog } from "@/components/activities/activity-detail-dialog";
 
@@ -18,6 +18,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { Input } from "@/components/ui/input";
+
+import { Label } from "@/components/ui/label";
 
 import {
   Table,
@@ -33,6 +37,26 @@ import {
 function formatDate(value: string) {
 
   return new Date(value).toLocaleString("vi-VN");
+
+}
+
+
+
+function defaultFromDate() {
+
+  const now = new Date();
+
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+
+  return `${now.getFullYear()}-${month}-01`;
+
+}
+
+
+
+function defaultToDate() {
+
+  return new Date().toISOString().slice(0, 10);
 
 }
 
@@ -58,6 +82,12 @@ export function ActivitiesPanel() {
   const [createMode, setCreateMode] = useState(false);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  const [exportFrom, setExportFrom] = useState(defaultFromDate);
+
+  const [exportTo, setExportTo] = useState(defaultToDate);
+
+  const [exporting, setExporting] = useState(false);
 
 
 
@@ -141,6 +171,46 @@ export function ActivitiesPanel() {
 
 
 
+  async function handleExport() {
+
+    if (!exportFrom || !exportTo) {
+
+      setError("Vui lòng chọn khoảng ngày xuất");
+
+      return;
+
+    }
+
+    if (exportTo < exportFrom) {
+
+      setError("Ngày kết thúc không được trước ngày bắt đầu");
+
+      return;
+
+    }
+
+    setExporting(true);
+
+    setError(null);
+
+    try {
+
+      await activitiesApi.exportExcel(exportFrom, exportTo);
+
+    } catch (err) {
+
+      setError(err instanceof Error ? err.message : "Xuất Excel thất bại");
+
+    } finally {
+
+      setExporting(false);
+
+    }
+
+  }
+
+
+
   async function handleDelete(id: number) {
 
     if (!confirm("Xóa hoạt động này?")) return;
@@ -167,25 +237,93 @@ export function ActivitiesPanel() {
 
     <Card>
 
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+      <CardHeader className="space-y-4">
 
-        <CardTitle>Hoạt động</CardTitle>
+        <div className="flex flex-row items-center justify-between space-y-0">
 
-        <div className="flex gap-2">
+          <CardTitle>Hoạt động</CardTitle>
 
-          <Button variant="outline" size="sm" onClick={() => void load()}>
+          <div className="flex gap-2">
 
-            <RefreshCw className="h-4 w-4" />
+            <Button variant="outline" size="sm" onClick={() => void load()}>
 
-            Tải lại
+              <RefreshCw className="h-4 w-4" />
 
-          </Button>
+              Tải lại
 
-          <Button size="sm" onClick={openCreate}>
+            </Button>
 
-            <Plus className="h-4 w-4" />
+            <Button size="sm" onClick={openCreate}>
 
-            Thêm hoạt động
+              <Plus className="h-4 w-4" />
+
+              Thêm hoạt động
+
+            </Button>
+
+          </div>
+
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3 rounded-md border bg-muted/30 p-3">
+
+          <div className="space-y-1">
+
+            <Label htmlFor="export-from">Từ ngày</Label>
+
+            <Input
+
+              id="export-from"
+
+              type="date"
+
+              value={exportFrom}
+
+              onChange={(e) => setExportFrom(e.target.value)}
+
+              className="w-[160px]"
+
+            />
+
+          </div>
+
+          <div className="space-y-1">
+
+            <Label htmlFor="export-to">Đến ngày</Label>
+
+            <Input
+
+              id="export-to"
+
+              type="date"
+
+              value={exportTo}
+
+              min={exportFrom}
+
+              onChange={(e) => setExportTo(e.target.value)}
+
+              className="w-[160px]"
+
+            />
+
+          </div>
+
+          <Button
+
+            variant="secondary"
+
+            size="sm"
+
+            disabled={exporting}
+
+            onClick={() => void handleExport()}
+
+          >
+
+            <FileDown className="h-4 w-4" />
+
+            {exporting ? "Đang xuất..." : "Xuất Excel"}
 
           </Button>
 

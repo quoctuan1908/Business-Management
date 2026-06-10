@@ -96,6 +96,25 @@ async function countByUser(userId: number): Promise<number> {
   return prisma.activity.count({ where: { user_id: userId } });
 }
 
+async function getForExport(from: Date, toExclusive: Date, userId?: number) {
+  return prisma.activity.findMany({
+    where: {
+      activity_date: { gte: from, lt: toExclusive },
+      ...(userId !== undefined ? { user_id: userId } : {}),
+    },
+    include: {
+      user: { select: { full_name: true, username: true } },
+      customer: { select: { company_name: true } },
+      invoice: { select: { total_amount: true } },
+      details: {
+        include: { product: { select: { product_name: true } } },
+        orderBy: { product_id: 'asc' },
+      },
+    },
+    orderBy: [{ activity_date: 'asc' }, { activity_id: 'asc' }],
+  });
+}
+
 /******************************************************************************
                                 Export default
 ******************************************************************************/
@@ -105,6 +124,7 @@ export default {
   persists,
   getByInvoiceId,
   getAll,
+  getForExport,
   addDraft,
   update,
   linkInvoice,

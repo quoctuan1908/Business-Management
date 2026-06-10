@@ -3,9 +3,11 @@ import { transform } from 'jet-validators/utils';
 
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import { Roles } from '@src/common/constants/roles';
+import { RouteError } from '@src/common/utils/route-errors';
 import Activity from '@src/models/Activity.model';
 import type { IActivityWrite } from '@src/models/Activity.model';
 import { ISessionUser } from '@src/models/common/types';
+import ActivityExportService from '@src/services/activity-export';
 import ActivityService from '@src/services/ActivityService';
 
 import { Req, Res } from './common/express-types';
@@ -41,6 +43,44 @@ const reqValidators = {
 async function getAll(_: Req, res: Res) {
   const activities = await ActivityService.getAll();
   res.status(HttpStatusCodes.OK).json({ activities });
+}
+
+function queryString(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return '';
+}
+
+async function exportExcel(req: Req, res: Res) {
+  const fromDate = queryString(req.query.fromDate);
+  const toDate = queryString(req.query.toDate);
+  if (!fromDate || !toDate) {
+    throw new RouteError(
+      HttpStatusCodes.BAD_REQUEST,
+      'Thiếu fromDate hoặc toDate (YYYY-MM-DD)',
+    );
+  }
+
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const userId =
+    sessionUser.role === Roles.ADMIN ? undefined : sessionUser.userId;
+
+  const buffer = await ActivityExportService.buildExcel(
+    fromDate,
+    toDate,
+    userId,
+  );
+
+  const filename = `hoat-dong_${fromDate}_${toDate}.xlsx`;
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${filename}"`,
+  );
+  res.status(HttpStatusCodes.OK).send(buffer);
 }
 
 async function getOne(req: Req, res: Res) {
@@ -99,6 +139,7 @@ async function delete_(req: Req, res: Res) {
 
 export default {
   getAll,
+  exportExcel,
   getOne,
   add,
   update,
