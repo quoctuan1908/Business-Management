@@ -53,7 +53,6 @@ export interface IUser extends Entity {
   phoneNumber: string;
   email: string;
   isActivated: boolean;
-
   deletedAt: Date | null
 }
 
@@ -75,6 +74,7 @@ const isCompleteUser = testObject<IUser>({
   password: isString,
   fullName: isString,
   email: isString,
+  isActivated: isBoolean
 });
 
 /******************************************************************************

@@ -5,7 +5,7 @@ import prisma from './prisma';
 const SALT_ROUNDS = 12;
 
 /******************************************************************************
-                                   Helpers
+                                    Helpers
  ******************************************************************************/
 
 /**
@@ -21,7 +21,7 @@ function mapRowToUser(row: any): IUser {
     department: row.department,
     phoneNumber: row.phone_number,
     email: row.email,
-    isActivated: row.isActivated,
+    isActivated: row.is_activated,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -29,7 +29,7 @@ function mapRowToUser(row: any): IUser {
 }
 
 /******************************************************************************
-                                   Functions
+                                    Functions
 ******************************************************************************/
 
 async function getOne(username: string): Promise<IUser | null> {
@@ -54,7 +54,18 @@ async function persists(id: number): Promise<boolean> {
 
 async function getAll(): Promise<IUserPublic[]> {
   const rows = await prisma.user.findMany({
-    where: { deleted_at: null },
+    where: { deleted_at: null, is_activated:true },
+  });
+  return rows.map(row => userModel.toPublic(mapRowToUser(row)));
+}
+
+
+async function getAllUnactivated(): Promise<IUserPublic[]> {
+  const rows = await prisma.user.findMany({
+    where: { 
+      deleted_at: null, 
+      is_activated: false 
+    },
   });
   return rows.map(row => userModel.toPublic(mapRowToUser(row)));
 }
@@ -116,6 +127,7 @@ async function update(user: Partial<IUser>): Promise<IUserPublic> {
       department: user.department ?? existingUser.department,
       phone_number: user.phoneNumber ?? existingUser.phone_number,
       email: user.email ?? existingUser.email,
+      is_activated: user.isActivated ?? existingUser.is_activated,
       updated_at: new Date(),
     },
   });
@@ -162,9 +174,12 @@ async function comparePassword(plainText: string, hash: string): Promise<boolean
 
 export type SellerScope = { mode: 'all' } | { mode: 'seller'; sellerId: number };
 
-function userIdFilter(scope: SellerScope): { user_id?: number } {
-  if (scope.mode === 'all') return {};
-  return { user_id: scope.sellerId };
+// CẬP NHẬT: Thêm điều kiện kiểm tra tài khoản user phải đang hoạt động (is_activated: true)
+function userIdFilter(scope: SellerScope): { user_id?: number; user?: { is_activated: boolean } } {
+  if (scope.mode === 'all') {
+    return { user: { is_activated: true } };
+  }
+  return { user_id: scope.sellerId, user: { is_activated: true } };
 }
 
 function activityScopeWhere(
@@ -185,16 +200,19 @@ function activityScopeWhere(
  * Overall employee productivity statistics (Shared/General)
  */
 export async function getEmployeeOverviewStats(userId: number) {
+  // Bộ lọc gốc đảm bảo user đang được tính toán phải kích hoạt
+  const userActivatedFilter = { user_id: userId, user: { is_activated: true } };
+
   const [totalActivities, validOrdersCount, invoiceAggregate, paymentAggregate] = await Promise.all([
-    prisma.activity.count({ where: { user_id: userId } }),
-    prisma.activity.count({ where: { user_id: userId, NOT: { status: 'draft' } } }),
+    prisma.activity.count({ where: userActivatedFilter }),
+    prisma.activity.count({ where: { ...userActivatedFilter, NOT: { status: 'draft' } } }),
     prisma.invoice.aggregate({
-      where: { activity: { user_id: userId } },
+      where: { activity: userActivatedFilter },
       _sum: { total_amount: true },
       _count: { invoice_id: true }
     }),
     prisma.payment.aggregate({
-      where: { activity: { user_id: userId } },
+      where: { activity: userActivatedFilter },
       _sum: { paid_amount: true }
     })
   ]);
@@ -227,20 +245,22 @@ export async function getEmployeeMonthlyStats(userId: number, inputMonth?: numbe
 
   const startOfMonth = new Date(year, month - 1, 1);
   const startOfNextMonth = new Date(year, month, 1);
+  
+  const userActivatedFilter = { user_id: userId, user: { is_activated: true } };
 
   const [tasksReceived, tasksProcessed, monthlyInvoices, monthlyPayments] = await Promise.all([
     prisma.activity.count({
-      where: { user_id: userId, activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
+      where: { ...userActivatedFilter, activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
     }),
     prisma.activity.count({
-      where: { user_id: userId, NOT: { status: 'draft' }, activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
+      where: { ...userActivatedFilter, NOT: { status: 'draft' }, activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
     }),
     prisma.invoice.aggregate({
-      where: { activity: { user_id: userId }, date: { gte: startOfMonth, lt: startOfNextMonth } },
+      where: { activity: userActivatedFilter, date: { gte: startOfMonth, lt: startOfNextMonth } },
       _sum: { total_amount: true }
     }),
     prisma.payment.aggregate({
-      where: { activity: { user_id: userId }, payment_date: { gte: startOfMonth, lt: startOfNextMonth } },
+      where: { activity: userActivatedFilter, payment_date: { gte: startOfMonth, lt: startOfNextMonth } },
       _sum: { paid_amount: true }
     })
   ]);
@@ -257,6 +277,7 @@ export async function getEmployeeMonthlyStats(userId: number, inputMonth?: numbe
     monthlyDebtCreated: Math.max(0, grossRevenue - collectedRevenue) 
   };
 }
+
 function getDateFilter(month: string, year: string) {
   if (!year || year === "all") return undefined;
   
@@ -415,7 +436,6 @@ export async function getEmployeeStatusBreakdown(scope: SellerScope, month: stri
   };
 }
 
-
 export async function getEmployeeRecentSalesTimeline(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
   const dateFilter = getDateFilter(month, year);
 
@@ -452,7 +472,6 @@ export async function getEmployeeRecentSalesTimeline(scope: SellerScope, month: 
   };
 }
 
-
 export async function getEmployeeTopDebtors(scope: SellerScope, province?: string, ward?: string) {
   const locationFilter: Record<string, string> = {};
   if (province && province !== "all") locationFilter.province = province;
@@ -479,7 +498,7 @@ export async function getEmployeeTopDebtors(scope: SellerScope, province?: strin
   return {
     debtors: customers.map(cust => ({
       customerId: cust.customer_id,
-      customerName: cust.company_name,
+      customerName: !cust.company_name,
       phoneNumber: cust.phone_number,
       outstandingDebt: Number(cust.current_balance) || 0
     }))
@@ -497,6 +516,7 @@ export async function getSellerMonthlyStats(sellerId: number, inputMonth?: numbe
   const activities = await prisma.activity.findMany({
     where: {
       user_id: sellerId,
+      user: { is_activated: true }, // THÊM ĐIỀU KIỆN
       activity_date: { gte: startOfMonth, lt: startOfNextMonth }
     },
     select: {
@@ -528,7 +548,7 @@ export async function getSellerMonthlyStats(sellerId: number, inputMonth?: numbe
 export async function getEmployeeTopProducts(userId: number) {
   const groupedProducts = await prisma.activityDetail.groupBy({
     by: ['product_id'],
-    where: { activity: { user_id: userId } },
+    where: { activity: { user_id: userId, user: { is_activated: true } } }, // THÊM ĐIỀU KIỆN
     _sum: { quantity: true },
     orderBy: { _sum: { quantity: 'desc' } },
     take: 5 
@@ -544,7 +564,7 @@ export async function getEmployeeTopProducts(userId: number) {
   const detailsInfo = await prisma.activityDetail.findMany({
     where: {
       product_id: { in: groupedProducts.map(p => p.product_id) },
-      activity: { user_id: userId }
+      activity: { user_id: userId, user: { is_activated: true } } // THÊM ĐIỀU KIỆN
     },
     select: { product_id: true, sale_price: true, quantity: true }
   });
@@ -568,15 +588,17 @@ export async function getEmployeeTopProducts(userId: number) {
 }
 
 export async function getShipperOverviewStats(shipperId: number) {
+  const userActivatedFilter = { user_id: shipperId, user: { is_activated: true } };
+
   const [totalDeliveryTrips, completedDeliveries, moneyCollectedAggregate] = await Promise.all([
     prisma.activity.count({
-      where: { user_id: shipperId, content: { contains: 'Delivery' } } 
+      where: { ...userActivatedFilter, content: { contains: 'Delivery' } } 
     }),
     prisma.activity.count({
-      where: { user_id: shipperId, status: 'completed' }
+      where: { ...userActivatedFilter, status: 'completed' }
     }),
     prisma.payment.aggregate({
-      where: { activity: { user_id: shipperId } },
+      where: { activity: userActivatedFilter },
       _sum: { paid_amount: true }
     })
   ]);
@@ -597,15 +619,17 @@ export async function getShipperMonthlyStats(shipperId: number, inputMonth?: num
   const startOfMonth = new Date(year, month - 1, 1);
   const startOfNextMonth = new Date(year, month, 1);
 
+  const userActivatedFilter = { user_id: shipperId, user: { is_activated: true } };
+
   const [monthlyTrips, monthlySuccess, monthlyPayments] = await Promise.all([
     prisma.activity.count({
-      where: { user_id: shipperId, content: { contains: 'Delivery' }, activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
+      where: { ...userActivatedFilter, content: { contains: 'Delivery' }, activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
     }),
     prisma.activity.count({
-      where: { user_id: shipperId, status: 'completed', activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
+      where: { ...userActivatedFilter, status: 'completed', activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
     }),
     prisma.payment.aggregate({
-      where: { activity: { user_id: shipperId }, payment_date: { gte: startOfMonth, lt: startOfNextMonth } },
+      where: { activity: userActivatedFilter, payment_date: { gte: startOfMonth, lt: startOfNextMonth } },
       _sum: { paid_amount: true }
     })
   ]);
@@ -617,6 +641,7 @@ export async function getShipperMonthlyStats(shipperId: number, inputMonth?: num
     monthlyMoneyCollected: Number(monthlyPayments._sum.paid_amount) || 0
   };
 }
+
 /* ==========================================================================
    PART 5: EXPORT REPOSITORY OBJECT
    ========================================================================== */
@@ -625,6 +650,7 @@ export default {
   getOne,
   persists,
   getAll,
+  getAllUnactivated,
   search,
   add,
   update,

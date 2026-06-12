@@ -408,7 +408,8 @@ export const locationsApi = {
 export const usersApi = {
   getAll: () =>
     request<{ users: UserPublic[] }>("/users/all").then((d) => d.users),
-
+  getAllUnactivated: () =>
+    request<{ users: UserPublic[] }>("/users/unactivated").then((d) => d.users),
   search: (query: string) =>
     request<{ users: UserPublic[] }>(`/users/search?query=${encodeURIComponent(query)}`).then((d) => d.users),
 
@@ -443,7 +444,7 @@ export const usersApi = {
     return request<any>(`/users/stats/monthly/${userId}${queryString}`);
   },
 
-  getLocationStats: (userId: number | string, options?: { month?: string; year?: string; province?: string }) => {
+  getLocationStats: (userId: number | string, options?: { month?: string; year?: string; province?: string, ward?: string }) => {
     const params = new URLSearchParams();
     if (options?.month) params.append("month", options.month);
     if (options?.year) params.append("year", options.year);
@@ -455,7 +456,7 @@ export const usersApi = {
   getTopProducts: (userId: number | string) => 
     request<any>(`/users/stats/top-products/${userId}`),
 
-  getStatusBreakdown: (userId: number | string, options?: { month?: string; year?: string; province?: string }) => {
+  getStatusBreakdown: (userId: number | string, options?: { month?: string; year?: string; province?: string, ward?: string  }) => {
     const params = new URLSearchParams();
     if (options?.month) params.append("month", options.month);
     if (options?.year) params.append("year", options.year);
@@ -464,7 +465,7 @@ export const usersApi = {
     return request<any>(`/users/stats/status-breakdown/${userId}${queryString}`);
   },
 
-  getRecentSalesTimeline: (userId: number | string, options?: { month?: string; year?: string; province?: string }) => {
+  getRecentSalesTimeline: (userId: number | string, options?: { month?: string; year?: string; province?: string, ward?: string  }) => {
     const params = new URLSearchParams();
     if (options?.month) params.append("month", options.month);
     if (options?.year) params.append("year", options.year);
@@ -473,7 +474,7 @@ export const usersApi = {
     return request<any>(`/users/stats/recent-sales/${userId}${queryString}`);
   },
 
-  getSellerOverviewStats: (userId: number | string, options?: { month?: string; year?: string; province?: string }) => {
+  getSellerOverviewStats: (userId: number | string, options?: { month?: string; year?: string; province?: string, ward?: string }) => {
     const params = new URLSearchParams();
     if (options?.month) params.append("month", options.month);
     if (options?.year) params.append("year", options.year);
@@ -490,7 +491,7 @@ export const usersApi = {
     return request<any>(`/users/stats/seller/monthly/${userId}${queryString}`);
   },
 
-  getTopDebtors: (userId: number | string, options?: { province?: string }) => {
+  getTopDebtors: (userId: number | string, options?: { province?: string, ward?: string }) => {
     const params = new URLSearchParams();
     if (options?.province) params.append("province", options.province);
     const queryString = params.toString() ? `?${params.toString()}` : "";

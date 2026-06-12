@@ -13,6 +13,7 @@ import UserRepo from '@src/repos/UserRepo';
 import crypto from 'node:crypto';
 import redisClient from '@src/common/utils/redis';
 import UserService from '@src/services/UserService';
+import { Prisma } from '@prisma/client';
 
 /******************************************************************************
                                 Constants
@@ -76,7 +77,7 @@ async function register(req: Req, res: Res) {
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
   const pendingUserData = {
-    username,
+    username: username,
     password:hashedPassword,
     email: email || '',
     role: role || 'employee',
@@ -119,25 +120,39 @@ async function verifyEmail(req: Req, res: Res) {
   const rawData = await redisClient.get(redisKey);
 
   if (!rawData) {
-    const ttl = await redisClient.ttl(redisKey);
-    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'The activation link is invalid or has expired.');
-  }
-  if (!rawData) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'The activation link is invalid or has expired.');
   }
 
   const pendingUser = JSON.parse(rawData);
 
-  await UserService.addOne({
-    username: pendingUser.username,
-    password: pendingUser.password,
-    role: pendingUser.role,
-    fullName: pendingUser.fullName,
-    department: pendingUser.department,
-    phoneNumber: pendingUser.phoneNumber,
-    email: pendingUser.email,
-    isActivated: false, 
-  });
+  try {
+    await UserService.addOne({
+      username: pendingUser.username,
+      password: pendingUser.password,
+      role: pendingUser.role,
+      fullName: pendingUser.fullName,
+      department: pendingUser.department,
+      phoneNumber: pendingUser.phoneNumber,
+      email: pendingUser.email,
+      isActivated: false, 
+    });
+
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const targetFields = (error.meta?.target as string[]) || [];
+      
+      let clientErrorMessage = 'Tài khoản hoặc địa chỉ Email này đã tồn tại trên hệ thống.';
+      
+      if (targetFields.includes('email')) {
+        clientErrorMessage = 'Địa chỉ email này đã được sử dụng bởi một nhân sự khác.';
+      } else if (targetFields.includes('username')) {
+        clientErrorMessage = 'Tên đăng nhập này đã tồn tại. Vui lòng thực hiện đăng ký lại với tên khác.';
+      }
+
+      throw new RouteError(HttpStatusCodes.CONFLICT, clientErrorMessage);
+    }
+    throw error;
+  }  
 
   await redisClient.del(redisKey);
 

@@ -66,11 +66,17 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
   const [statusBreakdown, setStatusBreakdown] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [debtors, setDebtors] = useState<any[]>([]);
+  
+  // States lưu trữ toàn bộ danh sách địa giới hành chính gốc từ hệ thống
   const [availableProvinces, setAvailableProvinces] = useState<string[]>([]);
+  const [availableWards, setAvailableWards] = useState<string[]>([]);
 
+  // States bộ lọc người dùng chọn
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedYear, setSelectedYear] = useState<string>("2026");
   const [selectedProvince, setSelectedProvince] = useState<string>("all");
+  const [selectedWard, setSelectedWard] = useState<string>("all");
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,7 +96,8 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
       const params = {
         month: selectedMonth,
         year: selectedYear,
-        province: selectedProvince
+        province: selectedProvince,
+        ward: selectedWard
       };
 
       const [overviewData, locationsData, statusData, salesData, debtorsData] = await Promise.all([
@@ -98,7 +105,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
         usersApi.getLocationStats(safeId, params),
         usersApi.getStatusBreakdown(safeId, params),
         usersApi.getRecentSalesTimeline(safeId, params),
-        usersApi.getTopDebtors(safeId, { province: selectedProvince })
+        usersApi.getTopDebtors(safeId, { province: selectedProvince, ward: selectedWard })
       ]);
 
       setOverview(overviewData);
@@ -106,6 +113,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
       const locArray = extractArray(locationsData, 'locations');
       setLocations(locArray);
       
+      // SỬA LỖI: Luôn bóc tách danh sách Tỉnh nếu danh sách hiển thị ban đầu chưa có
       if (availableProvinces.length === 0 && locArray.length > 0) {
         const provinces = Array.from(new Set(locArray.map((l: any) => l.province).filter(Boolean))) as string[];
         setAvailableProvinces(provinces);
@@ -120,11 +128,33 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedMonth, selectedYear, selectedProvince, availableProvinces.length]);
+  }, [userId, selectedMonth, selectedYear, selectedProvince, selectedWard, availableProvinces.length]);
+
+  // SỬA LỖI: Tách logic cập nhật danh sách Xã thành một useEffect riêng biệt.
+  // Mỗi khi `locations` thay đổi hoặc `selectedProvince` thay đổi, danh sách xã sẽ được làm mới tự động.
+  useEffect(() => {
+    if (locations.length > 0) {
+      const filteredWards = locations
+        .filter((l: any) => selectedProvince === "all" || l.province === selectedProvince)
+        .map((l: any) => l.ward)
+        .filter(Boolean);
+      
+      // Loại bỏ trùng lặp phần tử
+      setAvailableWards(Array.from(new Set(filteredWards)) as string[]);
+    } else {
+      setAvailableWards([]);
+    }
+  }, [locations, selectedProvince]);
 
   useEffect(() => {
     void loadStats();
   }, [loadStats]);
+
+  // Hàm xử lý thay đổi Tỉnh/Thành phố
+  const handleProvinceChange = (province: string) => {
+    setSelectedProvince(province);
+    setSelectedWard("all"); // Reset xã về "Tất cả" tránh lệch logic dữ liệu
+  };
 
   if (loading) {
     return (
@@ -143,8 +173,12 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
   }
 
   const locationChartData = locations.map(loc => {
+    const labelName = selectedProvince === "all" 
+      ? (loc.province || "N/A") 
+      : `${loc.ward || "Xã chưa rõ"}`;
+      
     return {
-      name: loc.province || "N/A",
+      name: labelName,
       "Tiền khách đã trả": (Number(loc.revenueGenerated) || 0) - (Number(loc.outstandingDebt) || 0),
       "Tiền khách còn thiếu": Number(loc.outstandingDebt) || 0
     };
@@ -180,10 +214,11 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
+          {/* Bộ lọc Tỉnh/Thành phố */}
           <div className="flex items-center gap-1.5 border rounded-md px-2.5 py-1.5 bg-background h-9 text-xs text-muted-foreground">
             <MapPin className="h-3.5 w-3.5" />
-            <span className="font-medium hidden sm:inline">Khu vực:</span>
-            <Select value={selectedProvince} onValueChange={setSelectedProvince}>
+            <span className="font-medium hidden sm:inline">Tỉnh thành:</span>
+            <Select value={selectedProvince} onValueChange={handleProvinceChange}>
               <SelectTrigger className="border-0 p-0 h-auto w-[110px] focus:ring-0 shadow-none text-foreground font-semibold">
                 <SelectValue placeholder="Tất cả tỉnh" />
               </SelectTrigger>
@@ -196,6 +231,27 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             </Select>
           </div>
 
+          {/* SỬA LỖI BỘ LỌC XÃ: Không dùng thuộc tính `disabled`, cho phép bấm chọn thoải mái */}
+          <div className="flex items-center gap-1.5 border rounded-md px-2.5 py-1.5 bg-background h-9 text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 text-indigo-500" />
+            <span className="font-medium hidden sm:inline">Xã/Phường:</span>
+            <Select 
+              value={selectedWard} 
+              onValueChange={setSelectedWard}
+            >
+              <SelectTrigger className="border-0 p-0 h-auto w-[120px] focus:ring-0 shadow-none text-foreground font-semibold">
+                <SelectValue placeholder="Tất cả xã" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả xã</SelectItem>
+                {availableWards.map((ward) => (
+                  <SelectItem key={ward} value={ward}>{ward}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Bộ lọc Thời gian (Tháng/Năm) */}
           <div className="flex items-center gap-1.5 border rounded-md px-2.5 py-1.5 bg-background h-9 text-xs text-muted-foreground">
             <Calendar className="h-3.5 w-3.5" />
             <span className="font-medium hidden sm:inline">Thời gian:</span>
@@ -293,7 +349,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={locationChartData} barGap={6}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" fontSize={11} tickLine={false} />
+                    <XAxis dataKey="name" fontSize={10} tickLine={false} />
                     <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `${val / 1000000}M`} />
                     <Tooltip content={<CustomChartTooltip />} />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />

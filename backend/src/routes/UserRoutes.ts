@@ -16,6 +16,7 @@ import {
   parseSellerScope,
 } from '@src/services/stats-access';
 import type { SellerScope } from '@src/repos/UserRepo';
+import { NextFunction } from 'express';
 
 /******************************************************************************
                                    Constants
@@ -86,65 +87,103 @@ async function getProfile(req: Req, res: Res) {
  * Get one user by id (admin).
  * @route GET /api/users/:id
  */
-async function getOne(req: Req, res: Res) {
-  const { id } = reqValidators.delete(req.params);
-  const users = await UserService.getAll();
-  const user = users.find((u) => u.id === id);
-  if (!user) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, 'User not found');
+async function getOne(req: Req, res: Res, next: NextFunction) {
+  try {
+    const { id } = reqValidators.delete(req.params);
+    const users = await UserService.getAll();
+    const user = users.find((u) => u.id === id);
+    
+    if (!user) {
+      throw new RouteError(HttpStatusCodes.NOT_FOUND, 'User not found');
+    }
+    
+    return res.status(HttpStatusCodes.OK).json({ user });
+  } catch (error) {
+    return next(error);
   }
-  res.status(HttpStatusCodes.OK).json({ user });
 }
 
 /**
  * Get all users.
  * @route GET /api/users/all
  */
-async function getAll(_: Req, res: Res) {
-  const users = await UserService.getAll();
-  res.status(HttpStatusCodes.OK).json({ users });
+async function getAll(_: Req, res: Res, next: NextFunction) {
+  try {
+    const users = await UserService.getAll();
+    return res.status(HttpStatusCodes.OK).json({ users });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * Get all unactivated users.
+ * @route GET /api/users/unactivated
+ */
+async function getAllUnactivated(_: Req, res: Res, next: NextFunction) {
+  try {
+    const users = await UserService.getAllUnactivated();
+    return res.status(HttpStatusCodes.OK).json({ users });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 /**
  * Search users by full_name, username, department, email, or phone_number.
  * @route GET /api/users/search?query=...
  */
-async function search(req: Req, res: Res) {
-  const { query } = reqValidators.search(req.query);
-  const users = await UserService.search(query);
-  res.status(HttpStatusCodes.OK).json({ users });
+async function search(req: Req, res: Res, next: NextFunction) {
+  try {
+    const { query } = reqValidators.search(req.query);
+    const users = await UserService.search(query);
+    return res.status(HttpStatusCodes.OK).json({ users });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 /**
  * Add one user.
  * @route POST /api/users/add
  */
-async function add(req: Req, res: Res) {
-  const validatedUser = UserModel.newCreate(req.body.user);
-  const created = await UserService.addOne(validatedUser);
-  res.status(HttpStatusCodes.CREATED).json({ user: created });
+async function add(req: Req, res: Res, next: NextFunction) {
+  try {
+    const validatedUser = UserModel.newCreate(req.body.user);
+    const created = await UserService.addOne(validatedUser);
+    return res.status(HttpStatusCodes.CREATED).json({ user: created });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 /**
  * Update one user.
  * @route PUT /api/users/update
  */
-async function update(req: Req, res: Res) {
-  const { user } = reqValidators.update(req.body);
-  const updated = await UserService.updateOne(user);
-  res.status(HttpStatusCodes.OK).json({ user: updated });
+async function update(req: Req, res: Res, next: NextFunction) {
+  try {
+    const { user } = reqValidators.update(req.body);
+    const updated = await UserService.updateOne(user);
+    return res.status(HttpStatusCodes.OK).json({ user: updated });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 /**
  * Delete one user (Soft delete).
  * @route DELETE /api/users/delete/:id
  */
-async function delete_(req: Req, res: Res) {
-  const { id } = reqValidators.delete(req.params);
-  await UserService.delete(id);
-  res.status(HttpStatusCodes.OK).end();
+async function delete_(req: Req, res: Res, next: NextFunction) {
+  try {
+    const { id } = reqValidators.delete(req.params);
+    await UserService.delete(id);
+    return res.status(HttpStatusCodes.OK).end();
+  } catch (error) {
+    return next(error);
+  }
 }
-
 /******************************************************************************
                              Employee Statistics Routes
 ******************************************************************************/
@@ -175,8 +214,10 @@ async function getMonthlyStats(req: Req, res: Res) {
  */
 async function getLocationStats(req: Req, res: Res) {
   const scope = resolveSellerScope(req, res);
-  const { month, year, province } = req.query as Record<string, string>;
-  const stats = await UserService.getEmployeeLocationStats(scope, month, year, province);
+  const { month, year, province ,ward } = req.query as Record<string, string>;
+  console.log(ward)
+  const stats = await UserService.getEmployeeLocationStats(scope, month, year, province ,ward);
+  console.log(stats)
   res.status(HttpStatusCodes.OK).json(stats);
 }
 
@@ -196,8 +237,8 @@ async function getTopProducts(req: Req, res: Res) {
  */
 async function getStatusBreakdown(req: Req, res: Res) {
   const scope = resolveSellerScope(req, res);
-  const { month, year, province } = req.query as Record<string, string>;
-  const stats = await UserService.getEmployeeStatusBreakdown(scope, month, year, province);
+  const { month, year, province, ward } = req.query as Record<string, string>;
+  const stats = await UserService.getEmployeeStatusBreakdown(scope, month, year, province, ward);
   res.status(HttpStatusCodes.OK).json(stats);
 }
 
@@ -207,8 +248,8 @@ async function getStatusBreakdown(req: Req, res: Res) {
  */
 async function getRecentSalesTimeline(req: Req, res: Res) {
   const scope = resolveSellerScope(req, res);
-  const { month, year, province } = req.query as Record<string, string>;
-  const stats = await UserService.getEmployeeRecentSalesTimeline(scope, month, year, province);
+  const { month, year, province, ward } = req.query as Record<string, string>;
+  const stats = await UserService.getEmployeeRecentSalesTimeline(scope, month, year, province, ward);
   res.status(HttpStatusCodes.OK).json(stats);
 }
 
@@ -222,8 +263,8 @@ async function getRecentSalesTimeline(req: Req, res: Res) {
  */
 async function getSellerOverviewStats(req: Req, res: Res) {
   const scope = resolveSellerScope(req, res);
-  const { month, year, province } = req.query as Record<string, string>;
-  const stats = await UserService.getSellerOverviewStats(scope, month, year, province);
+  const { month, year, province, ward } = req.query as Record<string, string>;
+  const stats = await UserService.getSellerOverviewStats(scope, month, year, province, ward);
   res.status(HttpStatusCodes.OK).json(stats);
 }
 
@@ -245,8 +286,8 @@ async function getSellerMonthlyStats(req: Req, res: Res) {
  */
 async function getEmployeeTopDebtors(req: Req, res: Res) {
   const scope = resolveSellerScope(req, res);
-  const { province } = req.query as Record<string, string>;
-  const stats = await UserService.getEmployeeTopDebtors(scope, province);
+  const { province, ward } = req.query as Record<string, string>;
+  const stats = await UserService.getEmployeeTopDebtors(scope, province, ward);
   res.status(HttpStatusCodes.OK).json(stats);
 }
 
@@ -285,6 +326,7 @@ export default {
   getProfile,
   getOne,
   getAll,
+  getAllUnactivated,
   search,
   add,
   update,
