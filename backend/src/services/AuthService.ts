@@ -20,7 +20,9 @@ async function authenticate(username: string, passwordInput: string): Promise<IU
   if (!user) {
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
   }
-
+  if (!user.isActivated) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
+  }
   const isMatch = await UserRepo.comparePassword(passwordInput, user.password);
   if (!isMatch) {
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, Errors.INVALID_CREDENTIALS);
@@ -64,9 +66,7 @@ async function sendVerificationLinkEmail(email: string, username: string, token:
       pass: EnvVars.MailPass,
     },
   });
-  console.log(EnvVars.MailUser)
-  console.log(EnvVars.MailPass)
-  const verificationLink = `http://localhost:3000/api/auth/verify-email?token=${token}`;
+  const verificationLink = `http://localhost:3001/auth/verify-email?token=${token}`;
 
   const mailOptions = {
     from: `"Management System" <${EnvVars.MailUser}>`,

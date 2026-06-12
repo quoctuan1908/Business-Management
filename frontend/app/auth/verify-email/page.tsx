@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation"; // Or 'react-router-dom' depending on your framework
+import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle, ArrowRight } from "lucide-react";
 import { authApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Explicitly define states for the UI state machine
 type VerificationState = "LOADING" | "SUCCESS" | "ERROR";
 
-export default function VerifyEmailPage() {
+export default function VerifyEmail() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  // Extract token parameter from the route URL configuration (?token=abc...)
   const token = searchParams.get("token");
 
   const [status, setStatus] = useState<VerificationState>("LOADING");
@@ -22,7 +20,6 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     async function triggerVerification() {
-      // Guard Clause: If link contains no token parameter metadata, instantly fail early
       if (!token) {
         setStatus("ERROR");
         setErrorMessage("Mã xác thực không hợp lệ hoặc đã bị chỉnh sửa.");
@@ -30,14 +27,10 @@ export default function VerifyEmailPage() {
       }
 
       try {
-        // Dispatch the code string token over to the Backend API route architecture
-        // This triggers the Redis extraction and official Database creation
         await authApi.verifyEmail(token);
         
-        // If the request is successful, advance the UI status layout
         setStatus("SUCCESS");
       } catch (err: any) {
-        // Parse actual custom thrown RouteError messages payload from the backend layer
         setStatus("ERROR");
         setErrorMessage(
           err?.response?.data?.message || 
@@ -54,7 +47,6 @@ export default function VerifyEmailPage() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <Card className="w-full max-w-md shadow-xl border-none p-6 text-center transition-all duration-300">
         
-        {/* 1. LOADING STATE - Waiting for API backend and Redis layer processing */}
         {status === "LOADING" && (
           <div className="space-y-4 py-6">
             <div className="flex justify-center">
@@ -69,7 +61,6 @@ export default function VerifyEmailPage() {
           </div>
         )}
 
-        {/* 2. SUCCESS STATE - Token extracted cleanly from Redis and inserted into Database */}
         {status === "SUCCESS" && (
           <div className="space-y-6 py-4">
             <div className="flex justify-center">
@@ -94,7 +85,6 @@ export default function VerifyEmailPage() {
           </div>
         )}
 
-        {/* 3. ERROR STATE - Token expired in Redis (over 1 hour) or completely missing */}
         {status === "ERROR" && (
           <div className="space-y-6 py-4">
             <div className="flex justify-center">

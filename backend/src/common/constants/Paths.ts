@@ -19,6 +19,7 @@ const Paths = {
     Profile: '/profile',
     GetOne: '/:id',
     Add: '/add',
+    GetUnactivated: '/unactivated',
     Search: '/search',
     Update: '/update',
     Delete: '/delete/:id',

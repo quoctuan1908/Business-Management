@@ -173,6 +173,7 @@ export interface User {
   department: string;
   phoneNumber: string;
   email: string;
+  isActivated: boolean;
   createdAt: string; 
   updatedAt: string;
   deletedAt: string | null;

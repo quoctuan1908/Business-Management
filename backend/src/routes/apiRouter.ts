@@ -31,6 +31,7 @@ const adminOnly = [auth, authMiddleware.authorize(Roles.ADMIN)];
 const userRouter = Router();
 userRouter.get(Paths.Users.Profile, auth, UserRoutes.getProfile);
 userRouter.get(Paths.Users.Get, adminOnly, UserRoutes.getAll);
+userRouter.get(Paths.Users.GetUnactivated, adminOnly, UserRoutes.getAllUnactivated);
 userRouter.get(Paths.Users.Search, adminOnly, UserRoutes.search);
 userRouter.post(Paths.Users.Add, adminOnly, UserRoutes.add);
 userRouter.put(Paths.Users.Update, adminOnly, UserRoutes.update);

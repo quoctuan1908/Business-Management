@@ -44,7 +44,7 @@ export function SignUpForm() {
         username,
         email, 
         password,
-        role: "user", 
+        role: "employee", 
       });
       
       setSuccess(true);

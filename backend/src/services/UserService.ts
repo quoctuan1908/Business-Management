@@ -27,6 +27,13 @@ function getAll(): Promise<IUserPublic[]> {
 }
 
 /**
+ * Get all unactivated users.
+ */
+function getAllUnactivated(): Promise<IUserPublic[]> {
+  return UserRepo.getAllUnactivated();
+}
+
+/**
  * Search users by query string.
  */
 function search(query: string): Promise<IUserPublic[]> {
@@ -155,6 +162,7 @@ export default {
   Errors,
   getOne,
   getAll,
+  getAllUnactivated,
   search,
   addOne,
   updateOne,
