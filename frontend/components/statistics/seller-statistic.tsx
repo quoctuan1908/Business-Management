@@ -113,7 +113,6 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
       const locArray = extractArray(locationsData, 'locations');
       setLocations(locArray);
       
-      // SỬA LỖI: Luôn bóc tách danh sách Tỉnh nếu danh sách hiển thị ban đầu chưa có
       if (availableProvinces.length === 0 && locArray.length > 0) {
         const provinces = Array.from(new Set(locArray.map((l: any) => l.province).filter(Boolean))) as string[];
         setAvailableProvinces(provinces);
@@ -130,8 +129,6 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
     }
   }, [userId, selectedMonth, selectedYear, selectedProvince, selectedWard, availableProvinces.length]);
 
-  // SỬA LỖI: Tách logic cập nhật danh sách Xã thành một useEffect riêng biệt.
-  // Mỗi khi `locations` thay đổi hoặc `selectedProvince` thay đổi, danh sách xã sẽ được làm mới tự động.
   useEffect(() => {
     if (locations.length > 0) {
       const filteredWards = locations
@@ -231,7 +228,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             </Select>
           </div>
 
-          {/* SỬA LỖI BỘ LỌC XÃ: Không dùng thuộc tính `disabled`, cho phép bấm chọn thoải mái */}
+          {/* Bộ lọc Xã */}
           <div className="flex items-center gap-1.5 border rounded-md px-2.5 py-1.5 bg-background h-9 text-xs text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 text-indigo-500" />
             <span className="font-medium hidden sm:inline">Xã/Phường:</span>
@@ -345,8 +342,9 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             {locations.length === 0 ? (
               <p className="text-center py-16 text-sm text-muted-foreground">Chưa có dữ liệu vùng.</p>
             ) : (
-              <div className="h-[300px] w-full pt-4">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-[300px] min-h-[300px] w-full pt-4">
+                {/* FIX: Đổi chiều cao height từ 100% sang số cứng 300 */}
+                <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={locationChartData} barGap={6}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={10} tickLine={false} />
@@ -372,9 +370,10 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             {statusBreakdown.length === 0 ? (
               <p className="text-center py-16 text-sm text-muted-foreground">Chưa có dữ liệu.</p>
             ) : (
-              <div className="h-[300px] w-full flex flex-col sm:flex-row items-center justify-center gap-4">
-                <div className="h-full w-full sm:w-[50%]">
-                  <ResponsiveContainer width="100%" height="100%">
+              <div className="h-[300px] min-h-[300px] w-full flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div className="w-full sm:w-[50%] min-h-[240px]">
+                  {/* FIX: Đổi chiều cao height từ 100% sang số cứng 240 */}
+                  <ResponsiveContainer width="100%" height={240}>
                     <PieChart>
                       <Pie data={funnelChartData} cx="50%" cy="50%" innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value">
                         {funnelChartData.map((_, index) => (

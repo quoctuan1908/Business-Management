@@ -2,6 +2,7 @@ import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import { AuthErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
 import User,{ IUser, IUserCreate, IUserPublic } from '@src/models/User.model';
+import ActivityRepo from '@src/repos/ActivityRepo';
 import UserRepo, { type SellerScope } from '@src/repos/UserRepo';
 import {
   assertOwnUserStatsAccess,
@@ -154,6 +155,16 @@ async function getShipperMonthlyStats(shipperId: number, month?: number, year?: 
   return UserRepo.getShipperMonthlyStats(shipperId, month, year);
 }
 
+/**
+ * [MAP] Validate input parameters and coordinate business logic for fetching territory scheduling statistics.
+ */
+async function getMapStatusByActivities(dateString: string) {
+  if (!dateString || isNaN(Date.parse(dateString))) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'A valid date string (YYYY-MM-DD) is required.');
+  }
+  return UserRepo.getMapStatusByActivities(dateString);
+}
+
 /******************************************************************************
                                    Export default
 ******************************************************************************/
@@ -178,4 +189,5 @@ export default {
   getEmployeeTopDebtors,
   getShipperOverviewStats,
   getShipperMonthlyStats,
+  getMapStatusByActivities
 } as const;

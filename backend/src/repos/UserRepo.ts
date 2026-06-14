@@ -37,6 +37,7 @@ async function getOne(username: string): Promise<IUser | null> {
     where: { 
       username: username,
       deleted_at: null,
+      is_activated: true
     },
   });
   return row ? mapRowToUser(row) : null;
@@ -642,6 +643,52 @@ export async function getShipperMonthlyStats(shipperId: number, inputMonth?: num
   };
 }
 
+export async function getMapStatusByActivities(dateString: string) {
+  const startOfDay = new Date(`${dateString}T00:00:00.000Z`);
+  const endOfDay = new Date(`${dateString}T23:59:59.999Z`);
+
+  const activitiesInDay = await prisma.activity.findMany({
+    where: {
+      activity_date: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    },
+    include: {
+      user: {
+        select: {
+          full_name: true,
+          username: true,
+        },
+      },
+      customer: {
+        include: {
+          location: true, 
+        },
+      },
+    },
+  });
+
+  const occupiedProvinces: Record<string, any> = {};
+
+  activitiesInDay.forEach((act) => {
+    const areaKey = act.customer.location.ward; 
+    
+    if (areaKey) {
+      occupiedProvinces[areaKey] = {
+        employeeName: act.user.full_name || act.user.username,
+        activityContent: act.content,
+        customerName: act.customer.company_name,
+      };
+    }
+  });
+
+  return { 
+    date: dateString, 
+    occupiedProvinces 
+  };
+}
+
 /* ==========================================================================
    PART 5: EXPORT REPOSITORY OBJECT
    ========================================================================== */
@@ -675,4 +722,5 @@ export default {
   // Shipper Statistics
   getShipperOverviewStats,
   getShipperMonthlyStats,
+  getMapStatusByActivities
 } as const;
