@@ -15,6 +15,7 @@ const Paths = {
     StatsSellerTopDebtors: '/stats/seller/top-debtors/:userId',
     StatsShipperOverview: '/stats/shipper/overview/:userId',
     StatsShipperMonthly: '/stats/shipper/monthly/:userId',
+    StatsMap: '/stats/map',
     Get: '/all',
     Profile: '/profile',
     GetOne: '/:id',

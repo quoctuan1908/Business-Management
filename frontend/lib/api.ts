@@ -508,6 +508,13 @@ export const usersApi = {
     const queryString = params.toString() ? `?${params.toString()}` : "";
     return request<any>(`/users/stats/shipper/monthly/${userId}${queryString}`);
   },
+
+  getMapStatus: (date: string) => {
+    const params = new URLSearchParams();
+    if (date) params.append("date", date);
+    const queryString = params.toString() ? `?${params.toString()}` : "";
+    return request<any>(`/users/stats/map${queryString}`);
+  },
 };
 
 export const suppliersApi = {

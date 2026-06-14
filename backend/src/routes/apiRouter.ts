@@ -49,6 +49,8 @@ userRouter.get(Paths.Users.StatsSellerMonthly, auth, UserRoutes.getSellerMonthly
 userRouter.get(Paths.Users.StatsSellerTopDebtors, auth, UserRoutes.getEmployeeTopDebtors);
 userRouter.get(Paths.Users.StatsShipperOverview, auth, UserRoutes.getShipperOverviewStats);
 userRouter.get(Paths.Users.StatsShipperMonthly, auth, UserRoutes.getShipperMonthlyStats);
+userRouter.get(Paths.Users.StatsMap, auth, UserRoutes.getMapStatus);
+
 apiRouter.use(Paths.Users._, userRouter);
 
 const salaryRouter = Router();

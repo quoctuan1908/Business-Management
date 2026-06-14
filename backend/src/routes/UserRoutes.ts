@@ -45,6 +45,9 @@ const reqValidators = {
     month: transform((val) => (val !== undefined ? Number(val) : undefined), (val) => val === undefined || isNumber(val)),
     year: transform((val) => (val !== undefined ? Number(val) : undefined), (val) => val === undefined || isNumber(val)),
   }),
+  getMapStats: parseReq({
+      date: isNonEmptyString,
+  }),
 } as const;
 
 function resolveSellerScope(req: Req, res: Res): SellerScope {
@@ -318,6 +321,23 @@ async function getShipperMonthlyStats(req: Req, res: Res) {
   res.status(HttpStatusCodes.OK).json(stats);
 }
 
+/**
+ * [MAP] Get territory scheduling status and employee-province assignments for a specific date.
+ * @route GET /api/activities/stats/map?date=...
+ */
+async function getMapStatus(req: Req, res: Res) {
+  const { date } = reqValidators.getMapStats(req.query);
+  
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  // if (sessionUser.role !== 'admin') {
+  //   throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Access denied. Management privileges required.');
+  // }
+
+  const mapData = await UserService.getMapStatusByActivities(date);
+  
+  return res.status(HttpStatusCodes.OK).json(mapData);
+}
+
 /******************************************************************************
                                    Export default
 ******************************************************************************/
@@ -343,4 +363,5 @@ export default {
   getEmployeeTopDebtors,
   getShipperOverviewStats,
   getShipperMonthlyStats,
+  getMapStatus
 } as const;
