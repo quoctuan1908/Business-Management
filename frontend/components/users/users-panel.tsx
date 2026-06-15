@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { 
   UserPlus, Search, Building2, Mail, Phone, 
   Trash2, Pencil, RefreshCw, UserCog,
@@ -23,12 +23,14 @@ import { Label } from "@/components/ui/label";
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 const emptyUser: Partial<User> = {
   username: "",
   password: "",
   fullName: "",
-  role: "user",
+  role: "employee",
   department: "",
   phoneNumber: "",
   email: "",
@@ -67,11 +69,24 @@ export function UsersPanel() {
 
   useEffect(() => { void loadUsers(); }, [loadUsers]);
 
-  const filteredUsers = users.filter(user => 
-    Object.values(user).some(val => 
-      String(val).toLowerCase().includes(searchQuery.toLowerCase())
-    )
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) =>
+        Object.values(user).some((val) =>
+          String(val).toLowerCase().includes(searchQuery.toLowerCase()),
+        ),
+      ),
+    [users, searchQuery],
   );
+
+  const {
+    page,
+    setPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    paginatedItems: paginatedUsers,
+  } = usePagination(filteredUsers, undefined, searchQuery);
 
   const openCreate = () => {
     setForm(emptyUser);
@@ -79,7 +94,11 @@ export function UsersPanel() {
   };
 
   const openEdit = (user: UserPublic) => {
-    setForm({ ...user, password: "" });
+    setForm({
+      ...user,
+      password: "",
+      role: user.role === "user" ? "employee" : user.role,
+    });
     setDialogOpen(true);
   };
 
@@ -190,7 +209,7 @@ export function UsersPanel() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.length > 0 ? filteredUsers.map((u) => (
+                {paginatedUsers.length > 0 ? paginatedUsers.map((u) => (
                   <TableRow key={u.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="font-medium text-muted-foreground">#{u.id}</TableCell>
                     <TableCell>
@@ -245,6 +264,13 @@ export function UsersPanel() {
                 )}
               </TableBody>
             </Table>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </CardContent>
@@ -345,7 +371,7 @@ export function UsersPanel() {
                 <Select value={form.role} onValueChange={v => setForm({...form, role: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">Nhân viên (User)</SelectItem>
+                    <SelectItem value="employee">Nhân viên (Employee)</SelectItem>
                     <SelectItem value="admin">Quản trị (Admin)</SelectItem>
                   </SelectContent>
                 </Select>

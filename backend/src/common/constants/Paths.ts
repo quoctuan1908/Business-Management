@@ -64,6 +64,7 @@ const Paths = {
   Activities: {
     _: '/activities',
     Get: '/all',
+    Export: '/export',
     GetOne: '/:id',
     Add: '/add',
     Update: '/update',

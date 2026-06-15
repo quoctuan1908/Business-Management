@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { importDetailsApi, importsApi, lookupApi } from "@/lib/api";
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Table,
   TableBody,
@@ -279,6 +280,26 @@ export function ImportDetailDialog({
     (p) => editingProductId === p.id || !usedProductIds.has(p.id),
   );
 
+  const supplierOptions = useMemo(
+    () =>
+      suppliers.map((s) => ({
+        value: String(s.id),
+        label: s.supplierName,
+        keywords: `${s.businessType} ${s.address} ${s.phoneNumber} ${s.email}`,
+      })),
+    [suppliers],
+  );
+
+  const productOptions = useMemo(
+    () =>
+      availableProducts.map((p) => ({
+        value: String(p.id),
+        label: `${p.productName} (TK: ${p.stockQuantity})`,
+        keywords: `${p.unitPrice} ${p.stockQuantity}`,
+      })),
+    [availableProducts],
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
@@ -306,23 +327,15 @@ export function ImportDetailDialog({
                 <div>
                   <p className="text-xs text-muted-foreground">Nhà cung cấp</p>
                   {canManage ? (
-                    <Select
+                    <SearchableSelect
+                      options={supplierOptions}
                       value={headerForm.supplierId}
                       onValueChange={(v) =>
                         setHeaderForm((f) => ({ ...f, supplierId: v }))
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn nhà cung cấp" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {suppliers.map((s) => (
-                          <SelectItem key={s.id} value={String(s.id)}>
-                            {s.supplierName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Chọn nhà cung cấp"
+                      searchPlaceholder="Tìm theo tên, SĐT, email, địa chỉ..."
+                    />
                   ) : (
                     <p className="text-sm font-medium">{supplierName}</p>
                   )}
@@ -396,22 +409,14 @@ export function ImportDetailDialog({
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className="grid gap-2">
                       <Label>Sản phẩm</Label>
-                      <Select
+                      <SearchableSelect
+                        options={productOptions}
                         value={lineForm.productId}
                         onValueChange={onProductChange}
                         disabled={editingProductId !== null}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableProducts.map((p) => (
-                            <SelectItem key={p.id} value={String(p.id)}>
-                              {p.productName} (TK: {p.stockQuantity})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Chọn sản phẩm"
+                        searchPlaceholder="Tìm theo tên sản phẩm..."
+                      />
                     </div>
                     <div className="grid gap-2">
                       <Label>Số lượng</Label>

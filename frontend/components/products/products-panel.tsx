@@ -7,7 +7,7 @@ import { productsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { Product } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 const emptyForm = {
   id: 0,
@@ -44,6 +46,15 @@ export function ProductsPanel() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  const {
+    page,
+    setPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    paginatedItems: paginatedProducts,
+  } = usePagination(products);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,8 +127,7 @@ export function ProductsPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>Sản phẩm</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-end space-y-0 pb-4">
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" />
@@ -142,6 +152,7 @@ export function ProductsPanel() {
         ) : products.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có sản phẩm.</p>
         ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -155,7 +166,7 @@ export function ProductsPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product) => (
+              {paginatedProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>{product.id}</TableCell>
                   <TableCell className="font-medium">
@@ -185,6 +196,14 @@ export function ProductsPanel() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setPage}
+          />
+          </>
         )}
       </CardContent>
 

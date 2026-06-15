@@ -7,7 +7,7 @@ import { suppliersApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { Supplier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 const emptyForm = {
   id: 0,
@@ -42,6 +44,15 @@ export function SuppliersPanel() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  const {
+    page,
+    setPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    paginatedItems: paginatedSuppliers,
+  } = usePagination(suppliers);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -123,8 +134,7 @@ export function SuppliersPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>Nhà cung cấp</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-end space-y-0 pb-4">
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" />
@@ -149,6 +159,7 @@ export function SuppliersPanel() {
         ) : suppliers.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có nhà cung cấp.</p>
         ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -164,7 +175,7 @@ export function SuppliersPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {suppliers.map((supplier) => (
+              {paginatedSuppliers.map((supplier) => (
                 <TableRow key={supplier.id}>
                   <TableCell>{supplier.id}</TableCell>
                   <TableCell className="font-medium">
@@ -198,6 +209,14 @@ export function SuppliersPanel() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setPage}
+          />
+          </>
         )}
       </CardContent>
 

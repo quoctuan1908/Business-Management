@@ -8,7 +8,7 @@ import { customersApi, locationsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { Customer, Location } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 const emptyForm = {
   id: 0,
@@ -63,6 +65,15 @@ export function CustomersPanel() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  const {
+    page,
+    setPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    paginatedItems: paginatedCustomers,
+  } = usePagination(customers);
 
   const locationMap = Object.fromEntries(
     locations.map((l) => [l.id, locationLabel(l)]),
@@ -159,8 +170,7 @@ export function CustomersPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>Khách hàng</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-end space-y-0 pb-4">
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" />
@@ -195,6 +205,7 @@ export function CustomersPanel() {
         ) : customers.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có khách hàng.</p>
         ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -209,7 +220,7 @@ export function CustomersPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => (
+              {paginatedCustomers.map((customer) => (
                 <TableRow key={customer.id}>
                   <TableCell>{customer.id}</TableCell>
                   <TableCell className="font-medium">
@@ -266,6 +277,14 @@ export function CustomersPanel() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setPage}
+          />
+          </>
         )}
       </CardContent>
 
