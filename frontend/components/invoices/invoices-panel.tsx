@@ -7,7 +7,7 @@ import { invoicesApi } from "@/lib/api";
 import type { Invoice } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -115,8 +115,7 @@ export function InvoicesPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>Hóa đơn</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-end space-y-0 pb-4">
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" />

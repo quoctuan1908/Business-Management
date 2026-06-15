@@ -1,5 +1,7 @@
 require("dotenv").config({ path: "./config/.env.development" });
 const bcrypt = require("bcrypt");
+const fs = require("fs");
+const path = require("path");
 const { Pool } = require("pg");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { PrismaClient } = require("@prisma/client");
@@ -131,6 +133,22 @@ async function seedSalaries(users) {
   }
 }
 
+function loadProductsFromJson() {
+  const filePath = path.join(__dirname, "..", "products.json");
+  const raw = fs.readFileSync(filePath, "utf8");
+  const items = JSON.parse(raw);
+
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("products.json must be a non-empty array");
+  }
+
+  return items.map((item) => ({
+    product_name: item.product_name,
+    unit_price: Number(item.unit_price).toFixed(2),
+    stock_quantity: Number(item.stock_quantity),
+  }));
+}
+
 async function main() {
   await seedOrderStatuses();
 
@@ -249,25 +267,8 @@ async function main() {
   const allUsers = [adminUser, sellerUser01, sellerUser02];
   await seedSalaries(allUsers);
 
-  await prisma.product.createMany({
-    data: [
-      {
-        product_name: "CRM Basic Package",
-        unit_price: "2990000.00",
-        stock_quantity: 10,
-      },
-      {
-        product_name: "Sales Dashboard Pro",
-        unit_price: "5990000.00",
-        stock_quantity: 5,
-      },
-      {
-        product_name: "Email Automation Tool",
-        unit_price: "1990000.00",
-        stock_quantity: 20,
-      },
-    ],
-  });
+  const productRows = loadProductsFromJson();
+  await prisma.product.createMany({ data: productRows });
 
   const products = await prisma.product.findMany({ orderBy: { product_id: "asc" } });
 
@@ -317,25 +318,28 @@ async function main() {
   });
 
   if (products.length >= 3) {
+    const importPrice = (unitPrice) =>
+      Math.round(Number(unitPrice) * 0.85).toFixed(2);
+
     await prisma.importDetail.createMany({
       data: [
         {
           import_id: import1.import_id,
           product_id: products[0].product_id,
           quantity: 30,
-          import_price: "2400000.00",
+          import_price: importPrice(products[0].unit_price),
         },
         {
           import_id: import1.import_id,
           product_id: products[2].product_id,
           quantity: 50,
-          import_price: "1500000.00",
+          import_price: importPrice(products[2].unit_price),
         },
         {
           import_id: import2.import_id,
           product_id: products[1].product_id,
           quantity: 15,
-          import_price: "4800000.00",
+          import_price: importPrice(products[1].unit_price),
         },
       ],
     });
@@ -390,30 +394,35 @@ async function main() {
   }
 
   if (activities.length >= 3 && products.length >= 3) {
+    const salePrice = (unitPrice, markup = 1) =>
+      Math.round(Number(unitPrice) * markup).toFixed(2);
+
     await prisma.activityDetail.createMany({
       data: [
         {
           activity_id: activities[1].activity_id,
           product_id: products[0].product_id,
           quantity: 2,
-          sale_price: "3100000.00",
+          sale_price: salePrice(products[0].unit_price),
         },
         {
           activity_id: activities[1].activity_id,
           product_id: products[2].product_id,
           quantity: 1,
-          sale_price: "1890000.00",
+          sale_price: salePrice(products[2].unit_price),
         },
         {
           activity_id: activities[2].activity_id,
           product_id: products[0].product_id,
           quantity: 3,
-          sale_price: "2950000.00",
+          sale_price: salePrice(products[0].unit_price, 0.98),
         },
       ],
     });
 
-    const total2 = 3100000 * 2 + 1890000;
+    const total2 =
+      Number(salePrice(products[0].unit_price)) * 2 +
+      Number(salePrice(products[2].unit_price));
     const inv2 = await prisma.invoice.create({
       data: {
         total_amount: total2.toFixed(2),
@@ -425,7 +434,7 @@ async function main() {
       data: { invoice_id: inv2.invoice_id, payment_status: "unpaid" },
     });
 
-    const total3 = 2950000 * 3;
+    const total3 = Number(salePrice(products[0].unit_price, 0.98)) * 3;
     const inv3 = await prisma.invoice.create({
       data: {
         total_amount: total3.toFixed(2),
@@ -462,6 +471,7 @@ async function main() {
     staffUserIds: staffUsers.map((u) => u.user_id),
     canThoLocationCount: locationCount,
     customerCount: customers.length,
+    productCount: products.length,
     supplierCount,
     importCount,
     importDetailCount,

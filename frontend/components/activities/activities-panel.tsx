@@ -2,26 +2,32 @@
 
 
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Eye, FileDown, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Eye, FileDown, Plus, RefreshCw, Trash2, X } from "lucide-react";
 
 import { ActivityDetailDialog } from "@/components/activities/activity-detail-dialog";
 
 import { activitiesApi, lookupApi, orderStatusesApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
-import type { Activity, Customer, User } from "@/lib/types";
+import type { Activity, Customer, OrderStatus, User } from "@/lib/types";
 
 import { Badge } from "@/components/ui/badge";
 
 import { Button } from "@/components/ui/button";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import { Input } from "@/components/ui/input";
 
-import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import {
   Table,
@@ -31,6 +37,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import { TablePagination } from "@/components/ui/table-pagination";
+
+import { usePagination } from "@/hooks/use-pagination";
 
 
 
@@ -62,6 +72,40 @@ function defaultToDate() {
 
 
 
+function activityDateKey(value: string) {
+
+  const d = new Date(value);
+
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+
+  const day = String(d.getDate()).padStart(2, "0");
+
+  return `${d.getFullYear()}-${month}-${day}`;
+
+}
+
+
+
+function matchesDateFilter(
+  activityDate: string,
+  from: string,
+  to: string,
+) {
+
+  if (!from && !to) return true;
+
+  const key = activityDateKey(activityDate);
+
+  if (from && key < from) return false;
+
+  if (to && key > to) return false;
+
+  return true;
+
+}
+
+
+
 export function ActivitiesPanel() {
   const { user, isAdmin } = useAuth();
 
@@ -72,6 +116,14 @@ export function ActivitiesPanel() {
   const [customers, setCustomers] = useState<Customer[]>([]);
 
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+
+  const [orderStatuses, setOrderStatuses] = useState<OrderStatus[]>([]);
+
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  const [filterFrom, setFilterFrom] = useState("");
+
+  const [filterTo, setFilterTo] = useState("");
 
   const [loading, setLoading] = useState(true);
 
@@ -88,6 +140,37 @@ export function ActivitiesPanel() {
   const [exportTo, setExportTo] = useState(defaultToDate);
 
   const [exporting, setExporting] = useState(false);
+
+  const filteredActivities = useMemo(
+    () =>
+      activities.filter((activity) => {
+        const statusMatch =
+          filterStatus === "all" || activity.status === filterStatus;
+        const dateMatch = matchesDateFilter(
+          activity.activityDate,
+          filterFrom,
+          filterTo,
+        );
+        return statusMatch && dateMatch;
+      }),
+    [activities, filterStatus, filterFrom, filterTo],
+  );
+
+  const filterKey = `${filterStatus}|${filterFrom}|${filterTo}`;
+
+  const customerMap = useMemo(
+    () => Object.fromEntries(customers.map((c) => [c.id, c.companyName])),
+    [customers],
+  );
+
+  const {
+    page,
+    setPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    paginatedItems: paginatedActivities,
+  } = usePagination(filteredActivities, undefined, filterKey);
 
 
 
@@ -114,6 +197,8 @@ export function ActivitiesPanel() {
       setUsers(userList);
 
       setCustomers(customerList);
+
+      setOrderStatuses(statuses);
 
       setStatusMap(
 
@@ -168,6 +253,23 @@ export function ActivitiesPanel() {
     setDetailOpen(true);
 
   }
+
+
+
+  function clearFilters() {
+
+    setFilterStatus("all");
+
+    setFilterFrom("");
+
+    setFilterTo("");
+
+  }
+
+
+
+  const hasActiveFilters =
+    filterStatus !== "all" || filterFrom !== "" || filterTo !== "";
 
 
 
@@ -234,219 +336,190 @@ export function ActivitiesPanel() {
 
 
   return (
-
     <Card>
-
-      <CardHeader className="space-y-4">
-
-        <div className="flex flex-row items-center justify-between space-y-0">
-
-          <CardTitle>Hoạt động</CardTitle>
-
-          <div className="flex gap-2">
-
+      <CardHeader className="space-y-3 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">
+            {!loading && (
+              <>
+                {filteredActivities.length}
+                {hasActiveFilters ? " kết quả" : " mục"}
+              </>
+            )}
+          </p>
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => void load()}>
-
               <RefreshCw className="h-4 w-4" />
-
               Tải lại
-
             </Button>
-
             <Button size="sm" onClick={openCreate}>
-
               <Plus className="h-4 w-4" />
-
-              Thêm hoạt động
-
+              Thêm
             </Button>
-
           </div>
-
         </div>
 
-        <div className="flex flex-wrap items-end gap-3 rounded-md border bg-muted/30 p-3">
+        <div className="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger id="filter-status" className="h-8 w-[150px] bg-background text-xs">
+              <SelectValue placeholder="Trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả trạng thái</SelectItem>
+              {orderStatuses.map((status) => (
+                <SelectItem key={status.statusCode} value={status.statusCode}>
+                  {status.statusName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <div className="space-y-1">
+          <Input
+            id="filter-from"
+            type="date"
+            title="Lọc từ ngày"
+            value={filterFrom}
+            onChange={(e) => setFilterFrom(e.target.value)}
+            className="h-8 w-[140px] bg-background text-xs"
+          />
+          <Input
+            id="filter-to"
+            type="date"
+            title="Lọc đến ngày"
+            value={filterTo}
+            min={filterFrom || undefined}
+            onChange={(e) => setFilterTo(e.target.value)}
+            className="h-8 w-[140px] bg-background text-xs"
+          />
 
-            <Label htmlFor="export-from">Từ ngày</Label>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
 
-            <Input
+          <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
 
-              id="export-from"
-
-              type="date"
-
-              value={exportFrom}
-
-              onChange={(e) => setExportFrom(e.target.value)}
-
-              className="w-[160px]"
-
-            />
-
-          </div>
-
-          <div className="space-y-1">
-
-            <Label htmlFor="export-to">Đến ngày</Label>
-
-            <Input
-
-              id="export-to"
-
-              type="date"
-
-              value={exportTo}
-
-              min={exportFrom}
-
-              onChange={(e) => setExportTo(e.target.value)}
-
-              className="w-[160px]"
-
-            />
-
-          </div>
-
+          <Input
+            id="export-from"
+            type="date"
+            title="Xuất từ ngày"
+            value={exportFrom}
+            onChange={(e) => setExportFrom(e.target.value)}
+            className="h-8 w-[140px] bg-background text-xs"
+          />
+          <Input
+            id="export-to"
+            type="date"
+            title="Xuất đến ngày"
+            value={exportTo}
+            min={exportFrom}
+            onChange={(e) => setExportTo(e.target.value)}
+            className="h-8 w-[140px] bg-background text-xs"
+          />
           <Button
-
             variant="secondary"
-
             size="sm"
-
+            className="h-8"
             disabled={exporting}
-
             onClick={() => void handleExport()}
-
           >
-
             <FileDown className="h-4 w-4" />
-
             {exporting ? "Đang xuất..." : "Xuất Excel"}
-
           </Button>
-
         </div>
-
       </CardHeader>
 
-      <CardContent>
-
+      <CardContent className="pt-0">
         {error && (
-
-          <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-
+          <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
-
           </p>
-
         )}
 
         {loading ? (
-
           <p className="text-sm text-muted-foreground">Đang tải...</p>
-
+        ) : activities.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Chưa có dữ liệu.</p>
+        ) : filteredActivities.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Không có kết quả phù hợp.
+          </p>
         ) : (
-
-          <Table>
-
-            <TableHeader>
-
-              <TableRow>
-
-                <TableHead>ID</TableHead>
-
-                <TableHead>Khách hàng</TableHead>
-
-                <TableHead>Hóa đơn</TableHead>
-
-                <TableHead>Trạng thái</TableHead>
-
-                <TableHead>Ngày</TableHead>
-
-                <TableHead>Nội dung</TableHead>
-
-                <TableHead className="text-right">Thao tác</TableHead>
-
-              </TableRow>
-
-            </TableHeader>
-
-            <TableBody>
-
-              {activities.map((activity) => (
-
-                <TableRow key={activity.id}>
-
-                  <TableCell>{activity.id}</TableCell>
-
-                  <TableCell>{activity.customerId}</TableCell>
-
-                  <TableCell>
-
-                    {activity.invoiceId ? `#${activity.invoiceId}` : "—"}
-
-                  </TableCell>
-
-                  <TableCell>
-
-                    <Badge variant="outline">
-
-                      {statusMap[activity.status] ?? activity.status}
-
-                    </Badge>
-
-                  </TableCell>
-
-                  <TableCell>{formatDate(activity.activityDate)}</TableCell>
-
-                  <TableCell className="max-w-[200px] truncate">
-
-                    {activity.content}
-
-                  </TableCell>
-
-                  <TableCell className="text-right">
-
-                    <Button
-
-                      variant="ghost"
-
-                      size="sm"
-
-                      title="Mở chi tiết"
-
-                      onClick={() => openDetail(activity)}
-
-                    >
-
-                      <Eye className="h-4 w-4" />
-
-                    </Button>
-
-                    {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => void handleDelete(activity.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
-
-                  </TableCell>
-
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[60px]">ID</TableHead>
+                  <TableHead>Khách hàng</TableHead>
+                  <TableHead className="w-[90px]">Hóa đơn</TableHead>
+                  <TableHead className="w-[120px]">Trạng thái</TableHead>
+                  <TableHead className="w-[150px]">Ngày</TableHead>
+                  <TableHead>Nội dung</TableHead>
+                  <TableHead className="w-[100px]">Thao tác</TableHead>
                 </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedActivities.map((activity) => (
+                  <TableRow key={activity.id}>
+                    <TableCell className="text-muted-foreground">
+                      {activity.id}
+                    </TableCell>
+                    <TableCell className="max-w-[180px] truncate text-sm">
+                      {customerMap[activity.customerId] ?? `#${activity.customerId}`}
+                    </TableCell>
+                    <TableCell>
+                      {activity.invoiceId ? `#${activity.invoiceId}` : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {statusMap[activity.status] ?? activity.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {formatDate(activity.activityDate)}
+                    </TableCell>
+                    <TableCell className="max-w-[220px] truncate text-sm">
+                      {activity.content}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-between gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Mở chi tiết"
+                          onClick={() => openDetail(activity)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {isAdmin ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Xóa"
+                            onClick={() => void handleDelete(activity.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        ) : (
+                          <span className="w-9" />
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
-              ))}
-
-            </TableBody>
-
-          </Table>
-
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setPage}
+            />
+          </>
         )}
-
       </CardContent>
 
 

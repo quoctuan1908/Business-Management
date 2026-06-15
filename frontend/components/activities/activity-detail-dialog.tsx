@@ -42,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Table,
   TableBody,
@@ -189,6 +190,26 @@ export function ActivityDetailDialog({
       useBalanceOnComplete,
     );
   }, [paymentSummary, isProcessing, pendingPayments, useBalanceOnComplete]);
+
+  const customerOptions = useMemo(
+    () =>
+      customers.map((c) => ({
+        value: String(c.id),
+        label: c.companyName,
+        keywords: `${c.representativeName} ${c.phoneNumber} ${c.businessType}`,
+      })),
+    [customers],
+  );
+
+  const productOptions = useMemo(
+    () =>
+      products.map((p) => ({
+        value: String(p.id),
+        label: p.productName,
+        keywords: String(p.unitPrice),
+      })),
+    [products],
+  );
 
   const load = useCallback(async (overrideId?: number) => {
     const id = overrideId ?? effectiveActivityId;
@@ -525,23 +546,15 @@ export function ActivityDetailDialog({
                 <div>
                   <p className="text-xs text-muted-foreground">Khách hàng</p>
                   {isDraft ? (
-                    <Select
+                    <SearchableSelect
+                      options={customerOptions}
                       value={headerForm.customerId}
                       onValueChange={(v) =>
                         setHeaderForm((f) => ({ ...f, customerId: v }))
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((c) => (
-                          <SelectItem key={c.id} value={String(c.id)}>
-                            {c.companyName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Chọn khách hàng"
+                      searchPlaceholder="Tìm theo tên công ty, người đại diện, SĐT..."
+                    />
                   ) : (
                     <p className="text-sm font-medium">{customerName}</p>
                   )}
@@ -611,24 +624,16 @@ export function ActivityDetailDialog({
                       : "Thêm sản phẩm"}
                   </p>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 sm:col-span-3">
                       <Label>Sản phẩm</Label>
-                      <Select
+                      <SearchableSelect
+                        options={productOptions}
                         value={lineForm.productId}
                         onValueChange={onProductChange}
                         disabled={editingProductId !== null}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((p) => (
-                            <SelectItem key={p.id} value={String(p.id)}>
-                              {p.productName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Chọn sản phẩm"
+                        searchPlaceholder="Tìm theo tên sản phẩm..."
+                      />
                     </div>
                     <div className="grid gap-2">
                       <Label>Số lượng</Label>

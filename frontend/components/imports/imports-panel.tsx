@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Eye, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Eye, Plus, RefreshCw, Trash2, X } from "lucide-react";
 
 import { ImportDetailDialog } from "@/components/imports/import-detail-dialog";
 import { importsApi, lookupApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { ImportView, Supplier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -17,6 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("vi-VN");
@@ -24,6 +27,21 @@ function formatDate(value: string) {
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat("vi-VN").format(value);
+}
+
+function importDateKey(value: string) {
+  const d = new Date(value);
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+function matchesDateFilter(importDate: string, from: string, to: string) {
+  if (!from && !to) return true;
+  const key = importDateKey(importDate);
+  if (from && key < from) return false;
+  if (to && key > to) return false;
+  return true;
 }
 
 export function ImportsPanel() {
@@ -35,6 +53,27 @@ export function ImportsPanel() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [createMode, setCreateMode] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+
+  const filteredImports = useMemo(
+    () =>
+      imports.filter((record) =>
+        matchesDateFilter(record.importDate, filterFrom, filterTo),
+      ),
+    [imports, filterFrom, filterTo],
+  );
+
+  const filterKey = `${filterFrom}|${filterTo}`;
+
+  const {
+    page,
+    setPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    paginatedItems: paginatedImports,
+  } = usePagination(filteredImports, undefined, filterKey);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +108,13 @@ export function ImportsPanel() {
     setDetailOpen(true);
   }
 
+  function clearFilters() {
+    setFilterFrom("");
+    setFilterTo("");
+  }
+
+  const hasActiveFilters = filterFrom !== "" || filterTo !== "";
+
   async function handleDelete(id: number) {
     if (
       !confirm(
@@ -88,22 +134,56 @@ export function ImportsPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>Nhập kho</CardTitle>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => void load()}>
-            <RefreshCw className="h-4 w-4" />
-            Tải lại
-          </Button>
-          {isAdmin && (
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              Tạo phiếu nhập
+      <CardHeader className="space-y-3 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">
+            {!loading && (
+              <>
+                {filteredImports.length}
+                {hasActiveFilters ? " kết quả" : " phiếu"}
+              </>
+            )}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => void load()}>
+              <RefreshCw className="h-4 w-4" />
+              Tải lại
+            </Button>
+            {isAdmin && (
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                Tạo phiếu nhập
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+          <Input
+            id="import-filter-from"
+            type="date"
+            title="Lọc từ ngày"
+            value={filterFrom}
+            onChange={(e) => setFilterFrom(e.target.value)}
+            className="h-8 w-[140px] bg-background text-xs"
+          />
+          <Input
+            id="import-filter-to"
+            type="date"
+            title="Lọc đến ngày"
+            value={filterTo}
+            min={filterFrom || undefined}
+            onChange={(e) => setFilterTo(e.target.value)}
+            className="h-8 w-[140px] bg-background text-xs"
+          />
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}>
+              <X className="h-4 w-4" />
             </Button>
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         {error && (
           <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
@@ -113,7 +193,12 @@ export function ImportsPanel() {
           <p className="text-sm text-muted-foreground">Đang tải...</p>
         ) : imports.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có phiếu nhập.</p>
+        ) : filteredImports.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Không có kết quả phù hợp.
+          </p>
         ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -127,7 +212,7 @@ export function ImportsPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {imports.map((record) => (
+              {paginatedImports.map((record) => (
                 <TableRow key={record.id}>
                   <TableCell>{record.id}</TableCell>
                   <TableCell>
@@ -164,6 +249,14 @@ export function ImportsPanel() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setPage}
+          />
+          </>
         )}
       </CardContent>
 
