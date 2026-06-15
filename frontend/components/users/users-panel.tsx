@@ -112,16 +112,24 @@ export function UsersPanel() {
   }
 
   async function handleToggleActivation(user: UserPublic) {
-    const actionText = user.isActivated ? "Hủy kích hoạt" : "Kích hoạt";
+    const nextStatus = !user.isActivated;
+    const actionText = nextStatus ? "Kích hoạt" : "Hủy kích hoạt";
     if (!confirm(`Bạn có chắc chắn muốn ${actionText} tài khoản của nhân viên này?`)) return;
 
     try {
       await usersApi.update({
         ...user,
-        isActivated: !user.isActivated
+        password: "",
+        isActivated: nextStatus
       });
+      
+      if (nextStatus) {
+        setApprovalDialogOpen(false);
+      }
+      
       await loadUsers(); 
     } catch (error) {
+      console.error(error);
       alert("Thay đổi trạng thái kích hoạt thất bại");
     }
   }
