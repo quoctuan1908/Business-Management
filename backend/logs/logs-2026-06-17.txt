@@ -34,3 +34,17 @@
 [2026-06-17 21:51:33] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
 [2026-06-17 21:51:33] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
 [2026-06-17 21:51:33] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:14:56] [INFO] [SYSTEM] Tài khoản "nhanvien01" (ID: 11) đăng nhập thành công.
+[2026-06-17 22:14:58] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:14:59] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:14:59] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:16:42] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:16:42] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:16:42] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:19:18] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:19:19] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:19:20] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:19:34] [INFO] [SYSTEM] Tài khoản "admin" (ID: 10) đăng nhập thành công.
+[2026-06-17 22:19:34] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:19:34] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:19:34] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.

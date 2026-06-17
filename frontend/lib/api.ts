@@ -8,6 +8,7 @@ import type {
   User,
   Invoice,
   Location,
+  EmployeeLocationView,
   OrderStatus,
   PaymentSummary,
   Product,
@@ -411,6 +412,32 @@ export const locationsApi = {
     request<{ locations: Location[] }>("/locations/all").then(
       (d) => d.locations,
     ),
+};
+
+export const employeeLocationsApi = {
+  getAll: () =>
+    request<{ assignments: EmployeeLocationView[] }>(
+      "/employee-locations/all",
+    ).then((d) => d.assignments),
+
+  getByUser: (userId: number) =>
+    request<{ assignments: EmployeeLocationView[] }>(
+      `/employee-locations/user/${userId}`,
+    ).then((d) => d.assignments),
+
+  getAvailable: () =>
+    request<{ locations: Location[] }>("/employee-locations/available").then(
+      (d) => d.locations,
+    ),
+
+  setByUser: (userId: number, locationIds: number[]) =>
+    request<{ assignments: EmployeeLocationView[] }>(
+      `/employee-locations/user/${userId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ locationIds }),
+      },
+    ).then((d) => d.assignments),
 };
 
 export const usersApi = {
