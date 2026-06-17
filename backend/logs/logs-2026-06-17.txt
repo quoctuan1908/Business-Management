@@ -2,3 +2,16 @@
 [2026-06-17 16:23:18] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
 [2026-06-17 16:23:18] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
 [2026-06-17 16:25:32] [WARN] [SYSTEM] Đăng nhập thất bại: Tài khoản "admin" nhập sai mật khẩu.
+[2026-06-17 21:42:04] [INFO] [SYSTEM] Tài khoản "nhanvien02" (ID: 3) đăng nhập thành công.
+[2026-06-17 21:42:05] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 21:42:05] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 21:42:05] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 21:55:46] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 21:55:46] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 21:55:46] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:03:18] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:03:18] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:03:18] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:05:32] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:05:32] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 22:05:32] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.

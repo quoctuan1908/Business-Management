@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Eye, Pencil, Plus, RefreshCw, Trash2, Check, Map } from "lucide-react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { Eye, Pencil, Plus, RefreshCw, Trash2, Check, Map, MapPin } from "lucide-react";
 
 import { CustomerDetailDialog } from "@/components/customers/customer-detail-dialog";
 import { customersApi, locationsApi } from "@/lib/api";
@@ -50,6 +50,8 @@ const emptyForm = {
   isApproved: true,
 };
 
+const CAN_THO_COORDS = { lat: 10.0383, lng: 105.7838 };
+
 function formatMoney(value: number) {
   return new Intl.NumberFormat("vi-VN").format(value);
 }
@@ -70,6 +72,13 @@ export function CustomersPanel() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  // Trạng thái cho Bản đồ nhỏ ghim điểm
+  const [innerMapOpen, setInnerMapOpen] = useState(false);
+  const [pickedCoords, setPickedCoords] = useState(CAN_THO_COORDS);
+  const innerMapContainerRef = useRef<HTMLDivElement>(null);
+  const innerMapInstanceRef = useRef<any>(null);
+  const innerMarkerRef = useRef<any>(null);
 
   const {
     page,
@@ -103,11 +112,96 @@ export function CustomersPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Khởi tạo bản đồ nhỏ và định vị GPS bản thân
+  useEffect(() => {
+    if (!innerMapOpen) return;
+
+    const initMap = async () => {
+      try {
+        const L = (await import("leaflet")).default;
+        await import("leaflet/dist/leaflet.css");
+
+        // KHẮC PHỤC LỖI ICON: Định nghĩa lại Marker Icon mặc định của Leaflet bằng CDN chuẩn
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+          iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+          shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+        });
+
+        if (!innerMapContainerRef.current) return;
+
+        if (innerMapInstanceRef.current) {
+          innerMapInstanceRef.current.remove();
+          innerMapInstanceRef.current = null;
+          innerMarkerRef.current = null;
+        }
+
+        let initLat = form.lat ? Number(form.lat) : null;
+        let initLng = form.lng ? Number(form.lng) : null;
+
+        const setupLeaflet = (lat: number, lng: number) => {
+          setPickedCoords({ lat, lng });
+
+          if (!innerMapContainerRef.current) return;
+          const map = L.map(innerMapContainerRef.current).setView([lat, lng], 16);
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "© OpenStreetMap contributors",
+          }).addTo(map);
+
+          innerMapInstanceRef.current = map;
+          innerMarkerRef.current = L.marker([lat, lng]).addTo(map);
+
+          map.on("click", (e: any) => {
+            const { lat: clickLat, lng: clickLng } = e.latlng;
+            setPickedCoords({ lat: clickLat, lng: clickLng });
+            if (innerMarkerRef.current) {
+              innerMarkerRef.current.setLatLng([clickLat, clickLng]);
+            }
+          });
+        };
+
+        if (!initLat || !initLng) {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                setupLeaflet(position.coords.latitude, position.coords.longitude);
+              },
+              (err) => {
+                console.warn("Không lấy được GPS, lùi về tâm Cần Thơ làm mặc định", err);
+                setupLeaflet(CAN_THO_COORDS.lat, CAN_THO_COORDS.lng);
+              },
+              { enableHighAccuracy: true, timeout: 8000 }
+            );
+          } else {
+            setupLeaflet(CAN_THO_COORDS.lat, CAN_THO_COORDS.lng);
+          }
+        } else {
+          setupLeaflet(initLat, initLng);
+        }
+
+      } catch (err) {
+        console.error("Lỗi khởi tạo bản đồ:", err);
+      }
+    };
+
+    void initMap();
+  }, [innerMapOpen, form.lat, form.lng]);
+
+  const confirmPickedCoords = () => {
+    setForm((f) => ({
+      ...f,
+      lat: String(pickedCoords.lat.toFixed(6)),
+      lng: String(pickedCoords.lng.toFixed(6)),
+    }));
+    setInnerMapOpen(false);
+  };
 
   function openCreate() {
     setForm({
@@ -274,7 +368,6 @@ export function CustomersPanel() {
                 <TableHead>Số dư</TableHead>
                 <TableHead>Địa điểm</TableHead>
                 <TableHead>Tọa độ</TableHead>
-                {/* Chỉ hiển thị tiêu đề cột Trạng thái nếu là Admin */}
                 {isAdmin && <TableHead>Trạng thái</TableHead>}
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
@@ -311,7 +404,6 @@ export function CustomersPanel() {
                       <span className="text-muted-foreground/50">---</span>
                     )}
                   </TableCell>
-                  {/* Chỉ render ô dữ liệu Trạng thái nếu là Admin */}
                   {isAdmin && (
                     <TableCell>
                       {customer.isApproved ? (
@@ -394,6 +486,7 @@ export function CustomersPanel() {
         onSelectStore={handleSelectFieldData}
       />
 
+      {/* DIALOG CHÍNH ĐỂ THÊM / SỬA KHÁCH HÀNG */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
@@ -498,34 +591,48 @@ export function CustomersPanel() {
                 />
               </div>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="lat">Vĩ độ (Latitude)</Label>
-                <Input
-                  id="lat"
-                  type="number"
-                  step="any"
-                  required
-                  value={form.lat}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, lat: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="lng">Kinh độ (Longitude)</Label>
-                <Input
-                  id="lng"
-                  type="number"
-                  step="any"
-                  required
-                  value={form.lng}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, lng: e.target.value }))
-                  }
-                />
+
+            {/* PHẦN TỌA ĐỘ: Đồng bộ border chuẩn Slate nhẹ */}
+            <div className="grid gap-2">
+              <Label>Tọa độ đại lý</Label>
+              <div className="flex items-center gap-2">
+                <div className="grid grid-cols-2 gap-2 flex-1">
+                  <Input
+                    id="lat"
+                    type="number"
+                    step="any"
+                    required
+                    placeholder="Vĩ độ (Lat)"
+                    value={form.lat}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, lat: e.target.value }))
+                    }
+                  />
+                  <Input
+                    id="lng"
+                    type="number"
+                    step="any"
+                    required
+                    placeholder="Kinh độ (Lng)"
+                    value={form.lng}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, lng: e.target.value }))
+                    }
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title="Mở bản đồ lấy vị trí"
+                  onClick={() => setInnerMapOpen(true)}
+                  className="h-10 w-10 shrink-0 border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+                >
+                  <MapPin className="w-5 h-5" />
+                </Button>
               </div>
             </div>
+
             {isAdmin && form.id !== 0 && (
               <div className="flex items-center gap-2 py-2">
                 <input
@@ -546,6 +653,36 @@ export function CustomersPanel() {
               {saving ? "Đang lưu..." : "Gửi yêu cầu lưu khách hàng"}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG BẢN ĐỒ PHỤ */}
+      <Dialog open={innerMapOpen} onOpenChange={setInnerMapOpen}>
+        <DialogContent className="max-w-2xl h-[70vh] flex flex-col p-4 border-slate-200">
+          <DialogHeader className="pb-2 shrink-0">
+            <DialogTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+              <MapPin className="w-5 h-5 text-indigo-600" />
+              Ghim tọa độ thực địa
+            </DialogTitle>
+          </DialogHeader>
+          
+          {/* ĐÃ LƯỢC BỎ TEXT TRẠNG THÁI GPS PHÍA PHẢI, CHỈ HIỂN THỊ TỌA ĐỘ ĐANG CHỌN */}
+          <div className="text-xs font-mono p-2 bg-slate-50 text-slate-600 rounded border border-slate-200 shrink-0">
+            📍 Điểm ghim: <span className="text-indigo-600 font-bold">{pickedCoords.lat.toFixed(6)}, {pickedCoords.lng.toFixed(6)}</span>
+          </div>
+
+          <div className="flex-1 w-full rounded-lg border border-slate-200 bg-slate-50 relative overflow-hidden z-0 mt-2">
+            <div ref={innerMapContainerRef} className="w-full h-full" />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 shrink-0">
+            <Button variant="outline" size="sm" className="border-slate-200" onClick={() => setInnerMapOpen(false)}>
+              Hủy bỏ
+            </Button>
+            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={confirmPickedCoords}>
+              Xác nhận & Áp dụng
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </Card>
