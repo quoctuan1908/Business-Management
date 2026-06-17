@@ -1,0 +1,4 @@
+[2026-06-17 16:23:18] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 16:23:18] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 16:23:18] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-17 16:25:32] [WARN] [SYSTEM] Đăng nhập thất bại: Tài khoản "admin" nhập sai mật khẩu.

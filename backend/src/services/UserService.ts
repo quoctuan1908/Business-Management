@@ -4,100 +4,105 @@ import { RouteError } from '@src/common/utils/route-errors';
 import User,{ IUser, IUserCreate, IUserPublic } from '@src/models/User.model';
 import ActivityRepo from '@src/repos/ActivityRepo';
 import UserRepo, { type SellerScope } from '@src/repos/UserRepo';
+import { logger } from '@src/common/utils/logger'; 
 import {
   assertOwnUserStatsAccess,
   assertSellerStatsAccess,
   parseSellerScope,
 } from '@src/services/stats-access';
+
 /******************************************************************************
                                    Functions
 ******************************************************************************/
 
-/**
- * Get all users.
- */
 async function getOne(username: string): Promise<IUser | null> {
   return UserRepo.getOne(username);
 }
 
-/**
- * Get all users.
- */
 function getAll(): Promise<IUserPublic[]> {
   return UserRepo.getAll();
 }
 
-/**
- * Get all unactivated users.
- */
 function getAllUnactivated(): Promise<IUserPublic[]> {
   return UserRepo.getAllUnactivated();
 }
 
-/**
- * Search users by query string.
- */
 function search(query: string): Promise<IUserPublic[]> {
   return UserRepo.search(query);
 }
 
-/**
- * Add one user.
- */
-function addOne(user: IUserCreate): Promise<IUserPublic> {
-  return UserRepo.add(user);
+async function addOne(user: IUserCreate): Promise<IUserPublic> {
+  try {
+    const createdUser = await UserRepo.add(user);
+    logger.info('SYSTEM', `Thêm mới người dùng thành công: Tài khoản "${createdUser.username}" (Quyền: ${createdUser.role}).`);
+    return createdUser;
+  } catch (error) {
+    logger.error('SYSTEM', `Lỗi khi cố gắng thêm người dùng mới "${user.username}": ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
+  }
 }
 
-/**
- * Update one user.
- */
 async function updateOne(user: IUser): Promise<IUserPublic> {
-  const persists = await UserRepo.persists(user.id);
-  if (!persists) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
+  try {
+    const persists = await UserRepo.persists(user.id);
+    if (!persists) {
+      logger.warn('SYSTEM', `Cập nhật thất bại: Người dùng có ID [${user.id}] không tồn tại trên hệ thống.`);
+      throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
+    }
+    const updated = await UserRepo.update(user);
+    logger.info('SYSTEM', `Cập nhật thông tin thành công cho tài khoản "${updated.username}" (ID: ${user.id}).`);
+    return updated;
+  } catch (error) {
+    if (!(error instanceof RouteError)) {
+      logger.error('SYSTEM', `Lỗi hệ thống khi cập nhật người dùng có ID [${user.id}]: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    throw error;
   }
-  const updated = await UserRepo.update(user);
-  return updated;
 }
 
 async function deleteOne(id: number): Promise<void> {
-  const exists = await UserRepo.persists(id);
-  if (!exists) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
+  try {
+    const exists = await UserRepo.persists(id);
+    if (!exists) {
+      logger.warn('SYSTEM', `Xóa thất bại: Người dùng có ID [${id}] không tồn tại trên hệ thống.`);
+      throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
+    }
+    await UserRepo.delete(id);
+    logger.info('SYSTEM', `Xóa thành công tài khoản người dùng có ID [${id}] khỏi hệ thống.`);
+  } catch (error) {
+    if (!(error instanceof RouteError)) {
+      logger.error('SYSTEM', `Lỗi hệ thống khi xóa người dùng có ID [${id}]: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    throw error;
   }
-  return UserRepo.delete(id);
 }
 
 /******************************************************************************
                              Employee Statistics Services
 ******************************************************************************/
 
-/**
- * Get overview of employee performance metrics, KPIs, and revenue sales.
- */
 async function getEmployeeOverviewStats(userId: number) {
   const exists = await UserRepo.persists(userId);
   if (!exists) {
+    logger.warn('SYSTEM', `Truy cập thống kê thất bại: User ID [${userId}] không tồn tại.`);
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
+  logger.info('SYSTEM', `Truy xuất báo cáo tổng quan hiệu suất KPI cho User ID [${userId}].`);
   return UserRepo.getEmployeeOverviewStats(userId);
 }
 
-/**
- * Get detailed monthly productivity and target metrics for an employee.
- */
 async function getEmployeeMonthlyStats(userId: number, month?: number, year?: number) {
   const exists = await UserRepo.persists(userId);
   if (!exists) {
+    logger.warn('SYSTEM', `Truy cập thống kê tháng thất bại: User ID [${userId}] không tồn tại.`);
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
+  logger.info('SYSTEM', `Truy xuất số liệu năng suất tháng ${month || 'hiện tại'}/${year || 'hiện tại'} của User ID [${userId}].`);
   return UserRepo.getEmployeeMonthlyStats(userId, month, year);
 }
 
-/**
- * Get employee sales revenue and customer distribution broken down by territory (Location).
- */
 async function getEmployeeLocationStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
+  logger.info('SYSTEM', `Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: ${province || 'Tất cả'}, Xã/Phường: ${ward || 'Tất cả'}) vào tháng ${month}/${year}.`);
   return UserRepo.getEmployeeLocationStats(scope, month, year, province, ward);
 }
 
@@ -106,6 +111,7 @@ async function getEmployeeTopProducts(userId: number) {
   if (!exists) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
+  logger.info('SYSTEM', `Truy xuất danh sách sản phẩm bán chạy nhất của User ID [${userId}].`);
   return UserRepo.getEmployeeTopProducts(userId);
 }
 
@@ -133,20 +139,16 @@ async function getEmployeeTopDebtors(scope: SellerScope, province?: string, ward
   return UserRepo.getEmployeeTopDebtors(scope, province, ward);
 }
 
-/**
- * [SHIPPER] Get overall delivery trip stats and total physical COD cash collected.
- */
 async function getShipperOverviewStats(shipperId: number) {
   const exists = await UserRepo.persists(shipperId);
   if (!exists) {
+    logger.warn('SYSTEM', `Truy cập thống kê shipper thất bại: Shipper ID [${shipperId}] không tồn tại.`);
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
+  logger.info('SYSTEM', `Truy xuất tổng quan chuyến giao hàng và tiền COD của Shipper ID [${shipperId}].`);
   return UserRepo.getShipperOverviewStats(shipperId);
 }
 
-/**
- * [SHIPPER] Get monthly tracking data for successful handovers and aggregated cash returns.
- */
 async function getShipperMonthlyStats(shipperId: number, month?: number, year?: number) {
   const exists = await UserRepo.persists(shipperId);
   if (!exists) {
@@ -155,18 +157,18 @@ async function getShipperMonthlyStats(shipperId: number, month?: number, year?: 
   return UserRepo.getShipperMonthlyStats(shipperId, month, year);
 }
 
-/**
- * [MAP] Validate input parameters and coordinate business logic for fetching territory scheduling statistics.
- */
 async function getMapStatusByActivities(dateString: string) {
   if (!dateString || isNaN(Date.parse(dateString))) {
+    logger.warn('SYSTEM', `Yêu cầu kiểm tra sơ đồ địa bàn thất bại: Chuỗi ngày gửi lên không hợp lệ ("${dateString}").`);
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'A valid date string (YYYY-MM-DD) is required.');
   }
+  
+  logger.info('SYSTEM', `Đang kết nối API bóc tách dữ liệu và kiểm tra bám chốt địa bàn cho ngày lịch trình: ${dateString}.`);
   return UserRepo.getMapStatusByActivities(dateString);
 }
 
 /******************************************************************************
-                                   Export default
+                                    Export default
 ******************************************************************************/
 
 export default {
