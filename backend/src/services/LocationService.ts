@@ -48,6 +48,11 @@ async function deleteOne(id: number): Promise<void> {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.LOCATION_IN_USE);
   }
 
+  const assignmentCount = await LocationRepo.countEmployeeAssignments(id);
+  if (assignmentCount > 0) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.LOCATION_ASSIGNED);
+  }
+
   return LocationRepo.delete(id);
 }
 

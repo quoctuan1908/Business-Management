@@ -58,6 +58,10 @@ async function countCustomersByLocation(locationId: number): Promise<number> {
   return prisma.customer.count({ where: { location_id: locationId } });
 }
 
+async function countEmployeeAssignments(locationId: number): Promise<number> {
+  return prisma.employeeLocation.count({ where: { location_id: locationId } });
+}
+
 async function syncCanThoFromApi(): Promise<{ created: number; skipped: number }> {
   const wards = await fetchCanThoWards();
   let created = 0;
@@ -104,5 +108,6 @@ export default {
   update,
   delete: delete_,
   countCustomersByLocation,
+  countEmployeeAssignments,
   syncCanThoFromApi,
 } as const;

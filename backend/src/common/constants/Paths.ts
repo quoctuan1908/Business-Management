@@ -113,6 +113,15 @@ const Paths = {
     Update: '/update',
     Delete: '/delete/:id',
   },
+  EmployeeLocations: {
+    _: '/employee-locations',
+    GetAll: '/all',
+    GetAvailable: '/available',
+    GetByUser: '/user/:userId',
+    SetByUser: '/user/:userId',
+    Assign: '/assign',
+    Unassign: '/user/:userId/:locationId',
+  },
   Imports: {
     _: '/imports',
     Get: '/all',

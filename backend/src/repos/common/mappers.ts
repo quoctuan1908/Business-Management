@@ -2,6 +2,7 @@ import type {
   Activity,
   ActivityDetail,
   Customer,
+  EmployeeLocation,
   Import,
   ImportDetail,
   Invoice,
@@ -17,6 +18,11 @@ import type { PaymentStatusCode } from '@src/common/constants/payment-status';
 import type { IActivity, IActivityWrite } from '@src/models/Activity.model';
 import type { IActivityDetail, IActivityDetailView } from '@src/models/ActivityDetail.model';
 import type { ICustomer } from '@src/models/Customer.model';
+import type {
+  IEmployeeLocation,
+  IEmployeeLocationUserSummary,
+  IEmployeeLocationView,
+} from '@src/models/EmployeeLocation.model';
 import type { IImport, IImportWrite } from '@src/models/Import.model';
 import type { IImportDetail, IImportDetailView } from '@src/models/ImportDetail.model';
 import type { IInvoice } from '@src/models/Invoice.model';
@@ -74,6 +80,41 @@ export function toLocation(row: Location): ILocation {
     wardCode: row.ward_code,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+type EmployeeLocationWithRelations = EmployeeLocation & {
+  location: Location;
+  user?: Pick<User, 'user_id' | 'username' | 'full_name' | 'role' | 'department'>;
+};
+
+export function toEmployeeLocation(row: EmployeeLocation): IEmployeeLocation {
+  return {
+    userId: row.user_id,
+    locationId: row.location_id,
+    createdAt: row.created_at,
+  };
+}
+
+function toEmployeeLocationUserSummary(
+  row: Pick<User, 'user_id' | 'username' | 'full_name' | 'role' | 'department'>,
+): IEmployeeLocationUserSummary {
+  return {
+    id: row.user_id,
+    username: row.username,
+    fullName: row.full_name,
+    role: row.role,
+    department: row.department,
+  };
+}
+
+export function toEmployeeLocationView(
+  row: EmployeeLocationWithRelations,
+): IEmployeeLocationView {
+  return {
+    ...toEmployeeLocation(row),
+    location: toLocation(row.location),
+    user: row.user ? toEmployeeLocationUserSummary(row.user) : undefined,
   };
 }
 
