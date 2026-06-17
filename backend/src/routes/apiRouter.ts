@@ -18,6 +18,7 @@ import SalaryRoutes from './SalaryRoutes';
 import SupplierRoutes from './SupplierRoutes';
 import ImportRoutes from './ImportRoutes';
 import ImportDetailRoutes from './ImportDetailRoutes';
+import rateLimiters from '@src/middlewares/rateLimitMiddleware';
 
 /******************************************************************************
                                 Setup
@@ -26,6 +27,7 @@ import ImportDetailRoutes from './ImportDetailRoutes';
 const apiRouter = Router();
 
 const auth = authMiddleware.auth;
+
 const adminOnly = [auth, authMiddleware.authorize(Roles.ADMIN)];
 
 const userRouter = Router();
@@ -187,12 +189,12 @@ activityRouter.delete(
 apiRouter.use(Paths.Activities._, activityRouter);
 
 const authRouter = Router();
-authRouter.post(Paths.Auth.Login, AuthRoutes.login);
-authRouter.post(Paths.Auth.Refresh, AuthRoutes.refresh);
-authRouter.get(Paths.Auth.Logout, AuthRoutes.logout);
-authRouter.post(Paths.Auth.Register, AuthRoutes.register);
-authRouter.get(Paths.Auth.Check, AuthRoutes.check);
-authRouter.get(Paths.Auth.VerifyEmail, AuthRoutes.verifyEmail);
+authRouter.post(Paths.Auth.Login, rateLimiters.auth, AuthRoutes.login);
+authRouter.post(Paths.Auth.Refresh, rateLimiters.default, AuthRoutes.refresh);
+authRouter.get(Paths.Auth.Logout, rateLimiters.default, AuthRoutes.logout);
+authRouter.post(Paths.Auth.Register, rateLimiters.auth, AuthRoutes.register);
+authRouter.get(Paths.Auth.Check, rateLimiters.default, AuthRoutes.check);
+authRouter.get(Paths.Auth.VerifyEmail, rateLimiters.default, AuthRoutes.verifyEmail);
 apiRouter.use(Paths.Auth._, authRouter);
 
 /******************************************************************************
