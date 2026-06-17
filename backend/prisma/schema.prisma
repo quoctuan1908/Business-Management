@@ -69,7 +69,7 @@ model Product {
   product_name    String           @db.VarChar(50)
   unit_price      Decimal          @db.Decimal(15, 2)
   stock_quantity  Int
-  created_at      DateTime         @default(now())
+  created_at      DateTime          
   updated_at      DateTime         @updatedAt
   activityDetails ActivityDetail[]
   importDetails   ImportDetail[]
@@ -99,11 +99,19 @@ model Customer {
   position            String     @db.VarChar(50)
   phone_number        String     @db.VarChar(10)
   current_balance     Decimal    @default(0) @db.Decimal(15, 2)
+  
+  lat                 Float?     
+  lng                 Float?     
+  is_approved         Boolean    @default(false) 
+  approved_at         DateTime?
+  
   created_at          DateTime   @default(now())
   updated_at          DateTime   @updatedAt
+  
   location            Location   @relation(fields: [location_id], references: [location_id], onDelete: Restrict, onUpdate: Cascade)
   activities          Activity[]
 
+  @@index([lat, lng])  
   @@map("customers")
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Banknote, Loader2 } from "lucide-react";
+import { Banknote, Loader2, MapPin } from "lucide-react"; // Thêm icon MapPin
 
 import { customersApi, locationsApi, orderStatusesApi } from "@/lib/api";
 import type { CustomerAccount, Location } from "@/lib/types";
@@ -153,6 +153,12 @@ export function CustomerDetailDialog({
     customer &&
     locations.find((l) => l.id === customer.locationId);
 
+  // Xây dựng URL bản đồ nhúng dựa trên tọa độ lat, lng của khách hàng
+  const hasCoordinates = customer?.lat && customer?.lng;
+  const mapUrl = hasCoordinates
+    ? `https://maps.google.com/maps?q=${customer.lat},${customer.lng}&t=&z=16&ie=UTF8&iwloc=&output=embed`
+    : null;
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -183,28 +189,60 @@ export function CustomerDetailDialog({
                 )}
               </TabsList>
 
-              <TabsContent value="info" className="space-y-3 text-sm">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <InfoRow label="ID" value={String(customer.id)} />
-                  <InfoRow label="Tên công ty" value={customer.companyName} />
-                  <InfoRow label="Loại hình" value={customer.businessType} />
-                  <InfoRow
-                    label="Người đại diện"
-                    value={`${customer.representativeName} (${customer.position})`}
-                  />
-                  <InfoRow label="Số điện thoại" value={customer.phoneNumber} />
-                  <InfoRow
-                    label="Địa điểm"
-                    value={
-                      locationName
-                        ? locationLabel(locationName)
-                        : String(customer.locationId)
-                    }
-                  />
-                  <InfoRow
-                    label="Số dư hiện tại"
-                    value={`${formatMoney(account!.currentBalance)} đ`}
-                  />
+              <TabsContent value="info" className="space-y-4 text-sm pt-2">
+                {/* Khối chia đôi: Trái hiển thị chữ, Phải hiển thị Bản đồ thực địa */}
+                <div className="grid gap-4 md:grid-cols-5">
+                  <div className="grid gap-3 sm:grid-cols-2 md:col-span-3">
+                    <InfoRow label="ID" value={String(customer.id)} />
+                    <InfoRow label="Tên công ty" value={customer.companyName} />
+                    <InfoRow label="Loại hình" value={customer.businessType} />
+                    <InfoRow
+                      label="Người đại diện"
+                      value={`${customer.representativeName} (${customer.position})`}
+                    />
+                    <InfoRow label="Số điện thoại" value={customer.phoneNumber} />
+                    <InfoRow
+                      label="Địa điểm"
+                      value={
+                        locationName
+                          ? locationLabel(locationName)
+                          : String(customer.locationId)
+                      }
+                    />
+                    <InfoRow
+                      label="Số dư hiện tại"
+                      value={`${formatMoney(account!.currentBalance)} đ`}
+                    />
+                    <InfoRow
+                      label="Tọa độ"
+                      value={hasCoordinates ? `${customer.lat}, ${customer.lng}` : "Chưa có tọa độ"}
+                    />
+                  </div>
+
+                  {/* Khu vực nhúng Bản đồ số định vị khách hàng */}
+                  <div className="md:col-span-2 flex flex-col">
+                    <span className="text-xs text-muted-foreground mb-1 block font-medium flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5 text-indigo-600" /> Vị trí thực địa
+                    </span>
+                    <div className="w-full flex-1 min-h-[200px] rounded-lg border bg-muted overflow-hidden relative">
+                      {mapUrl ? (
+                        <iframe
+                          title="Customer Location Map"
+                          width="100%"
+                          height="100%"
+                          className="absolute inset-0 border-0"
+                          src={mapUrl}
+                          allowFullScreen
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-muted-foreground text-xs">
+                          <MapPin className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                          Khách hàng này chưa được cập nhật tọa độ GPS.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
 

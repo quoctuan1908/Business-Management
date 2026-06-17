@@ -106,6 +106,7 @@ apiRouter.use(Paths.Locations._, locationRouter);
 
 const customerRouter = Router();
 customerRouter.get(Paths.Customers.Get, auth, CustomerRoutes.getAll);
+customerRouter.get(Paths.Customers.GetPendingApproval, ...adminOnly, CustomerRoutes.getPendingApproval);
 customerRouter.get(Paths.Customers.GetOne, auth, CustomerRoutes.getOne);
 customerRouter.get(Paths.Customers.Account, ...adminOnly, CustomerRoutes.getAccount);
 customerRouter.post(
@@ -113,9 +114,11 @@ customerRouter.post(
   ...adminOnly,
   CustomerRoutes.receivePayment,
 );
-customerRouter.post(Paths.Customers.Add, ...adminOnly, CustomerRoutes.add);
+customerRouter.post(Paths.Customers.Add, auth, CustomerRoutes.add);
 customerRouter.put(Paths.Customers.Update, ...adminOnly, CustomerRoutes.update);
 customerRouter.delete(Paths.Customers.Delete, ...adminOnly, CustomerRoutes.delete);
+customerRouter.post(Paths.Customers.Approve, ...adminOnly, CustomerRoutes.approve);
+
 apiRouter.use(Paths.Customers._, customerRouter);
 
 const invoiceRouter = Router();

@@ -50,8 +50,10 @@ const Paths = {
     Add: '/add',
     Update: '/update',
     Delete: '/delete/:id',
+    GetPendingApproval: '/pending',
     Account: '/:id/account',
     ReceivePayment: '/:id/receive-payment',
+    Approve: '/approve/:id',
   },
   Invoices: {
     _: '/invoices',

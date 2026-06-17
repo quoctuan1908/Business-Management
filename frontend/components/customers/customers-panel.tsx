@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Eye, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, RefreshCw, Trash2, Check, Map } from "lucide-react";
 
 import { CustomerDetailDialog } from "@/components/customers/customer-detail-dialog";
 import { customersApi, locationsApi } from "@/lib/api";
@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
+import { FieldScanDialog } from "./customer-scan-dialog";
 
 const emptyForm = {
   id: 0,
@@ -44,6 +45,9 @@ const emptyForm = {
   position: "",
   phoneNumber: "",
   currentBalance: "",
+  lat: "",
+  lng: "",
+  isApproved: true,
 };
 
 function formatMoney(value: number) {
@@ -61,6 +65,7 @@ export function CustomersPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [mapDialogOpen, setMapDialogOpen] = useState(false);
   const [detailCustomerId, setDetailCustomerId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -87,7 +92,11 @@ export function CustomersPanel() {
         customersApi.getAll(),
         locationsApi.getAll(),
       ]);
-      setCustomers(customerList);
+      let pendingCustomers: Customer[] = [];
+      if(isAdmin)
+        pendingCustomers = await customersApi.getPendingApproval(); 
+
+      setCustomers([...pendingCustomers, ...customerList]);
       setLocations(locationList);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
@@ -108,6 +117,29 @@ export function CustomersPanel() {
     setDialogOpen(true);
   }
 
+  const handleSelectFieldData = (data: {
+    companyName: string;
+    businessType: string;
+    lat: string;
+    lng: string;
+    phoneNumber: string;
+  }) => {
+    setForm({
+      id: 0,
+      locationId: locations[0] ? String(locations[0].id) : "",
+      companyName: data.companyName,
+      businessType: data.businessType,
+      representativeName: "",
+      position: "Chủ cửa hàng",
+      phoneNumber: data.phoneNumber,
+      currentBalance: "0",
+      lat: data.lat,
+      lng: data.lng,
+      isApproved: false,
+    });
+    setDialogOpen(true);
+  };
+
   function openDetail(customer: Customer) {
     setDetailCustomerId(customer.id);
     setDetailOpen(true);
@@ -123,6 +155,9 @@ export function CustomersPanel() {
       position: customer.position,
       phoneNumber: customer.phoneNumber,
       currentBalance: String(customer.currentBalance),
+      lat: customer.lat ? String(customer.lat) : "",
+      lng: customer.lng ? String(customer.lng) : "",
+      isApproved: customer.isApproved ?? true,
     });
     setDialogOpen(true);
   }
@@ -141,6 +176,9 @@ export function CustomersPanel() {
         position: form.position,
         phoneNumber: form.phoneNumber,
         currentBalance: Number(form.currentBalance),
+        lat: form.lat ? Number(form.lat) : undefined,
+        lng: form.lng ? Number(form.lng) : undefined,
+        isApproved: isAdmin ? form.isApproved : false,
       };
       if (form.id === 0) {
         const { id: _id, ...createPayload } = payload;
@@ -168,24 +206,44 @@ export function CustomersPanel() {
     }
   }
 
+  async function handleApprove(id: number) {
+    if (!confirm("Phê duyệt hoạt động chính thức cho đại lý này?")) return;
+    setError(null);
+    try {
+      await customersApi.approve(id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Phê duyệt thất bại");
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-end space-y-0 pb-4">
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setMapDialogOpen(true)}
+            className="border-indigo-200 hover:bg-indigo-50 text-indigo-700 gap-1.5 font-medium shadow-sm"
+          >
+            <Map className="h-4 w-4" />
+            Bản đồ thực địa
+          </Button>
+
           <Button variant="outline" size="sm" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" />
             Tải lại
           </Button>
-          {isAdmin && (
-            <Button
-              size="sm"
-              onClick={openCreate}
-              disabled={locations.length === 0}
-            >
-              <Plus className="h-4 w-4" />
-              Thêm
-            </Button>
-          )}
+
+          <Button
+            size="sm"
+            onClick={openCreate}
+            disabled={locations.length === 0}
+          >
+            <Plus className="h-4 w-4" />
+            Thêm bằng tay
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -196,8 +254,7 @@ export function CustomersPanel() {
         )}
         {locations.length === 0 && !loading && (
           <p className="mb-4 text-sm text-amber-700">
-            Chưa có địa điểm. Hãy đồng bộ hoặc thêm location trước khi tạo
-            khách hàng.
+            Chưa có địa điểm. Hãy đồng bộ hoặc thêm location trước khi tạo khách hàng.
           </p>
         )}
         {loading ? (
@@ -216,6 +273,9 @@ export function CustomersPanel() {
                 <TableHead>SĐT</TableHead>
                 <TableHead>Số dư</TableHead>
                 <TableHead>Địa điểm</TableHead>
+                <TableHead>Tọa độ</TableHead>
+                {/* Chỉ hiển thị tiêu đề cột Trạng thái nếu là Admin */}
+                {isAdmin && <TableHead>Trạng thái</TableHead>}
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
@@ -241,10 +301,41 @@ export function CustomersPanel() {
                   </TableCell>
                   <TableCell>{customer.phoneNumber}</TableCell>
                   <TableCell>{formatMoney(customer.currentBalance)}</TableCell>
-                  <TableCell className="max-w-[180px] truncate text-sm">
+                  <TableCell className="max-w-[140px] truncate text-sm">
                     {locationMap[customer.locationId] ?? customer.locationId}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-xs text-muted-foreground">
+                    {customer.lat && customer.lng ? (
+                      <span>{customer.lat}, {customer.lng}</span>
+                    ) : (
+                      <span className="text-muted-foreground/50">---</span>
+                    )}
+                  </TableCell>
+                  {/* Chỉ render ô dữ liệu Trạng thái nếu là Admin */}
+                  {isAdmin && (
+                    <TableCell>
+                      {customer.isApproved ? (
+                        <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                          Đã duyệt
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
+                          Chờ duyệt
+                        </span>
+                      )}
+                    </TableCell>
+                  )}
+                  <TableCell className="text-right whitespace-nowrap">
+                    {isAdmin && !customer.isApproved && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Phê duyệt"
+                        onClick={() => void handleApprove(customer.id)}
+                      >
+                        <Check className="h-4 w-4 text-green-600" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -266,6 +357,7 @@ export function CustomersPanel() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          title="Xóa"
                           onClick={() => void handleDelete(customer.id)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -296,16 +388,22 @@ export function CustomersPanel() {
         onAccountUpdated={() => void load()}
       />
 
+      <FieldScanDialog
+        open={mapDialogOpen}
+        onOpenChange={setMapDialogOpen}
+        onSelectStore={handleSelectFieldData}
+      />
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {form.id === 0 ? "Thêm khách hàng" : "Sửa khách hàng"}
+              {form.id === 0 ? "Thêm khách hàng (Chờ duyệt)" : "Sửa khách hàng"}
             </DialogTitle>
           </DialogHeader>
           <form className="grid gap-4" onSubmit={(e) => void handleSubmit(e)}>
             <div className="grid gap-2">
-              <Label>Địa điểm</Label>
+              <Label>Địa điểm (Khu vực quản lý)</Label>
               <Select
                 value={form.locationId}
                 onValueChange={(v) =>
@@ -325,7 +423,7 @@ export function CustomersPanel() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="companyName">Tên công ty</Label>
+              <Label htmlFor="companyName">Tên công ty / Đại lý</Label>
               <Input
                 id="companyName"
                 required
@@ -346,12 +444,13 @@ export function CustomersPanel() {
                 }
               />
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 optimiz-grid sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="representativeName">Người đại diện</Label>
                 <Input
                   id="representativeName"
                   required
+                  placeholder="Nhập tên người đại diện"
                   value={form.representativeName}
                   onChange={(e) =>
                     setForm((f) => ({
@@ -379,6 +478,7 @@ export function CustomersPanel() {
                 <Input
                   id="phoneNumber"
                   required
+                  placeholder="Nhập số điện thoại liên hệ"
                   value={form.phoneNumber}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, phoneNumber: e.target.value }))
@@ -386,7 +486,7 @@ export function CustomersPanel() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="currentBalance">Số dư hiện tại</Label>
+                <Label htmlFor="currentBalance">Số dư ban đầu</Label>
                 <Input
                   id="currentBalance"
                   type="number"
@@ -398,8 +498,52 @@ export function CustomersPanel() {
                 />
               </div>
             </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="lat">Vĩ độ (Latitude)</Label>
+                <Input
+                  id="lat"
+                  type="number"
+                  step="any"
+                  required
+                  value={form.lat}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, lat: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="lng">Kinh độ (Longitude)</Label>
+                <Input
+                  id="lng"
+                  type="number"
+                  step="any"
+                  required
+                  value={form.lng}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, lng: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            {isAdmin && form.id !== 0 && (
+              <div className="flex items-center gap-2 py-2">
+                <input
+                  id="isApproved"
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  checked={form.isApproved}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, isApproved: e.target.checked }))
+                  }
+                />
+                <Label htmlFor="isApproved" className="cursor-pointer select-none">
+                  Kích hoạt trạng thái Đã duyệt
+                </Label>
+              </div>
+            )}
             <Button type="submit" disabled={saving || !form.locationId}>
-              {saving ? "Đang lưu..." : "Lưu"}
+              {saving ? "Đang lưu..." : "Gửi yêu cầu lưu khách hàng"}
             </Button>
           </form>
         </DialogContent>
