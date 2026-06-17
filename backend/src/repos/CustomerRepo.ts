@@ -21,7 +21,16 @@ async function persists(id: number): Promise<boolean> {
 
 async function getAll(): Promise<ICustomer[]> {
   const rows = await prisma.customer.findMany({
+    where: { is_approved: true }, 
     orderBy: { customer_id: 'asc' },
+  });
+  return rows.map(toCustomer);
+}
+
+async function getPendingApproval(): Promise<ICustomer[]> {
+  const rows = await prisma.customer.findMany({
+    where: { is_approved: false }, 
+    orderBy: { created_at: 'desc' }, 
   });
   return rows.map(toCustomer);
 }
@@ -45,6 +54,19 @@ async function delete_(id: number): Promise<void> {
   await prisma.customer.delete({ where: { customer_id: id } });
 }
 
+async function getNearby(lat: number, lng: number, radiusInKm: number): Promise<ICustomer[]> {
+  const rows = await prisma.$queryRaw<any[]>`
+    SELECT *, 
+      (6371 * acos(cos(radians(${lat})) * cos(radians(lat)) * cos(radians(lng) - radians(${lng})) + sin(radians(${lat})) * sin(radians(lat)))) AS distance 
+    FROM customers
+    WHERE is_approved = true
+    HAVING distance < ${radiusInKm}
+    ORDER BY distance ASC
+  `;
+  
+  return rows.map(toCustomer);
+}
+
 /******************************************************************************
                                 Export default
 ******************************************************************************/
@@ -53,6 +75,8 @@ export default {
   getOne,
   persists,
   getAll,
+  getPendingApproval, 
+  getNearby,        
   add,
   update,
   delete: delete_,

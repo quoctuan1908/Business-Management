@@ -335,6 +335,14 @@ export const customersApi = {
     }).then((d) => d.customer),
   delete: (id: number) =>
     request<void>(`/customers/delete/${id}`, { method: "DELETE" }),
+  getPendingApproval: () =>
+    request<{ customers: Customer[] }>("/customers/pending").then(
+      (d) => d.customers,
+    ),
+  approve: (id: number) =>
+    request<{ customer: Customer }>(`/customers/approve/${id}`, {
+      method: "POST",
+    }).then((d) => d.customer), 
 };
 
 export const authApi = {

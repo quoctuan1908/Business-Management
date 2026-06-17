@@ -48,6 +48,7 @@ export function toUser(row: User): IUser {
     department: row.department,
     phoneNumber: row.phone_number,
     email: row.email,
+    isActivated: row.is_activated,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -86,6 +87,12 @@ export function toCustomer(row: Customer): ICustomer {
     position: row.position,
     phoneNumber: row.phone_number,
     currentBalance: Number(row.current_balance),
+    
+    lat: row.lat,
+    lng: row.lng,
+    isApproved: row.is_approved,
+    approvedAt: row.approved_at,
+    
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -186,6 +193,10 @@ export function customerToPrismaData(
     | 'position'
     | 'phoneNumber'
     | 'currentBalance'
+    | 'lat'
+    | 'lng'
+    | 'isApproved'
+    | 'approvedAt'
   >,
 ) {
   return {
@@ -196,6 +207,12 @@ export function customerToPrismaData(
     position: customer.position,
     phone_number: customer.phoneNumber,
     current_balance: customer.currentBalance,
+  
+    lat: customer.lat,
+    lng: customer.lng,
+
+    is_approved: customer.isApproved,
+    approved_at: customer.approvedAt ? new Date(customer.approvedAt) : null,
   };
 }
 

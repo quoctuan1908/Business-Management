@@ -35,6 +35,10 @@ async function getAll() {
   return CustomerRepo.getAll();
 }
 
+async function getPendingApproval() {
+  return CustomerRepo.getPendingApproval();
+}
+
 async function getOne(id: number) {
   const customer = await CustomerRepo.getOne(id);
   if (!customer) {
@@ -54,6 +58,15 @@ async function updateOne(customer: ICustomer) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.CUSTOMER_NOT_FOUND);
   }
   await assertLocationExists(customer.locationId);
+  return CustomerRepo.update(customer);
+}
+
+async function approveCustomer(id: number): Promise<ICustomer> {
+  const customer = await getOne(id);
+  
+  customer.isApproved = true;
+  customer.approvedAt = new Date();
+  
   return CustomerRepo.update(customer);
 }
 
@@ -149,7 +162,6 @@ async function receivePayment(
 
     const allocations: ICustomerReceivePaymentResult['allocations'] = [];
     let left = input.amount;
-    let excessToBalance = 0;
 
     for (const act of activities) {
       if (left <= 0) break;
@@ -179,18 +191,10 @@ async function receivePayment(
     }
 
     if (left > 0) {
-      excessToBalance = left;
       await tx.customer.update({
         where: { customer_id: customerId },
         data: { current_balance: { increment: left } },
       });
-    }
-
-    const customerRow = await tx.customer.findUnique({
-      where: { customer_id: customerId },
-    });
-    if (!customerRow) {
-      throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.CUSTOMER_NOT_FOUND);
     }
 
     const customer = await CustomerRepo.getOne(customerId);
@@ -203,10 +207,10 @@ async function receivePayment(
 
     return {
       allocations,
-      excessToBalance,
+      excessToBalance: left > 0 ? left : 0,
       account: {
         customer,
-        currentBalance: Number(customerRow.current_balance),
+        currentBalance: customer.currentBalance,
         totalDebt,
         orders,
       },
@@ -221,9 +225,11 @@ async function receivePayment(
 export default {
   Errors,
   getAll,
+  getPendingApproval, 
   getOne,
   addOne,
   updateOne,
+  approveCustomer, 
   delete: deleteOne,
   getAccount,
   receivePayment,

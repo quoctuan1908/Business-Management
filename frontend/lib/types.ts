@@ -246,6 +246,13 @@ export interface Customer {
 
   currentBalance: number;
 
+  lat?: number;     
+
+  lng?: number;      
+
+  isApproved: boolean; 
+  
+  approvedAt?: Date | string; 
 }
 
 export interface CustomerOrderRow {

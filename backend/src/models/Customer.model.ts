@@ -3,6 +3,7 @@ import {
   isNumber,
   isString,
   isUnsignedInteger,
+  isBoolean, 
 } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 
@@ -21,6 +22,10 @@ const GetDefaults = (): ICustomer => ({
   position: '',
   phoneNumber: '',
   currentBalance: 0,
+  lat: null,
+  lng: null,
+  isApproved: false,
+  approvedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 });
@@ -34,6 +39,9 @@ const schema: Schema<ICustomer> = {
   position: isString,
   phoneNumber: isString,
   currentBalance: isNumber,
+  lat: (val: unknown) => val === null || isNumber(val),
+  lng: (val: unknown) => val === null || isNumber(val),
+  isApproved: isBoolean,
 };
 
 /******************************************************************************
@@ -51,6 +59,11 @@ export interface ICustomer extends Entity {
   position: string;
   phoneNumber: string;
   currentBalance: number;
+  
+  lat: number | null;
+  lng: number | null;
+  isApproved: boolean;
+  approvedAt: Date | string | null;
 }
 
 /******************************************************************************
@@ -68,6 +81,9 @@ const isCompleteCustomer = testObject<ICustomer>({
   position: isNonEmptyString,
   phoneNumber: isNonEmptyString,
   currentBalance: isNumber,
+  lat: isNumber,
+  lng: isNumber,
+  isApproved: isBoolean,
 });
 
 /******************************************************************************
@@ -83,7 +99,7 @@ function new_(customer?: Partial<ICustomer>): ICustomer {
 }
 
 /******************************************************************************
-                                Export default
+                               Export default
 ******************************************************************************/
 
 export default {

@@ -19,6 +19,7 @@ const reqValidators = {
   getOne: parseReq({ id: transform(Number, isNumber) }),
   delete: parseReq({ id: transform(Number, isNumber) }),
   customerId: parseReq({ id: transform(Number, isNumber) }),
+  approve: parseReq({ id: transform(Number, isNumber) }),
 } as const;
 
 function parseReceivePaymentBody(body: unknown): { amount: number; method: string } {
@@ -83,6 +84,17 @@ async function receivePayment(req: Req, res: Res) {
   res.status(HttpStatusCodes.OK).json(result);
 }
 
+async function getPendingApproval(_: Req, res: Res) {
+  const customers = await CustomerService.getPendingApproval();
+  res.status(HttpStatusCodes.OK).json({ customers });
+}
+
+async function approve(req: Req, res: Res) {
+  const { id } = reqValidators.approve(req.params);
+  const updated = await CustomerService.approveCustomer(id);
+  res.status(HttpStatusCodes.OK).json({ customer: updated });
+}
+
 /******************************************************************************
                                 Export default
 ******************************************************************************/
@@ -95,4 +107,6 @@ export default {
   delete: delete_,
   getAccount,
   receivePayment,
+  getPendingApproval,
+  approve,
 } as const;
