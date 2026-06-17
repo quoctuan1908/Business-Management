@@ -72,7 +72,17 @@ export const InvoiceErrors = {
 export const LocationErrors = {
   LOCATION_NOT_FOUND: 'Location not found',
   LOCATION_IN_USE: 'Cannot delete location that has customers',
+  LOCATION_ASSIGNED: 'Cannot delete location assigned to an employee',
   ONLY_CAN_THO: 'Only locations in Thành phố Cần Thơ are allowed',
+} as const;
+
+/** Employee zone assignments */
+export const EmployeeLocationErrors = {
+  USER_NOT_FOUND: 'User not found',
+  LOCATION_NOT_FOUND: 'Location not found',
+  ASSIGNMENT_NOT_FOUND: 'Assignment not found',
+  LOCATION_ALREADY_ASSIGNED: 'Location is already assigned to another employee',
+  DUPLICATE_LOCATION_IDS: 'Duplicate location ids in request',
 } as const;
 
 /** Suppliers */

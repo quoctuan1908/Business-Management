@@ -162,6 +162,7 @@ async function main() {
   await prisma.product.deleteMany();
   await prisma.supplier.deleteMany();
   await prisma.salary.deleteMany();
+  await prisma.employeeLocation.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
   await prisma.location.deleteMany();
@@ -216,6 +217,23 @@ async function main() {
     where: { ward: "Phường Bình Thủy" },
   });
 
+  if (locNinhKieu) {
+    await prisma.employeeLocation.create({
+      data: {
+        user_id: sellerUser01.user_id,
+        location_id: locNinhKieu.location_id,
+      },
+    });
+  }
+  if (locCaiRang) {
+    await prisma.employeeLocation.create({
+      data: {
+        user_id: sellerUser02.user_id,
+        location_id: locCaiRang.location_id,
+      },
+    });
+  }
+
   const customers = [];
   if (locNinhKieu) {
     customers.push(
@@ -228,6 +246,10 @@ async function main() {
           position: "Giam doc",
           phone_number: "0901112233",
           current_balance: "15000000.00",
+          lat: 10.034,
+          lng: 105.785,
+          is_approved: true,
+          approved_at: new Date(),
         },
       }),
     );
@@ -243,6 +265,10 @@ async function main() {
           position: "Truong phong kinh doanh",
           phone_number: "0912223344",
           current_balance: "8500000.00",
+          lat: 10.012,
+          lng: 105.742,
+          is_approved: true,
+          approved_at: new Date(),
         },
       }),
     );
@@ -258,6 +284,10 @@ async function main() {
           position: "Chu tich",
           phone_number: "0923334455",
           current_balance: "5000000.00",
+          lat: 10.062,
+          lng: 105.731,
+          is_approved: true,
+          approved_at: new Date(),
         },
       }),
     );

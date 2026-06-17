@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { 
   UserPlus, Search, Building2, Mail, Phone, 
   Trash2, Pencil, RefreshCw, UserCog,
-  UserCheck, UserX, ClipboardCheck
+  UserCheck, UserX, ClipboardCheck, MapPin
 } from "lucide-react";
 
-import { usersApi } from "@/lib/api";
-import { UserPublic, User } from "@/lib/types";
+import { employeeLocationsApi, usersApi } from "@/lib/api";
+import { UserPublic, User, EmployeeLocationView } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
+import { EmployeeLocationsDialog } from "@/components/users/employee-locations-dialog";
 
 const emptyUser: Partial<User> = {
   username: "",
@@ -49,17 +50,31 @@ export function UsersPanel() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [zoneDialogOpen, setZoneDialogOpen] = useState(false);
+  const [zoneUser, setZoneUser] = useState<UserPublic | null>(null);
+  const [assignmentsByUser, setAssignmentsByUser] = useState<
+    Map<number, EmployeeLocationView[]>
+  >(new Map());
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const [activeData, unactiveData] = await Promise.all([
+      const [activeData, unactiveData, assignmentRows] = await Promise.all([
         usersApi.getAll(),
-        usersApi.getAllUnactivated()
+        usersApi.getAllUnactivated(),
+        employeeLocationsApi.getAll(),
       ]);
+
+      const byUser = new Map<number, EmployeeLocationView[]>();
+      for (const row of assignmentRows) {
+        const list = byUser.get(row.userId) ?? [];
+        list.push(row);
+        byUser.set(row.userId, list);
+      }
       
       setUsers(activeData);
       setUnactivatedUsers(unactiveData);
+      setAssignmentsByUser(byUser);
     } catch (error) {
       console.error("Failed to load users data", error);
     } finally {
@@ -101,6 +116,22 @@ export function UsersPanel() {
     });
     setDialogOpen(true);
   };
+
+  const openZoneDialog = (user: UserPublic) => {
+    setZoneUser(user);
+    setZoneDialogOpen(true);
+  };
+
+  function formatZoneSummary(userId: number) {
+    const rows = assignmentsByUser.get(userId) ?? [];
+    if (rows.length === 0) return "Chưa phân vùng";
+    if (rows.length === 1) return rows[0].location.ward;
+    return `${rows.length} vùng`;
+  }
+
+  function canAssignZones(role: string) {
+    return role !== "admin";
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -204,6 +235,7 @@ export function UsersPanel() {
                   <TableHead className="font-bold">Phòng ban</TableHead>
                   <TableHead className="font-bold">Liên hệ</TableHead>
                   <TableHead className="font-bold">Vai trò</TableHead>
+                  <TableHead className="font-bold">Phân vùng</TableHead>
                   <TableHead className="font-bold">Trạng thái</TableHead>
                   <TableHead className="text-right font-bold">Thao tác</TableHead>
                 </TableRow>
@@ -234,6 +266,21 @@ export function UsersPanel() {
                       </Badge>
                     </TableCell>
                     <TableCell>
+                      {canAssignZones(u.role) ? (
+                        <button
+                          type="button"
+                          onClick={() => openZoneDialog(u)}
+                          className="text-left text-sm text-primary hover:underline inline-flex items-center gap-1"
+                          title="Chọn vùng hoạt động"
+                        >
+                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          {formatZoneSummary(u.id)}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <Badge className="bg-emerald-100 hover:bg-emerald-100 text-emerald-800 border-emerald-200 gap-1">
                         <UserCheck className="h-3 w-3" /> Đã duyệt
                       </Badge>
@@ -241,6 +288,17 @@ export function UsersPanel() {
 
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        {canAssignZones(u.role) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openZoneDialog(u)}
+                            title="Phân vùng hoạt động"
+                          >
+                            <MapPin className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                        )}
+
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -260,7 +318,7 @@ export function UsersPanel() {
                     </TableCell>
                   </TableRow>
                 )) : (
-                  <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Không tìm thấy nhân viên nào khả dụng.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Không tìm thấy nhân viên nào khả dụng.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -409,6 +467,13 @@ export function UsersPanel() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <EmployeeLocationsDialog
+        user={zoneUser}
+        open={zoneDialogOpen}
+        onOpenChange={setZoneDialogOpen}
+        onSaved={() => void loadUsers()}
+      />
     </Card>
   );
 }

@@ -226,6 +226,19 @@ export interface Location {
 
 }
 
+export interface EmployeeLocationView {
+  userId: number;
+  locationId: number;
+  createdAt: string;
+  user?: {
+    id: number;
+    username: string;
+    fullName: string;
+    role: string;
+    department: string;
+  };
+  location: Location;
+}
 
 
 export interface Customer {

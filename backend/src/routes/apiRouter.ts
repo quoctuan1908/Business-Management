@@ -18,6 +18,7 @@ import SalaryRoutes from './SalaryRoutes';
 import SupplierRoutes from './SupplierRoutes';
 import ImportRoutes from './ImportRoutes';
 import ImportDetailRoutes from './ImportDetailRoutes';
+import EmployeeLocationRoutes from './EmployeeLocationRoutes';
 import rateLimiters from '@src/middlewares/rateLimitMiddleware';
 
 /******************************************************************************
@@ -105,6 +106,39 @@ locationRouter.put(Paths.Locations.Update, ...adminOnly, LocationRoutes.update);
 locationRouter.delete(Paths.Locations.Delete, ...adminOnly, LocationRoutes.delete);
 locationRouter.post(Paths.Locations.SyncCanTho, ...adminOnly, LocationRoutes.syncCanTho);
 apiRouter.use(Paths.Locations._, locationRouter);
+
+const employeeLocationRouter = Router();
+employeeLocationRouter.get(
+  Paths.EmployeeLocations.GetAll,
+  auth,
+  EmployeeLocationRoutes.getAll,
+);
+employeeLocationRouter.get(
+  Paths.EmployeeLocations.GetAvailable,
+  auth,
+  EmployeeLocationRoutes.getAvailable,
+);
+employeeLocationRouter.get(
+  Paths.EmployeeLocations.GetByUser,
+  auth,
+  EmployeeLocationRoutes.getByUserId,
+);
+employeeLocationRouter.put(
+  Paths.EmployeeLocations.SetByUser,
+  ...adminOnly,
+  EmployeeLocationRoutes.setByUserId,
+);
+employeeLocationRouter.post(
+  Paths.EmployeeLocations.Assign,
+  ...adminOnly,
+  EmployeeLocationRoutes.assign,
+);
+employeeLocationRouter.delete(
+  Paths.EmployeeLocations.Unassign,
+  ...adminOnly,
+  EmployeeLocationRoutes.unassign,
+);
+apiRouter.use(Paths.EmployeeLocations._, employeeLocationRouter);
 
 const customerRouter = Router();
 customerRouter.get(Paths.Customers.Get, auth, CustomerRoutes.getAll);

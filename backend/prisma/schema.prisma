@@ -40,9 +40,10 @@ model User {
   updated_at DateTime  @updatedAt
   deleted_at DateTime?
 
-  refresh_tokens RefreshToken[]
-  salaries       Salary[]
-  activities     Activity[]
+  refresh_tokens      RefreshToken[]
+  salaries            Salary[]
+  activities          Activity[]
+  employee_locations  EmployeeLocation[]
 
   @@map("users")
 }
@@ -69,7 +70,7 @@ model Product {
   product_name    String           @db.VarChar(50)
   unit_price      Decimal          @db.Decimal(15, 2)
   stock_quantity  Int
-  created_at      DateTime          
+  created_at      DateTime         @default(now())
   updated_at      DateTime         @updatedAt
   activityDetails ActivityDetail[]
   importDetails   ImportDetail[]
@@ -84,10 +85,24 @@ model Location {
   ward_code   Int        @unique
   created_at  DateTime   @default(now())
   updated_at  DateTime   @updatedAt
-  customers   Customer[]
+  customers          Customer[]
+  employee_location  EmployeeLocation?
 
   @@unique([province, ward])
   @@map("locations")
+}
+
+model EmployeeLocation {
+  user_id     Int
+  location_id Int      @unique
+  created_at  DateTime @default(now())
+
+  user     User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  location Location @relation(fields: [location_id], references: [location_id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([user_id, location_id])
+  @@index([user_id])
+  @@map("employee_locations")
 }
 
 model Customer {
