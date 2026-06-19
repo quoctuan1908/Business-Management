@@ -19,12 +19,32 @@ async function persists(id: number): Promise<boolean> {
   return count > 0;
 }
 
-async function getAll(): Promise<ICustomer[]> {
+async function getAll(locationIds?: number[]): Promise<ICustomer[]> {
   const rows = await prisma.customer.findMany({
-    where: { is_approved: true }, 
+    where: {
+      is_approved: true,
+      ...(locationIds !== undefined
+        ? { location_id: { in: locationIds } }
+        : {}),
+    },
     orderBy: { customer_id: 'asc' },
   });
   return rows.map(toCustomer);
+}
+
+async function getOneInTerritory(
+  id: number,
+  locationIds?: number[],
+): Promise<ICustomer | null> {
+  const row = await prisma.customer.findFirst({
+    where: {
+      customer_id: id,
+      ...(locationIds !== undefined
+        ? { location_id: { in: locationIds } }
+        : {}),
+    },
+  });
+  return row ? toCustomer(row) : null;
 }
 
 async function getPendingApproval(): Promise<ICustomer[]> {
@@ -73,6 +93,7 @@ async function getNearby(lat: number, lng: number, radiusInKm: number): Promise<
 
 export default {
   getOne,
+  getOneInTerritory,
   persists,
   getAll,
   getPendingApproval, 

@@ -14,13 +14,26 @@ import { invoiceToPrismaData, toActivity, toOrderStatus } from '@src/repos/commo
 import prisma from '@src/repos/common/prisma';
 import ActivityStockService from '@src/services/activity-stock';
 import { settlePendingPaymentsInTx } from '@src/services/PaymentService';
+import type { EmployeeDataScope } from '@src/services/employee-scope';
+import {
+  assertActivityAccess,
+  assertCustomerInScope,
+} from '@src/services/employee-scope';
 
-async function assertUserAndCustomer(input: IActivityWrite) {
+async function assertUserAndCustomer(
+  input: IActivityWrite,
+  scope: EmployeeDataScope,
+) {
   if (!(await UserRepo.persists(input.userId))) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.USER_NOT_FOUND);
   }
-  if (!(await CustomerRepo.persists(input.customerId))) {
+  const customer = await CustomerRepo.getOne(input.customerId);
+  if (!customer) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.CUSTOMER_NOT_FOUND);
+  }
+  assertCustomerInScope(scope, customer.locationId);
+  if (scope.mode === 'employee' && input.userId !== scope.userId) {
+    throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Permission denied');
   }
 }
 
@@ -35,30 +48,35 @@ async function assertDraft(activityId: number) {
   return activity;
 }
 
-async function getAll() {
-  return ActivityRepo.getAll();
-}
-
-async function getOne(id: number) {
-  const activity = await ActivityRepo.getOne(id);
-  if (!activity) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.ACTIVITY_NOT_FOUND);
+async function getAll(scope: EmployeeDataScope) {
+  if (scope.mode === 'all') {
+    return ActivityRepo.getAll();
   }
-  return activity;
+  return ActivityRepo.getAll(scope.userId);
 }
 
-async function addOne(input: IActivityWrite) {
-  await assertUserAndCustomer(input);
+async function getOne(id: number, scope: EmployeeDataScope) {
+  return assertActivityAccess(id, scope);
+}
+
+async function addOne(input: IActivityWrite, scope: EmployeeDataScope) {
+  await assertUserAndCustomer(input, scope);
   return ActivityRepo.addDraft(input);
 }
 
-async function updateOne(id: number, input: IActivityWrite) {
+async function updateOne(
+  id: number,
+  input: IActivityWrite,
+  scope: EmployeeDataScope,
+) {
+  await assertActivityAccess(id, scope);
   await assertDraft(id);
-  await assertUserAndCustomer(input);
+  await assertUserAndCustomer(input, scope);
   return ActivityRepo.update(id, input);
 }
 
-async function confirmOrder(activityId: number) {
+async function confirmOrder(activityId: number, scope: EmployeeDataScope) {
+  await assertActivityAccess(activityId, scope);
   await assertDraft(activityId);
   const detailCount = await prisma.activityDetail.count({
     where: { activity_id: activityId },
@@ -105,8 +123,10 @@ export interface IAdvanceStatusOptions {
 
 async function advanceStatus(
   activityId: number,
+  scope: EmployeeDataScope,
   options?: IAdvanceStatusOptions,
 ) {
+  await assertActivityAccess(activityId, scope);
   const activity = await ActivityRepo.getOne(activityId);
   if (!activity) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.ACTIVITY_NOT_FOUND);
@@ -177,11 +197,8 @@ async function advanceStatus(
   };
 }
 
-async function deleteOne(id: number): Promise<void> {
-  const activity = await ActivityRepo.getOne(id);
-  if (!activity) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.ACTIVITY_NOT_FOUND);
-  }
+async function deleteOne(id: number, scope: EmployeeDataScope): Promise<void> {
+  const activity = await assertActivityAccess(id, scope);
 
   if (activity.invoiceId) {
     await prisma.invoice.delete({ where: { invoice_id: activity.invoiceId } });

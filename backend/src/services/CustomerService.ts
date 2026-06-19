@@ -23,6 +23,10 @@ import PaymentService, {
   resolvePaymentStatus,
   sumPayments,
 } from '@src/services/PaymentService';
+import type { EmployeeDataScope } from '@src/services/employee-scope';
+import {
+  assertCustomerInScope,
+} from '@src/services/employee-scope';
 
 async function assertLocationExists(locationId: number) {
   const exists = await LocationRepo.persists(locationId);
@@ -31,15 +35,29 @@ async function assertLocationExists(locationId: number) {
   }
 }
 
-async function getAll() {
-  return CustomerRepo.getAll();
+async function getAll(scope: EmployeeDataScope) {
+  if (scope.mode === 'all') {
+    return CustomerRepo.getAll();
+  }
+  return CustomerRepo.getAll(scope.locationIds);
 }
 
 async function getPendingApproval() {
   return CustomerRepo.getPendingApproval();
 }
 
-async function getOne(id: number) {
+async function getOne(id: number, scope: EmployeeDataScope) {
+  if (scope.mode === 'employee') {
+    const customer = await CustomerRepo.getOneInTerritory(
+      id,
+      scope.locationIds,
+    );
+    if (!customer) {
+      throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.CUSTOMER_NOT_FOUND);
+    }
+    return customer;
+  }
+
   const customer = await CustomerRepo.getOne(id);
   if (!customer) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.CUSTOMER_NOT_FOUND);
@@ -47,34 +65,33 @@ async function getOne(id: number) {
   return customer;
 }
 
-async function addOne(customer: ICustomer) {
+async function addOne(customer: ICustomer, scope: EmployeeDataScope) {
   await assertLocationExists(customer.locationId);
+  assertCustomerInScope(scope, customer.locationId);
   return CustomerRepo.add(customer);
 }
 
-async function updateOne(customer: ICustomer) {
-  const exists = await CustomerRepo.persists(customer.id);
-  if (!exists) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.CUSTOMER_NOT_FOUND);
-  }
+async function updateOne(customer: ICustomer, scope: EmployeeDataScope) {
+  await getOne(customer.id, scope);
   await assertLocationExists(customer.locationId);
+  assertCustomerInScope(scope, customer.locationId);
   return CustomerRepo.update(customer);
 }
 
 async function approveCustomer(id: number): Promise<ICustomer> {
-  const customer = await getOne(id);
-  
+  const customer = await CustomerRepo.getOne(id);
+  if (!customer) {
+    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.CUSTOMER_NOT_FOUND);
+  }
+
   customer.isApproved = true;
   customer.approvedAt = new Date();
-  
+
   return CustomerRepo.update(customer);
 }
 
-async function deleteOne(id: number): Promise<void> {
-  const exists = await CustomerRepo.persists(id);
-  if (!exists) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.CUSTOMER_NOT_FOUND);
-  }
+async function deleteOne(id: number, scope: EmployeeDataScope): Promise<void> {
+  await getOne(id, scope);
 
   const activityCount = await ActivityRepo.countByCustomer(id);
   if (activityCount > 0) {
@@ -124,8 +141,11 @@ async function buildOrderRows(
   return orders;
 }
 
-async function getAccount(customerId: number): Promise<ICustomerAccount> {
-  const customer = await getOne(customerId);
+async function getAccount(
+  customerId: number,
+  scope: EmployeeDataScope,
+): Promise<ICustomerAccount> {
+  const customer = await getOne(customerId, scope);
   const orders = await buildOrderRows(customerId);
   const totalDebt = orders.reduce((sum, o) => sum + o.remaining, 0);
 
@@ -140,6 +160,7 @@ async function getAccount(customerId: number): Promise<ICustomerAccount> {
 async function receivePayment(
   customerId: number,
   input: ICustomerReceivePaymentInput,
+  scope: EmployeeDataScope,
 ): Promise<ICustomerReceivePaymentResult> {
   if (input.amount <= 0) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.INVALID_AMOUNT);
@@ -148,7 +169,7 @@ async function receivePayment(
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.INVALID_METHOD);
   }
 
-  await getOne(customerId);
+  await getOne(customerId, scope);
 
   return prisma.$transaction(async (tx) => {
     const activities = await tx.activity.findMany({

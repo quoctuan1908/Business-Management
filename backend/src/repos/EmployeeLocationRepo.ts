@@ -55,6 +55,15 @@ async function getAvailableLocations(): Promise<ILocation[]> {
   return rows.map(toLocation);
 }
 
+async function getLocationIdsByUserId(userId: number): Promise<number[]> {
+  const rows = await prisma.employeeLocation.findMany({
+    where: { user_id: userId },
+    select: { location_id: true },
+    orderBy: { location_id: 'asc' },
+  });
+  return rows.map((row) => row.location_id);
+}
+
 async function assignmentExists(
   userId: number,
   locationId: number,
@@ -123,6 +132,7 @@ export default {
   getAll,
   getByUserId,
   getAvailableLocations,
+  getLocationIdsByUserId,
   assignmentExists,
   countByLocation,
   setUserLocations,

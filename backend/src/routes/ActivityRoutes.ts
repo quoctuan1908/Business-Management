@@ -9,6 +9,7 @@ import type { IActivityWrite } from '@src/models/Activity.model';
 import { ISessionUser } from '@src/models/common/types';
 import ActivityExportService from '@src/services/activity-export';
 import ActivityService from '@src/services/ActivityService';
+import { resolveEmployeeDataScope } from '@src/services/employee-scope';
 
 import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
@@ -41,7 +42,9 @@ const reqValidators = {
 ******************************************************************************/
 
 async function getAll(_: Req, res: Res) {
-  const activities = await ActivityService.getAll();
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  const activities = await ActivityService.getAll(scope);
   res.status(HttpStatusCodes.OK).json({ activities });
 }
 
@@ -85,15 +88,19 @@ async function exportExcel(req: Req, res: Res) {
 
 async function getOne(req: Req, res: Res) {
   const { id } = reqValidators.getOne(req.params);
-  const activity = await ActivityService.getOne(id);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  const activity = await ActivityService.getOne(id, scope);
   res.status(HttpStatusCodes.OK).json({ activity });
 }
 
 async function add(req: Req, res: Res) {
   const { activity } = reqValidators.add(req.body);
   const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
   const created = await ActivityService.addOne(
     activityWriteForSession(sessionUser, activity),
+    scope,
   );
   res.status(HttpStatusCodes.CREATED).json({ activity: created });
 }
@@ -101,26 +108,32 @@ async function add(req: Req, res: Res) {
 async function update(req: Req, res: Res) {
   const { activity } = reqValidators.update(req.body);
   const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
   const updated = await ActivityService.updateOne(
     activity.id,
     activityWriteForSession(sessionUser, activity),
+    scope,
   );
   res.status(HttpStatusCodes.OK).json({ activity: updated });
 }
 
 async function confirm(req: Req, res: Res) {
   const { id } = reqValidators.confirm(req.params);
-  const result = await ActivityService.confirmOrder(id);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  const result = await ActivityService.confirmOrder(id, scope);
   res.status(HttpStatusCodes.OK).json(result);
 }
 
 async function advanceStatus(req: Req, res: Res) {
   const { id } = reqValidators.advance(req.params);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
   const body = req.body ?? {};
   const pendingPayments = Array.isArray(body.pendingPayments)
     ? body.pendingPayments
     : undefined;
-  const result = await ActivityService.advanceStatus(id, {
+  const result = await ActivityService.advanceStatus(id, scope, {
     pendingPayments,
     applyCustomerBalance: body.applyCustomerBalance,
   });
@@ -129,7 +142,9 @@ async function advanceStatus(req: Req, res: Res) {
 
 async function delete_(req: Req, res: Res) {
   const { id } = reqValidators.delete(req.params);
-  await ActivityService.delete(id);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  await ActivityService.delete(id, scope);
   res.status(HttpStatusCodes.OK).end();
 }
 

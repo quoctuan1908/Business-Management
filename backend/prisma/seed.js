@@ -149,6 +149,128 @@ function loadProductsFromJson() {
   }));
 }
 
+/** Xáo trộn mảng theo seed cố định để seed chạy lại cho cùng kết quả. */
+function shuffleDeterministic(items, seed = 20260517) {
+  const arr = [...items];
+  let state = seed;
+  for (let i = arr.length - 1; i > 0; i--) {
+    state = (state * 1103515245 + 12345) & 0x7fffffff;
+    const j = state % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+const BUSINESS_TYPES = [
+  "Thuong mai",
+  "Phan phoi",
+  "Xay dung",
+  "Dich vu",
+  "Nha hang",
+  "Bia ruou",
+];
+
+const REPRESENTATIVE_NAMES = [
+  "Nguyen Van C",
+  "Tran Thi D",
+  "Le Van E",
+  "Pham Thi F",
+  "Hoang Van G",
+  "Vo Thi H",
+  "Dang Van I",
+  "Bui Thi K",
+  "Do Van L",
+  "Ngo Thi M",
+  "Ly Van N",
+  "Mai Thi O",
+  "Truong Van P",
+  "Huynh Thi Q",
+  "Lam Van R",
+  "Phan Thi S",
+  "Cao Van T",
+  "Duong Thi U",
+  "Ton Van V",
+  "Luong Thi X",
+];
+
+/** Tọa độ gần đúng quanh khu vực Cần Thơ (mỗi KH một điểm hơi lệch). */
+function canThoCoords(index) {
+  const lat = 10.01 + (index % 5) * 0.012 + (index % 3) * 0.003;
+  const lng = 105.72 + Math.floor(index / 5) * 0.018 + (index % 4) * 0.004;
+  return { lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)) };
+}
+
+function customerPhone(index) {
+  return `09${String(index + 1).padStart(8, "0")}`;
+}
+
+/**
+ * 20 khách hàng — mỗi KH một phường/xã khác nhau.
+ * nhanvien01: 10 vùng đầu | nhanvien02: 10 vùng sau (không trùng nhau).
+ */
+async function seedCustomersAndEmployeeZones(sellerUser01, sellerUser02) {
+  const allLocations = await prisma.location.findMany({
+    where: { province: CAN_THO_PROVINCE_NAME },
+    orderBy: { ward_code: "asc" },
+  });
+
+  if (allLocations.length < 20) {
+    throw new Error(
+      `Can Tho needs at least 20 wards for seed, got ${allLocations.length}`,
+    );
+  }
+
+  const pickedLocations = shuffleDeterministic(allLocations).slice(0, 20);
+  const zonesFor01 = pickedLocations.slice(0, 10);
+  const zonesFor02 = pickedLocations.slice(10, 20);
+
+  const customers = [];
+  for (let i = 0; i < pickedLocations.length; i++) {
+    const loc = pickedLocations[i];
+    const coords = canThoCoords(i);
+    const customer = await prisma.customer.create({
+      data: {
+        location_id: loc.location_id,
+        company_name: `KH ${String(i + 1).padStart(2, "0")} - ${loc.ward}`,
+        business_type: BUSINESS_TYPES[i % BUSINESS_TYPES.length],
+        representative_name: REPRESENTATIVE_NAMES[i],
+        position: i % 2 === 0 ? "Giam doc" : "Truong phong kinh doanh",
+        phone_number: customerPhone(i),
+        current_balance: `${((i + 1) * 750000).toFixed(2)}`,
+        lat: coords.lat,
+        lng: coords.lng,
+        is_approved: true,
+        approved_at: new Date(),
+      },
+    });
+    customers.push(customer);
+  }
+
+  for (const loc of zonesFor01) {
+    await prisma.employeeLocation.create({
+      data: {
+        user_id: sellerUser01.user_id,
+        location_id: loc.location_id,
+      },
+    });
+  }
+
+  for (const loc of zonesFor02) {
+    await prisma.employeeLocation.create({
+      data: {
+        user_id: sellerUser02.user_id,
+        location_id: loc.location_id,
+      },
+    });
+  }
+
+  return {
+    customers,
+    zonesFor01: zonesFor01.map((l) => l.ward),
+    zonesFor02: zonesFor02.map((l) => l.ward),
+  };
+}
+
 async function main() {
   await seedOrderStatuses();
 
@@ -207,91 +329,9 @@ async function main() {
   });
 
   const locationCount = await syncCanThoLocations();
-  const locNinhKieu = await prisma.location.findFirst({
-    where: { ward: "Phường Ninh Kiều" },
-  });
-  const locCaiRang = await prisma.location.findFirst({
-    where: { ward: "Phường Cái Răng" },
-  });
-  const locBinhThuy = await prisma.location.findFirst({
-    where: { ward: "Phường Bình Thủy" },
-  });
 
-  if (locNinhKieu) {
-    await prisma.employeeLocation.create({
-      data: {
-        user_id: sellerUser01.user_id,
-        location_id: locNinhKieu.location_id,
-      },
-    });
-  }
-  if (locCaiRang) {
-    await prisma.employeeLocation.create({
-      data: {
-        user_id: sellerUser02.user_id,
-        location_id: locCaiRang.location_id,
-      },
-    });
-  }
-
-  const customers = [];
-  if (locNinhKieu) {
-    customers.push(
-      await prisma.customer.create({
-        data: {
-          location_id: locNinhKieu.location_id,
-          company_name: "Cong ty TNHH Mau",
-          business_type: "Thuong mai",
-          representative_name: "Nguyen Van C",
-          position: "Giam doc",
-          phone_number: "0901112233",
-          current_balance: "15000000.00",
-          lat: 10.034,
-          lng: 105.785,
-          is_approved: true,
-          approved_at: new Date(),
-        },
-      }),
-    );
-  }
-  if (locCaiRang) {
-    customers.push(
-      await prisma.customer.create({
-        data: {
-          location_id: locCaiRang.location_id,
-          company_name: "Dai ly Phan Phoi ABC",
-          business_type: "Phan phoi",
-          representative_name: "Tran Thi D",
-          position: "Truong phong kinh doanh",
-          phone_number: "0912223344",
-          current_balance: "8500000.00",
-          lat: 10.012,
-          lng: 105.742,
-          is_approved: true,
-          approved_at: new Date(),
-        },
-      }),
-    );
-  }
-  if (locBinhThuy) {
-    customers.push(
-      await prisma.customer.create({
-        data: {
-          location_id: locBinhThuy.location_id,
-          company_name: "Xay dung XYZ",
-          business_type: "Xay dung",
-          representative_name: "Le Van E",
-          position: "Chu tich",
-          phone_number: "0923334455",
-          current_balance: "5000000.00",
-          lat: 10.062,
-          lng: 105.731,
-          is_approved: true,
-          approved_at: new Date(),
-        },
-      }),
-    );
-  }
+  const { customers, zonesFor01, zonesFor02 } =
+    await seedCustomersAndEmployeeZones(sellerUser01, sellerUser02);
 
   const staffUsers = [sellerUser01, sellerUser02];
   const allUsers = [adminUser, sellerUser01, sellerUser02];
@@ -389,7 +429,7 @@ async function main() {
   }
 
   let activities = [];
-  if (staffUsers.length >= 2 && customers.length >= 3) {
+  if (staffUsers.length >= 2 && customers.length >= 11) {
     const draft1 = await prisma.activity.create({
       data: {
         user_id: staffUsers[0].user_id,
@@ -397,7 +437,7 @@ async function main() {
         status: "draft",
         payment_status: "unpaid",
         activity_date: new Date("2026-05-11T09:30:00Z"),
-        content: "Don hang dang soan thao",
+        content: "Don hang dang soan thao (vung NV01)",
       },
     });
     const act2 = await prisma.activity.create({
@@ -407,17 +447,17 @@ async function main() {
         status: "confirmed",
         payment_status: "unpaid",
         activity_date: new Date("2026-05-02T08:00:00Z"),
-        content: "Ghe tham va chot don hang",
+        content: "Ghe tham va chot don hang (vung NV01)",
       },
     });
     const act3 = await prisma.activity.create({
       data: {
         user_id: staffUsers[1].user_id,
-        customer_id: customers[2].customer_id,
+        customer_id: customers[10].customer_id,
         status: "processing",
         payment_status: "partial",
         activity_date: new Date("2026-05-16T15:00:00Z"),
-        content: "Giao hang va thu tien",
+        content: "Giao hang va thu tien (vung NV02)",
       },
     });
     activities = [draft1, act2, act3];
@@ -501,6 +541,8 @@ async function main() {
     staffUserIds: staffUsers.map((u) => u.user_id),
     canThoLocationCount: locationCount,
     customerCount: customers.length,
+    nhanvien01Zones: zonesFor01,
+    nhanvien02Zones: zonesFor02,
     productCount: products.length,
     supplierCount,
     importCount,

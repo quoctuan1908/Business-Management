@@ -17,7 +17,7 @@ async function findToken(token: string) {
 }
 
 async function deleteToken(token: string) {
-  return await prisma.refreshToken.delete({
+  await prisma.refreshToken.deleteMany({
     where: { token },
   });
 }

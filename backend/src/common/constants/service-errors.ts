@@ -53,6 +53,7 @@ export const CustomerErrors = {
   CUSTOMER_NOT_FOUND: 'Customer not found',
   LOCATION_NOT_FOUND: 'Location not found',
   CUSTOMER_HAS_ACTIVITIES: 'Cannot delete customer that has activities',
+  CUSTOMER_OUTSIDE_TERRITORY: 'Customer is outside your assigned territory',
   INVALID_AMOUNT: 'Payment amount must be greater than zero',
   INVALID_METHOD: 'Payment method is required',
 } as const;

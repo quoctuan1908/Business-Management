@@ -27,8 +27,9 @@ async function getByInvoiceId(invoiceId: number): Promise<IActivity | null> {
   return row ? toActivity(row) : null;
 }
 
-async function getAll(): Promise<IActivity[]> {
+async function getAll(userId?: number): Promise<IActivity[]> {
   const rows = await prisma.activity.findMany({
+    where: userId !== undefined ? { user_id: userId } : {},
     orderBy: { activity_id: 'asc' },
   });
   return rows.map(toActivity);

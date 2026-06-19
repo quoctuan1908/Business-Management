@@ -4,7 +4,9 @@ import { transform } from 'jet-validators/utils';
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import { RouteError } from '@src/common/utils/route-errors';
 import Customer from '@src/models/Customer.model';
+import { ISessionUser } from '@src/models/common/types';
 import CustomerService from '@src/services/CustomerService';
+import { resolveEmployeeDataScope } from '@src/services/employee-scope';
 
 import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
@@ -43,44 +45,58 @@ function parseReceivePaymentBody(body: unknown): { amount: number; method: strin
 ******************************************************************************/
 
 async function getAll(_: Req, res: Res) {
-  const customers = await CustomerService.getAll();
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  const customers = await CustomerService.getAll(scope);
   res.status(HttpStatusCodes.OK).json({ customers });
 }
 
 async function getOne(req: Req, res: Res) {
   const { id } = reqValidators.getOne(req.params);
-  const customer = await CustomerService.getOne(id);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  const customer = await CustomerService.getOne(id, scope);
   res.status(HttpStatusCodes.OK).json({ customer });
 }
 
 async function add(req: Req, res: Res) {
   const { customer } = reqValidators.add(req.body);
-  const created = await CustomerService.addOne(customer);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  const created = await CustomerService.addOne(customer, scope);
   res.status(HttpStatusCodes.CREATED).json({ customer: created });
 }
 
 async function update(req: Req, res: Res) {
   const { customer } = reqValidators.update(req.body);
-  const updated = await CustomerService.updateOne(customer);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  const updated = await CustomerService.updateOne(customer, scope);
   res.status(HttpStatusCodes.OK).json({ customer: updated });
 }
 
 async function delete_(req: Req, res: Res) {
   const { id } = reqValidators.delete(req.params);
-  await CustomerService.delete(id);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  await CustomerService.delete(id, scope);
   res.status(HttpStatusCodes.OK).end();
 }
 
 async function getAccount(req: Req, res: Res) {
   const { id } = reqValidators.customerId(req.params);
-  const account = await CustomerService.getAccount(id);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  const account = await CustomerService.getAccount(id, scope);
   res.status(HttpStatusCodes.OK).json({ account });
 }
 
 async function receivePayment(req: Req, res: Res) {
   const { id } = reqValidators.customerId(req.params);
   const input = parseReceivePaymentBody(req.body);
-  const result = await CustomerService.receivePayment(id, input);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+  const scope = await resolveEmployeeDataScope(sessionUser);
+  const result = await CustomerService.receivePayment(id, input, scope);
   res.status(HttpStatusCodes.OK).json(result);
 }
 

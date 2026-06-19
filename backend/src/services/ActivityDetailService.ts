@@ -7,8 +7,11 @@ import ActivityDetailRepo from '@src/repos/ActivityDetailRepo';
 import ActivityRepo from '@src/repos/ActivityRepo';
 import ProductRepo from '@src/repos/ProductRepo';
 import prisma from '@src/repos/common/prisma';
+import type { EmployeeDataScope } from '@src/services/employee-scope';
+import { assertActivityAccess } from '@src/services/employee-scope';
 
-async function assertDraftOrder(activityId: number) {
+async function assertDraftOrder(activityId: number, scope: EmployeeDataScope) {
+  await assertActivityAccess(activityId, scope);
   const activity = await ActivityRepo.getOne(activityId);
   if (!activity) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.ACTIVITY_NOT_FOUND);
@@ -33,15 +36,13 @@ async function syncInvoiceTotal(activityId: number) {
   });
 }
 
-async function getByActivity(activityId: number) {
-  if (!(await ActivityRepo.persists(activityId))) {
-    throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.ACTIVITY_NOT_FOUND);
-  }
+async function getByActivity(activityId: number, scope: EmployeeDataScope) {
+  await assertActivityAccess(activityId, scope);
   return ActivityDetailRepo.getByActivity(activityId);
 }
 
-async function addOne(detail: IActivityDetail) {
-  await assertDraftOrder(detail.activityId);
+async function addOne(detail: IActivityDetail, scope: EmployeeDataScope) {
+  await assertDraftOrder(detail.activityId, scope);
   if (!(await ProductRepo.persists(detail.productId))) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.PRODUCT_NOT_FOUND);
   }
@@ -60,8 +61,8 @@ async function addOne(detail: IActivityDetail) {
   return created;
 }
 
-async function updateOne(detail: IActivityDetail) {
-  await assertDraftOrder(detail.activityId);
+async function updateOne(detail: IActivityDetail, scope: EmployeeDataScope) {
+  await assertDraftOrder(detail.activityId, scope);
   if (!(await ActivityDetailRepo.exists(detail.activityId, detail.productId))) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.DETAIL_NOT_FOUND);
   }
@@ -74,8 +75,12 @@ async function updateOne(detail: IActivityDetail) {
   return updated;
 }
 
-async function deleteOne(activityId: number, productId: number): Promise<void> {
-  await assertDraftOrder(activityId);
+async function deleteOne(
+  activityId: number,
+  productId: number,
+  scope: EmployeeDataScope,
+): Promise<void> {
+  await assertDraftOrder(activityId, scope);
   if (!(await ActivityDetailRepo.exists(activityId, productId))) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.DETAIL_NOT_FOUND);
   }
