@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { MapPin, RefreshCw, Loader2, Store, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+
+const CACHE_KEY = "last_known_field_coords";
 
 interface OsmStore {
   id: number;
@@ -33,14 +35,14 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
   const markerRef = useRef<any>(null);
   const storeMarkersRef = useRef<any[]>([]);
   
-  // Khóa chống lặp (Chỉ cho phép duy nhất một tiến trình định vị chạy tại một thời điểm)
   const isScanningRef = useRef<boolean>(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const [scanStatus, setScanStatus] = useState<string>("Đang chuẩn bị...");
   const [loading, setLoading] = useState<boolean>(false);
   const [nearbyStores, setNearbyStores] = useState<OsmStore[]>([]);
 
-  // Hàm chuẩn hóa dữ liệu tags thô từ OpenStreetMap
+  // Hàm chuẩn hóa dữ liệu (Giữ nguyên gốc của bạn)
   const normalizeStoreData = (tags: any, elId: number) => {
     let finalName = tags["name:vi"] || tags["name"] || tags["brand"] || tags["alt_name"] || `Cửa hàng chưa đặt tên (#${elId})`;
     let finalType = tags["shop"] || tags["amenity"] || tags["craft"] || "Đại lý";
@@ -58,8 +60,8 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
     };
   };
 
-  const startFieldScan = async () => {
-    // Nếu đang trong quá trình quét, chặn tuyệt đối không cho chạy đè lệnh khi bấm liên tục
+  // Hàm quét chính - Đã đưa về dạng gọi callback trực tiếp chống chặn GPS
+  const startFieldScan = () => {
     if (isScanningRef.current) return;
     
     if (typeof window === "undefined" || !navigator.geolocation) {
@@ -71,26 +73,34 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
     setLoading(true);
     setScanStatus("Đang thiết lập kết nối vệ tinh GPS (Vui lòng chờ phê duyệt quyền)...");
 
-    // Thêm một khoảng Delay nhân tạo nhỏ 400ms để giữ UI ổn định, không bị chớp tắt nút quét quá nhanh
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    // Hủy request Overpass cũ nếu có
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    abortControllerRef.current = new AbortController();
+    const currentSignal = abortControllerRef.current.signal;
 
+    // Gọi TRỰC TIẾP đồng bộ tại đây để trình duyệt chấp nhận quyền click của User
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude: lat, longitude: lng } = position.coords;
 
         try {
+          // Lưu vị trí vào cache lập tức
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ lat, lng }));
+
           const L = (await import("leaflet")).default;
           await import("leaflet/dist/leaflet.css");
 
-          if (!mapContainerRef.current) {
+          if (!mapContainerRef.current || currentSignal.aborted) {
             isScanningRef.current = false;
             setLoading(false);
             return;
           }
 
+          // Dọn sạch các marker cũ
           storeMarkersRef.current.forEach((m) => m.remove());
           storeMarkersRef.current = [];
 
+          // Khởi tạo hoặc cập nhật Map Instance
           let map = mapInstanceRef.current;
           if (!map) {
             map = L.map(mapContainerRef.current).setView([lat, lng], 18);
@@ -123,7 +133,7 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
           `;
 
           const overpassUrl = `https://overpass.openstreetmap.fr/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
-          const overpassRes = await fetch(overpassUrl);
+          const overpassRes = await fetch(overpassUrl, { signal: currentSignal });
 
           if (overpassRes.ok) {
             const overpassData = await overpassRes.json();
@@ -160,15 +170,16 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
             });
 
             setNearbyStores(storesFound);
-            setScanStatus(`Quét hoàn tất! Phát hiện ${elements.length} địa điểm trong bán kính 200m.`);
+            setScanStatus(`Quét hoàn tất! Phát hiện ${elements.length} địa điểm trong bán kính 500m.`);
           } else {
             setScanStatus("Không thể kết nối tới hệ thống dữ liệu Overpass.");
           }
-        } catch (err) {
-          console.error(err);
-          setScanStatus("Lỗi đồng bộ bản đồ vệ tinh.");
+        } catch (err: any) {
+          if (err.name !== "AbortError") {
+            console.error(err);
+            setScanStatus("Lỗi đồng bộ bản đồ vệ tinh.");
+          }
         } finally {
-          // Hoàn tất chu kỳ quét thành công -> Mở khóa
           isScanningRef.current = false;
           setLoading(false);
         }
@@ -182,28 +193,48 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
         } else {
           setScanStatus("Lỗi phần cứng GPS hoặc không có tín hiệu mạng.");
         }
-        // Thất bại -> Giải phóng khóa để có thể bấm quét lại
         isScanningRef.current = false;
         setLoading(false);
       },
       { 
-        enableHighAccuracy: true, // Ép thiết bị bật chip GPS để lấy tọa độ chính xác nhất
-        timeout: 25000,           // Nới rộng thời gian chờ nhận phản hồi GPS lên 25 giây (Tránh lỗi tắt ngang)
-        maximumAge: 0             // Không sử dụng lại tọa độ cũ đã lưu trong bộ nhớ đệm cache
+        enableHighAccuracy: true, 
+        timeout: 25000, 
+        maximumAge: 0 
       }
     );
   };
 
-  // Kích hoạt quét tự động lần đầu tiên khi Dialog được bật lên
+  // Load trước bản đồ từ Cache lúc vừa mở Dialog (Nếu có cache) để tối ưu UX tốc độ
   useEffect(() => {
     if (open) {
-      void startFieldScan();
+      const cachedData = localStorage.getItem(CACHE_KEY);
+      if (cachedData && mapContainerRef.current && !mapInstanceRef.current) {
+        const cachedCoords = JSON.parse(cachedData);
+        import("leaflet").then((LModule) => {
+          const L = LModule.default;
+          import("leaflet/dist/leaflet.css").then(() => {
+            if (!mapInstanceRef.current && mapContainerRef.current) {
+              const map = L.map(mapContainerRef.current).setView([cachedCoords.lat, cachedCoords.lng], 18);
+              L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "© OpenStreetMap contributors",
+              }).addTo(map);
+              mapInstanceRef.current = map;
+              markerRef.current = L.marker([cachedCoords.lat, cachedCoords.lng]).addTo(map);
+              markerRef.current.bindPopup("<b>📍 Vị trí quét gần nhất</b>").openPopup();
+            }
+          });
+        });
+      }
+      
+      // Kích hoạt quét thực tế bằng GPS trực tiếp
+      startFieldScan();
     }
-    // Khi Dialog đóng, reset trạng thái danh sách cửa hàng
+
     return () => {
       if (!open) {
         setNearbyStores([]);
         isScanningRef.current = false;
+        if (abortControllerRef.current) abortControllerRef.current.abort();
       }
     };
   }, [open]);
@@ -211,9 +242,12 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
   // Hủy map instance khi component unmount hẳn khỏi DOM
   useEffect(() => {
     return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+        markerRef.current = null;
+        storeMarkersRef.current = [];
       }
     };
   }, []);
@@ -235,7 +269,7 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
         <DialogHeader className="flex flex-row items-center justify-between border-b pb-3 space-y-0 shrink-0">
           <DialogTitle className="text-md font-bold flex items-center gap-2">
             <MapPin className="h-5 w-5 text-indigo-600" />
-            Trợ lý định vị thực địa (Bán kính 200m)
+            Trợ lý định vị thực địa (Bán kính 500m)
           </DialogTitle>
           <Button 
             variant="outline" 
