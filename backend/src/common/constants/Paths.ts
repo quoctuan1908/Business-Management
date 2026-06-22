@@ -95,6 +95,8 @@ const Paths = {
     Register: '/register',
     Check: '/check',
     VerifyEmail: '/verify-email',
+    ForgotPassword: '/forgot-password',
+    ResetPassword: '/reset-password'
   },
   Salaries: {
     _: '/salaries',

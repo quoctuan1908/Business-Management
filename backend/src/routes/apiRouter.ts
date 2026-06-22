@@ -174,6 +174,8 @@ authRouter.get(Paths.Auth.Logout, rateLimiters.default, AuthRoutes.logout);
 authRouter.post(Paths.Auth.Register, rateLimiters.auth, AuthRoutes.register);
 authRouter.get(Paths.Auth.Check, rateLimiters.default, AuthRoutes.check);
 authRouter.get(Paths.Auth.VerifyEmail, rateLimiters.default, AuthRoutes.verifyEmail);
+authRouter.post(Paths.Auth.ForgotPassword, rateLimiters.auth, AuthRoutes.forgotPassword);
+authRouter.post(Paths.Auth.ResetPassword, rateLimiters.auth, AuthRoutes.resetPassword);
 apiRouter.use(Paths.Auth._, authRouter);
 
 /******************************************************************************
