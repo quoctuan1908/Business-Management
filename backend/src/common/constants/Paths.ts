@@ -104,6 +104,7 @@ const Paths = {
     Add: '/add',
     Update: '/update',
     Delete: '/delete/:id',
+    Calculate: '/calculate',
   },
   Suppliers: {
     _: '/suppliers',

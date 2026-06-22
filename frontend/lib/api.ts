@@ -405,6 +405,11 @@ export const salariesApi = {
     request<void>(`/salaries/delete/${id}`, {
       method: "DELETE",
     }),
+  calculate: (data: { month: number; year: number; commissionRate: number }) =>
+    request<{ message: string }>("/salaries/calculate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
 
 export const locationsApi = {

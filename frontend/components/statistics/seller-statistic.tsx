@@ -60,6 +60,12 @@ const CustomChartTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+const formatYAxis = (val: number) => {
+  if (val >= 1000000000) return `${(val / 1000000000).toFixed(1)} Tỷ`;
+  if (val >= 1000000) return `${val / 1000000} Tr`;
+  return val.toLocaleString("vi-VN");
+};
+
 export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
   const [overview, setOverview] = useState<any>(null);
   const [locations, setLocations] = useState<any[]>([]);
@@ -67,11 +73,10 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [debtors, setDebtors] = useState<any[]>([]);
   
-  // States lưu trữ toàn bộ danh sách địa giới hành chính gốc từ hệ thống
+  const [masterLocations, setMasterLocations] = useState<any[]>([]);
   const [availableProvinces, setAvailableProvinces] = useState<string[]>([]);
   const [availableWards, setAvailableWards] = useState<string[]>([]);
 
-  // States bộ lọc người dùng chọn
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedYear, setSelectedYear] = useState<string>("2026");
   const [selectedProvince, setSelectedProvince] = useState<string>("all");
@@ -79,6 +84,37 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function initMasterFilters() {
+      if (!userId || userId === "NaN") return;
+      try {
+        const safeId = typeof userId === 'string' ? encodeURIComponent(userId) : userId;
+        const data = await usersApi.getLocationStats(safeId, { month: "all", year: "2026", province: "all", ward: "all" });
+        const locArray = extractArray(data, 'locations');
+        setMasterLocations(locArray);
+        
+        const provinces = Array.from(new Set(locArray.map((l: any) => l.province).filter(Boolean))) as string[];
+        setAvailableProvinces(provinces);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    void initMasterFilters();
+  }, [userId]);
+
+  useEffect(() => {
+    if (masterLocations.length > 0) {
+      const filteredWards = masterLocations
+        .filter((l: any) => selectedProvince === "all" || l.province === selectedProvince)
+        .map((l: any) => l.ward)
+        .filter(Boolean);
+      
+      setAvailableWards(Array.from(new Set(filteredWards)) as string[]);
+    } else {
+      setAvailableWards([]);
+    }
+  }, [masterLocations, selectedProvince]);
 
   const loadStats = useCallback(async () => {
     if (!userId || userId === "NaN") {
@@ -92,7 +128,6 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
     
     try {
       const safeId = typeof userId === 'string' ? encodeURIComponent(userId) : userId;
-      
       const params = {
         month: selectedMonth,
         year: selectedYear,
@@ -109,15 +144,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
       ]);
 
       setOverview(overviewData);
-      
-      const locArray = extractArray(locationsData, 'locations');
-      setLocations(locArray);
-      
-      if (availableProvinces.length === 0 && locArray.length > 0) {
-        const provinces = Array.from(new Set(locArray.map((l: any) => l.province).filter(Boolean))) as string[];
-        setAvailableProvinces(provinces);
-      }
-
+      setLocations(extractArray(locationsData, 'locations'));
       setStatusBreakdown(extractArray(statusData, 'breakdown'));
       setRecentSales(extractArray(salesData, 'timeline'));
       setDebtors(extractArray(debtorsData, 'debtors'));
@@ -127,31 +154,60 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedMonth, selectedYear, selectedProvince, selectedWard, availableProvinces.length]);
-
-  useEffect(() => {
-    if (locations.length > 0) {
-      const filteredWards = locations
-        .filter((l: any) => selectedProvince === "all" || l.province === selectedProvince)
-        .map((l: any) => l.ward)
-        .filter(Boolean);
-      
-      // Loại bỏ trùng lặp phần tử
-      setAvailableWards(Array.from(new Set(filteredWards)) as string[]);
-    } else {
-      setAvailableWards([]);
-    }
-  }, [locations, selectedProvince]);
+  }, [userId, selectedMonth, selectedYear, selectedProvince, selectedWard]);
 
   useEffect(() => {
     void loadStats();
   }, [loadStats]);
 
-  // Hàm xử lý thay đổi Tỉnh/Thành phố
   const handleProvinceChange = (province: string) => {
     setSelectedProvince(province);
-    setSelectedWard("all"); // Reset xã về "Tất cả" tránh lệch logic dữ liệu
+    setSelectedWard("all"); 
   };
+
+  const locationChartData = locations.reduce((acc: any[], loc: any) => {
+    const labelName = loc.ward 
+      ? `${loc.ward} - ${loc.province || ""}`.replace(/ - $/, "")
+      : (loc.province || "Địa bàn chung");
+      
+    const paidAmount = Number(loc.revenueGenerated) || 0;
+    const debtAmount = Number(loc.outstandingDebt) || 0;
+
+    const existingGroup = acc.find(item => item.name === labelName);
+    if (existingGroup) {
+      existingGroup["Tiền khách đã trả"] += paidAmount;
+      existingGroup["Tiền khách còn thiếu"] += debtAmount;
+    } else {
+      acc.push({
+        name: labelName,
+        "Tiền khách đã trả": paidAmount,
+        "Tiền khách còn thiếu": debtAmount
+      });
+    }
+    return acc;
+  }, []);
+
+  const statusOrder = ["draft", "pending", "confirmed", "processing", "shipping", "completed", "cancelled"];
+  const statusLabelMap: Record<string, string> = {
+    draft: "1. Đang báo giá",
+    pending: "2. Chờ duyệt",
+    confirmed: "3. Khách đã chốt",
+    processing: "4. Lên hợp đồng",
+    shipping: "5. Đang bàn giao",
+    completed: "6. Hoàn thành",
+    cancelled: "7. Đã hủy"
+  };
+
+  const funnelChartData = statusBreakdown
+    .map(sb => {
+      const rawStatus = sb.statusName || sb.status || "Chưa rõ";
+      return {
+        rawStatus,
+        name: statusLabelMap[rawStatus] || rawStatus,
+        value: Number(sb.count) || 0
+      };
+    })
+    .sort((a, b) => statusOrder.indexOf(a.rawStatus) - statusOrder.indexOf(b.rawStatus));
 
   if (loading) {
     return (
@@ -169,35 +225,6 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
     );
   }
 
-  const locationChartData = locations.map(loc => {
-    const labelName = selectedProvince === "all" 
-      ? (loc.province || "N/A") 
-      : `${loc.ward || "Xã chưa rõ"}`;
-      
-    return {
-      name: labelName,
-      "Tiền khách đã trả": (Number(loc.revenueGenerated) || 0) - (Number(loc.outstandingDebt) || 0),
-      "Tiền khách còn thiếu": Number(loc.outstandingDebt) || 0
-    };
-  });
-
-  const funnelChartData = statusBreakdown.map(sb => {
-    const rawStatus = sb.statusName || sb.status || "Chưa rõ";
-    const statusLabelMap: Record<string, string> = {
-      draft: "Đang báo giá",
-      pending: "Chờ sếp duyệt",
-      confirmed: "Khách đã chốt",
-      processing: "Đang làm hợp đồng",
-      shipping: "Đang bàn giao",
-      completed: "Đã xong xuôi",
-      cancelled: "Bị hủy / Thất bại"
-    };
-    return {
-      name: statusLabelMap[rawStatus] || rawStatus,
-      value: Number(sb.count) || 0
-    };
-  });
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -211,7 +238,6 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-          {/* Bộ lọc Tỉnh/Thành phố */}
           <div className="flex items-center gap-1.5 border rounded-md px-2.5 py-1.5 bg-background h-9 text-xs text-muted-foreground">
             <MapPin className="h-3.5 w-3.5" />
             <span className="font-medium hidden sm:inline">Tỉnh thành:</span>
@@ -228,14 +254,10 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             </Select>
           </div>
 
-          {/* Bộ lọc Xã */}
           <div className="flex items-center gap-1.5 border rounded-md px-2.5 py-1.5 bg-background h-9 text-xs text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 text-indigo-500" />
             <span className="font-medium hidden sm:inline">Xã/Phường:</span>
-            <Select 
-              value={selectedWard} 
-              onValueChange={setSelectedWard}
-            >
+            <Select value={selectedWard} onValueChange={setSelectedWard}>
               <SelectTrigger className="border-0 p-0 h-auto w-[120px] focus:ring-0 shadow-none text-foreground font-semibold">
                 <SelectValue placeholder="Tất cả xã" />
               </SelectTrigger>
@@ -248,7 +270,6 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             </Select>
           </div>
 
-          {/* Bộ lọc Thời gian (Tháng/Năm) */}
           <div className="flex items-center gap-1.5 border rounded-md px-2.5 py-1.5 bg-background h-9 text-xs text-muted-foreground">
             <Calendar className="h-3.5 w-3.5" />
             <span className="font-medium hidden sm:inline">Thời gian:</span>
@@ -308,7 +329,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
           <Card>
             <CardContent className="p-6 flex items-center justify-between space-y-0">
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Tổng doanh số mang về</p>
+                <p className="text-sm font-medium text-muted-foreground">Doanh số mang về</p>
                 <div className="text-2xl font-bold text-emerald-600">
                   {formatCurrency(overview.grossRevenue || 0)}
                 </div>
@@ -320,7 +341,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
           <Card>
             <CardContent className="p-6 flex items-center justify-between space-y-0">
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Tiền hợp đồng khách chưa trả</p>
+                <p className="text-sm font-medium text-muted-foreground">Tổng công nợ cần thu hồi</p>
                 <div className="text-2xl font-bold text-amber-600">
                   {formatCurrency(overview.pendingRevenue || 0)}
                 </div>
@@ -335,7 +356,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <BarChart3 className="h-5 w-5 text-indigo-600" /> Tình hình tiền về theo khu vực khách hàng
+              <BarChart3 className="h-5 w-5 text-indigo-600" /> Địa bàn hoạt động và tình hình tiền về của seller
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -343,12 +364,11 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
               <p className="text-center py-16 text-sm text-muted-foreground">Chưa có dữ liệu vùng.</p>
             ) : (
               <div className="h-[300px] min-h-[300px] w-full pt-4">
-                {/* FIX: Đổi chiều cao height từ 100% sang số cứng 300 */}
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={locationChartData} barGap={6}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={10} tickLine={false} />
-                    <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `${val / 1000000}M`} />
+                    <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatYAxis} />
                     <Tooltip content={<CustomChartTooltip />} />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
                     <Bar dataKey="Tiền khách đã trả" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -372,7 +392,6 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             ) : (
               <div className="h-[300px] min-h-[300px] w-full flex flex-col sm:flex-row items-center justify-center gap-4">
                 <div className="w-full sm:w-[50%] min-h-[240px]">
-                  {/* FIX: Đổi chiều cao height từ 100% sang số cứng 240 */}
                   <ResponsiveContainer width="100%" height={240}>
                     <PieChart>
                       <Pie data={funnelChartData} cx="50%" cy="50%" innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value">
