@@ -361,6 +361,16 @@ export const authApi = {
     request<{ message: string }>(`/auth/verify-email?token=${encodeURIComponent(token)}`, {
       method: "GET",
     }),
+  forgotPassword: (data: { email: string }) =>
+    request<{ message: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  resetPassword: (data: { token: string; password: string }) =>
+    request<{ message: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   refresh: () =>
     request<{ message: string }>("/auth/refresh", {
       method: "GET",

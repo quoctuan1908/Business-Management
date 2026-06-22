@@ -69,3 +69,12 @@
 [2026-06-22 10:18:01] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
 [2026-06-22 10:18:01] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
 [2026-06-22 10:18:01] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-22 11:41:47] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-22 11:41:47] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-22 11:41:47] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-22 11:41:47] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-22 11:42:24] [INFO] [SYSTEM] Gửi email xác thực tài khoản thành công tới địa chỉ: allmighttuan1908@gmail.com (Tài khoản: "ignite1333").
+[2026-06-22 11:42:44] [INFO] [SYSTEM] Thêm mới người dùng thành công: Tài khoản "ignite1333" (Quyền: employee).
+[2026-06-22 11:42:46] [INFO] [SYSTEM] Gửi email thông báo kích hoạt thành công tới địa chỉ: allmighttuan1908@gmail.com.
+[2026-06-22 11:44:28] [INFO] [SYSTEM] Gửi email yêu cầu khôi phục mật khẩu thành công tới: allmighttuan1908@gmail.com.
+[2026-06-22 11:44:54] [INFO] [SYSTEM] Cập nhật mật khẩu thành công cho người dùng có ID: 4.
