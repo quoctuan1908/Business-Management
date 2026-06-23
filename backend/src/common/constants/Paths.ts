@@ -95,6 +95,8 @@ const Paths = {
     Register: '/register',
     Check: '/check',
     VerifyEmail: '/verify-email',
+    ForgotPassword: '/forgot-password',
+    ResetPassword: '/reset-password'
   },
   Salaries: {
     _: '/salaries',
@@ -104,6 +106,7 @@ const Paths = {
     Add: '/add',
     Update: '/update',
     Delete: '/delete/:id',
+    Calculate: '/calculate',
   },
   Suppliers: {
     _: '/suppliers',

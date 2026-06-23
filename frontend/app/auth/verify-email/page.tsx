@@ -76,7 +76,7 @@ export default function VerifyEmail() {
             </CardHeader>
             <CardContent className="p-0">
               <Button 
-                onClick={() => router.push("/login")} 
+                onClick={() => router.push("/auth")} 
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-xl flex items-center justify-center gap-2"
               >
                 Đi tới Đăng nhập <ArrowRight className="h-4 w-4" />
@@ -101,14 +101,14 @@ export default function VerifyEmail() {
             </CardHeader>
             <CardContent className="p-0 flex flex-col gap-2">
               <Button 
-                onClick={() => router.push("/signup")} 
+                onClick={() => router.push("/auth")} 
                 className="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-xl"
               >
                 Quay lại trang Đăng ký
               </Button>
               <Button 
                 variant="ghost" 
-                onClick={() => router.push("/support")}
+                onClick={() => router.push("/auth")}
                 className="w-full text-slate-500 hover:text-slate-700 text-xs font-normal"
               >
                 Liên hệ đội ngũ hỗ trợ kỹ thuật

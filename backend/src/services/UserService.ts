@@ -60,6 +60,28 @@ async function updateOne(user: IUser): Promise<IUserPublic> {
   }
 }
 
+async function updatePassword(userId: number, passwordInput: string): Promise<void> {
+  try {
+    await UserRepo.update({ 
+      id: userId, 
+      password: passwordInput 
+    });
+
+    logger.info('SYSTEM', `Cập nhật mật khẩu thành công cho người dùng có ID: ${userId}.`);
+  } catch (error) {
+
+    if (error instanceof Error && error.message === 'User not found') {
+      logger.warn('SYSTEM', `Cập nhật mật khẩu thất bại: Người dùng có ID [${userId}] không tồn tại.`);
+      throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
+    }
+    
+    if (!(error instanceof RouteError)) {
+      logger.error('SYSTEM', `Lỗi hệ thống khi cập nhật mật khẩu cho người dùng có ID [${userId}]: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    throw error;
+  }
+}
+
 async function deleteOne(id: number): Promise<void> {
   try {
     const exists = await UserRepo.persists(id);
@@ -179,6 +201,7 @@ export default {
   search,
   addOne,
   updateOne,
+  updatePassword,
   delete: deleteOne,
   getEmployeeOverviewStats,
   getEmployeeMonthlyStats,

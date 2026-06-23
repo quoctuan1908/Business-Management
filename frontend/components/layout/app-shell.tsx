@@ -79,13 +79,13 @@ const allNavItems: NavItem[] = [
     id: "users",
     label: "Nhân sự",
     icon: <UserCog className="h-4 w-4" />,
-    adminOnly: true, // Restricted to admins
+    adminOnly: true,
   },
   {
     id: "salaries",
     label: "Tiền lương",
     icon: <DollarSign className="h-4 w-4" />,
-    adminOnly: true, // Restricted to admins
+    adminOnly: true,
   }
 ];
 
@@ -115,7 +115,7 @@ export function AppShell({
       }
     };
     verifySession();
-  }, []); 
+  }, [refresh]); 
   
   useEffect(() => {
     if (!isVerifying && user && user.role !== "admin") {
@@ -134,10 +134,11 @@ export function AppShell({
   const handleLogoutClick = async () => {
     try {
       await authApi.logout();
+    } catch (error) {
+      console.warn("Không thể xóa token trên server (có thể DB đã reset), tiến hành xóa dữ liệu cục bộ:", error);
+    } finally {
       clearUser();
       router.push("/auth");
-    } catch (error) {
-      console.error("Logout failed", error);
     }
   };
 

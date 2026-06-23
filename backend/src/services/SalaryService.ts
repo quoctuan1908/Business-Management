@@ -9,9 +9,6 @@ import UserRepo from '@src/repos/UserRepo';
 ******************************************************************************/
 
 /**
- * Get all salary records with User information (Admin focus).
- */
-/**
  * Get all salaries and attach the corresponding user object.
  */
 async function getAll(): Promise<ISalaryWithUser[]> {
@@ -68,6 +65,15 @@ async function deleteOne(id: number): Promise<void> {
   return SalaryRepo.delete(id);
 }
 
+function calculateAutomatedPayroll(
+  month: number,
+  year: number,
+  commissionRate?: number
+): Promise<void> {
+  // Direct call to Repo logic layer
+  return SalaryRepo.calculateAutomatedPayroll(month, year, commissionRate);
+}
+
 /******************************************************************************
                                  Export default
 ******************************************************************************/
@@ -79,4 +85,5 @@ export default {
   addOne,
   updateOne,
   delete: deleteOne,
+  calculateAutomatedPayroll
 } as const;
