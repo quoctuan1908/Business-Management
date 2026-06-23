@@ -1,13 +1,8 @@
 import { ISalary } from '@src/models/Salary.model';
 import prisma from './prisma';
 
-/******************************************************************************
-                                   Functions
-******************************************************************************/
-
 /**
- * Get all salary records with user information.
- * Used by Admin to view the entire payroll.
+ * Get all salary records with user information. Used by Admin/Accountant.
  */
 async function getAll(): Promise<any[]> {
   const rows = await prisma.salary.findMany({
@@ -28,6 +23,7 @@ async function getAll(): Promise<any[]> {
     baseSalary: Number(row.base_salary),
     commission: Number(row.commission),
     bonus: Number(row.bonus),
+    isPaid: !!row.is_paid,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
 
@@ -43,7 +39,7 @@ async function getAll(): Promise<any[]> {
 }
 
 /**
- * Get one salary record by id.
+ * Get a single salary record by its ID.
  */
 async function getOne(salaryId: number): Promise<ISalary | null> {
   const row = await prisma.salary.findUnique({
@@ -58,13 +54,14 @@ async function getOne(salaryId: number): Promise<ISalary | null> {
     baseSalary: Number(row.base_salary),
     commission: Number(row.commission),
     bonus: Number(row.bonus),
+    isPaid: !!row.is_paid,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
 /**
- * See if a salary record exists.
+ * Check if a salary record exists.
  */
 async function persists(salaryId: number): Promise<boolean> {
   const count = await prisma.salary.count({
@@ -74,7 +71,7 @@ async function persists(salaryId: number): Promise<boolean> {
 }
 
 /**
- * Get all salary records for a specific user.
+ * Get the payroll history for a specific user.
  */
 async function getByUserId(userId: number): Promise<ISalary[]> {
   const rows = await prisma.salary.findMany({
@@ -89,15 +86,16 @@ async function getByUserId(userId: number): Promise<ISalary[]> {
     baseSalary: Number(row.base_salary),
     commission: Number(row.commission),
     bonus: Number(row.bonus),
+    isPaid: !!row.is_paid,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
 }
 
 /**
- * Add one salary record.
+ * Create a new salary record manually.
  */
-async function add(salary: ISalary): Promise<ISalary> {
+async function add(salary: ISalary & { isPaid?: boolean }): Promise<ISalary> {
   const row = await prisma.salary.create({
     data: {
       user_id: salary.userId,
@@ -106,6 +104,7 @@ async function add(salary: ISalary): Promise<ISalary> {
       base_salary: salary.baseSalary,
       commission: salary.commission,
       bonus: salary.bonus,
+      is_paid: salary.isPaid ?? false,
     },
   });
   return {
@@ -116,15 +115,16 @@ async function add(salary: ISalary): Promise<ISalary> {
     baseSalary: Number(row.base_salary),
     commission: Number(row.commission),
     bonus: Number(row.bonus),
+    isPaid: !!row.is_paid,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
 /**
- * Update a salary record.
+ * Update payroll information or payment status.
  */
-async function update(salary: ISalary): Promise<ISalary> {
+async function update(salary: ISalary & { isPaid?: boolean }): Promise<ISalary> {
   const row = await prisma.salary.update({
     where: { salary_id: salary.id },
     data: {
@@ -133,6 +133,7 @@ async function update(salary: ISalary): Promise<ISalary> {
       base_salary: salary.baseSalary,
       commission: salary.commission,
       bonus: salary.bonus,
+      is_paid: salary.isPaid,
       updated_at: new Date(),
     },
   });
@@ -144,6 +145,7 @@ async function update(salary: ISalary): Promise<ISalary> {
     baseSalary: Number(row.base_salary),
     commission: Number(row.commission),
     bonus: Number(row.bonus),
+    isPaid: !!row.is_paid,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -158,15 +160,100 @@ async function delete_(salaryId: number): Promise<void> {
   });
 }
 
-// **** Unit-Tests Only **** //
+/**
+ * Automatically calculates and upserts the payroll for all active users in a specific month and year.
+ * @param month The payroll month (1 - 12)
+ * @param year The payroll year
+ * @param commissionRate The default commission percentage (e.g., 0.05 for 5%)
+ */
+async function calculateAutomatedPayroll(
+  month: number,
+  year: number,
+  commissionRate: number = 0.05
+): Promise<void> {
+  const activeUsers = await prisma.user.findMany({
+    where: { is_activated: true, deleted_at: null },
+  });
+
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 1);
+
+  await Promise.all(
+    activeUsers.map(async (user) => {
+      
+      // 1. Base Salary: Fallback to the latest month's salary or default to 5,000,000 VND
+      const lastSalaryRecord = await prisma.salary.findFirst({
+        where: { user_id: user.user_id },
+        orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      });
+      const baseSalary = lastSalaryRecord ? Number(lastSalaryRecord.base_salary) : 5000000;
+
+      // 2. Commission: Based on total collected payments within the month
+      const paymentsInMonth = await prisma.payment.findMany({
+        where: {
+          activity: { user_id: user.user_id },
+          payment_date: { gte: startDate, lt: endDate },
+        },
+        select: { paid_amount: true },
+      });
+
+      const totalCollected = paymentsInMonth.reduce((sum, p) => sum + Number(p.paid_amount), 0);
+      const commission = totalCollected * commissionRate;
+
+      // 3. KPI Bonus: 100k per approved customer + 1M bonus if total collected >= 50M
+      const newApprovedCustomersCount = await prisma.customer.count({
+        where: {
+          activities: {
+            some: { user_id: user.user_id },
+          },
+          is_approved: true,
+          approved_at: { gte: startDate, lt: endDate },
+        },
+      });
+
+      let bonus = newApprovedCustomersCount * 100000;
+      if (totalCollected >= 50000000) {
+        bonus += 1000000;
+      }
+      
+      const existingSalary = await prisma.salary.findFirst({
+        where: {
+          user_id: user.user_id,
+          month: month,
+          year: year,
+        },
+      });
+
+      if (existingSalary) {
+        await prisma.salary.update({
+          where: { salary_id: existingSalary.salary_id },
+          data: {
+            base_salary: baseSalary,
+            commission: commission,
+            bonus: bonus,
+            is_paid: existingSalary.is_paid 
+          },
+        });
+      } else {
+        await prisma.salary.create({
+          data: {
+            user_id: user.user_id,
+            month: month,
+            year: year,
+            base_salary: baseSalary,
+            commission: commission,
+            bonus: bonus,
+            is_paid: false,
+          },
+        });
+      }
+    })
+  );
+}
 
 async function deleteAll(): Promise<void> {
   await prisma.salary.deleteMany();
 }
-
-/******************************************************************************
-                                 Export default
-******************************************************************************/
 
 export default {
   getAll,
@@ -177,4 +264,5 @@ export default {
   update,
   delete: delete_,
   deleteAll,
+  calculateAutomatedPayroll
 } as const;

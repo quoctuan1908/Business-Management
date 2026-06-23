@@ -199,6 +199,7 @@ export interface Salary {
   baseSalary: number;
   commission: number;
   bonus: number;
+  isPaid: boolean;
   createdAt: Date | string;
   updatedAt: Date | string;
 }

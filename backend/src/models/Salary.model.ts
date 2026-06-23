@@ -1,4 +1,4 @@
-import { isNumber, isUnsignedInteger } from 'jet-validators';
+import { isBoolean, isNumber, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
@@ -15,6 +15,7 @@ const GetDefaults = (): ISalary => ({
   baseSalary: 0,
   commission: 0,
   bonus: 0,
+  isPaid: false,
   createdAt: new Date(),
   updatedAt: new Date()
 });
@@ -29,6 +30,7 @@ const schema: Schema<ISalary> = {
   baseSalary: isNumber,
   commission: isNumber,
   bonus: isNumber,
+  isPaid: isBoolean,
   createdAt: transformIsDate,
   updatedAt: transformIsDate,
 };
@@ -47,6 +49,7 @@ export interface ISalary extends Entity {
   baseSalary: number;
   commission: number;
   bonus: number;
+  isPaid: boolean;
 }
 
 export interface ISalaryWithUser extends ISalary {

@@ -17,6 +17,11 @@ const reqValidators = {
   byUser: parseReq({ userId: transform(Number, isNumber) }),
   add: parseReq({ salary: Salary.isComplete }),
   update: parseReq({ salary: Salary.isComplete }),
+  calculate: parseReq({
+    month: transform(Number, isUnsignedInteger),
+    year: transform(Number, isUnsignedInteger),
+    commissionRate: transform(Number, isNumber),
+  }),
 } as const;
 
 /******************************************************************************
@@ -82,6 +87,21 @@ async function delete_(req: Req, res: Res) {
   res.status(HttpStatusCodes.OK).end();
 }
 
+/**
+ * Automatically calculate and upsert payroll for all active users.
+ * @route POST /api/salaries/calculate
+ */
+async function calculatePayroll(req: Req, res: Res) {
+  // Validate request body parameters (e.g., { month: 6, year: 2026, commissionRate: 0.05 })
+  const { month, year, commissionRate } = reqValidators.calculate(req.body);
+  
+  await SalaryService.calculateAutomatedPayroll(month, year, commissionRate);
+  
+  res.status(HttpStatusCodes.OK).json({ 
+    message: `Automated payroll for ${month}/${year} completed successfully.` 
+  });
+}
+
 /******************************************************************************
                                  Export default
 ******************************************************************************/
@@ -93,4 +113,5 @@ export default {
   add,
   update,
   delete: delete_,
+  calculatePayroll
 } as const;

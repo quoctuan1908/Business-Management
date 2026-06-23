@@ -30,6 +30,13 @@ const reqValidators = {
     email: isNonEmptyString,
     role: isString,
   }),
+  forgotPassword: parseReq({
+    email: isNonEmptyString,
+  }),
+  resetPassword: parseReq({
+    token: isNonEmptyString,
+    password: isNonEmptyString,
+  }),
 } as const;
 
 /******************************************************************************
@@ -71,14 +78,12 @@ async function register(req: Req, res: Res) {
   }
 
   const token = crypto.randomBytes(32).toString('hex');
-
   const SALT_ROUNDS = 12;
-
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
   const pendingUserData = {
     username: username,
-    password:hashedPassword,
+    password: hashedPassword,
     email: email || '',
     role: role || 'employee',
     fullName: '',
@@ -106,9 +111,8 @@ async function register(req: Req, res: Res) {
   });
 }
 
-
 /**
- * Verify Email - Step 2: Extract from Redis and officially write to Database
+ * Verify Email - Step 2: Extract from Redis and officially write to Database & Send Success Email
  * @route GET /api/auth/verify-email
  */
 async function verifyEmail(req: Req, res: Res) {
@@ -137,6 +141,10 @@ async function verifyEmail(req: Req, res: Res) {
       isActivated: false, 
     });
 
+    if (pendingUser.email) {
+      await AuthService.sendActivationSuccessEmail(pendingUser.email, pendingUser.username);
+    }
+
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       const targetFields = (error.meta?.target as string[]) || [];
@@ -157,11 +165,70 @@ async function verifyEmail(req: Req, res: Res) {
   await redisClient.del(redisKey);
 
   return res.status(HttpStatusCodes.OK).json({
-    message: 'Account successfully activated and registered! Please wait for administator to activate your account'
+    message: 'Account successfully activated and registered! Please wait for administrator to activate your account'
   });
 }
 
+/**
+ * Forgot Password - Step 1: Validate email, create reset token in Redis & Send email
+ * @route POST /api/auth/forgot-password
+ */
+async function forgotPassword(req: Req, res: Res) {
+  const { email } = reqValidators.forgotPassword(req.body);
 
+  const user = await UserRepo.getOneByEmail(email); 
+  if (!user) {
+    throw new RouteError(HttpStatusCodes.NOT_FOUND, 'Địa chỉ email không tồn tại trong hệ thống.');
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const redisKey = `password_reset:${token}`;
+
+  await redisClient.set(redisKey, JSON.stringify({ userId: user.id }), {
+    EX: 900
+  });
+
+  try {
+    await AuthService.sendForgotPasswordEmail(email, user.username, token);
+  } catch (mailError) {
+    console.error('Failed to dispatch forgot password email:', mailError);
+    await redisClient.del(redisKey);
+    throw new RouteError(HttpStatusCodes.INTERNAL_SERVER_ERROR, 'Mailer service error. Request rolled back.');
+  }
+
+  return res.status(HttpStatusCodes.OK).json({
+    message: 'Yêu cầu khôi phục đã được ghi nhận. Vui lòng kiểm tra hộp thư email của bạn.'
+  });
+}
+
+/**
+ * Reset Password - Step 2: Validate token from Redis and update new password in Database.
+ * @route POST /api/auth/reset-password
+ */
+async function resetPassword(req: Req, res: Res) {
+  const { token, password } = reqValidators.resetPassword(req.body);
+
+  const redisKey = `password_reset:${token}`;
+  const rawData = await redisClient.get(redisKey);
+
+  if (!rawData) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'The password reset link is invalid or has expired.');
+  }
+
+  const { userId } = JSON.parse(rawData);
+  try {
+    await UserService.updatePassword(userId, password);
+  } catch (error) {
+    console.error('Failed to update new password in DB:', error);
+    throw new RouteError(HttpStatusCodes.INTERNAL_SERVER_ERROR, 'Internal server error. Failed to update password.');
+  }
+
+  await redisClient.del(redisKey);
+
+  return res.status(HttpStatusCodes.OK).json({
+    message: 'Your password has been successfully updated.'
+  });
+}
 
 /**
  * Login user.
@@ -233,7 +300,6 @@ async function refresh(req: Req, res: Res) {
     throw jwtErr;
   }
 
-  // 4. Kiểm tra cấu trúc định danh User truyền vào Access Token mới
   console.log('5. Kiểm tra dữ liệu user thô từ DB:', {
     user_id: tokenDb.user?.user_id,
     id: (tokenDb.user as any)?.id,
@@ -282,5 +348,7 @@ export default {
   logout,
   register,
   verifyEmail,
+  forgotPassword,
+  resetPassword,
   check
 } as const;

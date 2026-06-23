@@ -43,6 +43,16 @@ async function getOne(username: string): Promise<IUser | null> {
   return row ? mapRowToUser(row) : null;
 }
 
+async function getOneByEmail(email: string): Promise<IUser | null> {
+  const row = await prisma.user.findFirst({
+    where: { 
+      email: email,
+      deleted_at: null,
+    },
+  });
+  return row ? mapRowToUser(row) : null;
+}
+
 async function persists(id: number): Promise<boolean> {
   const count = await prisma.user.count({
     where: { 
@@ -695,6 +705,7 @@ export async function getMapStatusByActivities(dateString: string) {
 
 export default {
   getOne,
+  getOneByEmail,
   persists,
   getAll,
   getAllUnactivated,

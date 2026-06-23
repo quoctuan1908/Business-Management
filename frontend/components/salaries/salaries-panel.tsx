@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2, DollarSign, User as UserIcon, Mail, Phone, Briefcase } from "lucide-react";
+import { Pencil, Plus, RefreshCw, Trash2, DollarSign, User as UserIcon, Mail, Phone, Briefcase, Calculator, CheckCircle2, Clock, Filter } from "lucide-react";
 
 import { salariesApi, usersApi } from "@/lib/api";
 import type { Salary, SalaryWithUser, User } from "@/lib/types";
@@ -40,6 +40,7 @@ const emptyForm = {
   baseSalary: "0",
   commission: "0",
   bonus: "0",
+  isPaid: false,
   createdAt: String(new Date()),
   updatedAt: String(new Date())
 };
@@ -56,13 +57,20 @@ export function SalariesPanel() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [filterMonth, setFilterMonth] = useState<string>(String(new Date().getMonth() + 1));
+  const [filterYear, setFilterYear] = useState<string>(String(new Date().getFullYear()));
   
-  // States Form 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
-  // States Pop-up 
+  const [calcDialogOpen, setCalcDialogOpen] = useState(false);
+  const [calculating, setCalculating] = useState(false);
+  const [calcMonth, setCalcMonth] = useState(String(new Date().getMonth() + 1));
+  const [calcYear, setCalcYear] = useState(String(new Date().getFullYear()));
+  const [calcRate, setCalcRate] = useState("5"); 
+
   const [selectedUser, setSelectedUser] = useState<SalaryWithUser["user"] | null>(null);
   const [userModalOpen, setUserModalOpen] = useState(false);
 
@@ -91,11 +99,13 @@ export function SalariesPanel() {
     setForm({
       ...emptyForm,
       userId: users[0] ? String(users[0].id) : "",
+      month: filterMonth,
+      year: filterYear,
     });
     setDialogOpen(true);
   }
 
-  function openEdit(salary: Salary) {
+  function openEdit(salary: Salary & { isPaid?: boolean | number }) {
     setForm({
       id: salary.id,
       userId: String(salary.userId),
@@ -104,6 +114,7 @@ export function SalariesPanel() {
       baseSalary: String(salary.baseSalary),
       commission: String(salary.commission),
       bonus: String(salary.bonus),
+      isPaid: salary.isPaid === true,
       createdAt: String(salary.createdAt),
       updatedAt: String(salary.updatedAt)
     });
@@ -115,37 +126,65 @@ export function SalariesPanel() {
     setUserModalOpen(true);
   }
 
-    async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-
     try {
-        const now = new Date().toISOString();
-        const numericFields = ["id", "userId", "month", "year", "baseSalary", "commission", "bonus"];
-        const payload = Object.entries(form).reduce((acc, [key, val]) => {
-        const isNumeric = numericFields.includes(key);
-        return {
-            ...acc,
-            [key]: isNumeric ? Number(val || 0) : val
-        };
-        }, {} as any);
+      const now = new Date().toISOString();
+      
+      const payload = {
+        id: Number(form.id),
+        userId: Number(form.userId),
+        month: Number(form.month),
+        year: Number(form.year),
+        baseSalary: Number(form.baseSalary || 0),
+        commission: Number(form.commission || 0),
+        bonus: Number(form.bonus || 0),
+        isPaid: Boolean(form.isPaid),
+        createdAt: form.id === 0 ? now : form.createdAt,
+        updatedAt: now
+      };
 
-        payload.updatedAt = now;
-        if (payload.id === 0) {
-        payload.createdAt = now;
+      if (payload.id === 0) {
         await salariesApi.add(payload);
-        } else {
+      } else {
         await salariesApi.update(payload);
-        }
+      }
 
-        setDialogOpen(false);
-        await load();
+      setDialogOpen(false);
+      await load();
     } catch (err: any) {
-        setError(err.errors?.[0]?.info || err.message || "Save failed");
+      setError(err.errors?.[0]?.info || err.message || "Save failed");
     } finally {
-        setSaving(false);
+      setSaving(false);
     }
+  }
+
+  async function handleAutomatedCalculate(e: React.FormEvent) {
+    e.preventDefault();
+    setCalculating(true);
+    setError(null);
+    try {
+      const rateFloat = Number(calcRate || 0) / 100;
+      const res = await salariesApi.calculate({
+        month: Number(calcMonth),
+        year: Number(calcYear),
+        commissionRate: rateFloat
+      });
+
+      setFilterMonth(calcMonth);
+      setFilterYear(calcYear);
+
+      setCalcDialogOpen(false);
+      await load();
+      alert(res.message || "Tính toán bảng lương thành công!");
+    } catch (err: any) {
+      setError(err.message || "Tính toán tự động thất bại.");
+    } finally {
+      setCalculating(false);
     }
+  }
+
   async function handleDelete(id: number) {
     if (!confirm("Xóa bản ghi lương này?")) return;
     try {
@@ -156,9 +195,13 @@ export function SalariesPanel() {
     }
   }
 
+  const filteredSalaries = salaries.filter(
+    (s) => String(s.month) === filterMonth && String(s.year) === filterYear
+  );
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="flex items-center gap-2 text-xl font-bold">
           <DollarSign className="h-6 w-6 text-green-600" />
           Quản lý lương
@@ -168,13 +211,57 @@ export function SalariesPanel() {
             <RefreshCw className="h-4 w-4 mr-1" />
             Tải lại
           </Button>
+          
+          <Button variant="secondary" size="sm" onClick={() => setCalcDialogOpen(true)}>
+            <Calculator className="h-4 w-4 mr-1 text-blue-600" />
+            Tính lương tự động
+          </Button>
+
           <Button size="sm" onClick={openCreate} disabled={users.length === 0}>
             <Plus className="h-4 w-4 mr-1" />
-            Thêm lương
+            Thêm lương thủ công
           </Button>
         </div>
       </CardHeader>
+      
       <CardContent>
+        <div className="flex flex-wrap items-center gap-3 bg-muted/40 p-3 rounded-lg mb-4 border text-sm">
+          <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
+            <Filter className="h-4 w-4" />
+            <span>Bộ lọc kỳ lương:</span>
+          </div>
+          
+          <div className="w-32">
+            <Select value={filterMonth} onValueChange={setFilterMonth}>
+              <SelectTrigger className="h-9 bg-background">
+                <SelectValue placeholder="Chọn tháng" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => (
+                  <SelectItem key={m} value={m}>Tháng {m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-32">
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="h-9 bg-background">
+                <SelectValue placeholder="Chọn năm" />
+              </SelectTrigger>
+              <SelectContent>
+                {["2024", "2025", "2026", "2027"].map((y) => (
+                  <SelectItem key={y} value={y}>Năm {y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="text-xs text-muted-foreground ml-auto italic">
+            Tìm thấy {filteredSalaries.length} bản ghi cho Kỳ {filterMonth}/{filterYear}
+          </div>
+        </div>
+
         {error && (
           <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive font-medium">
             {error}
@@ -184,6 +271,11 @@ export function SalariesPanel() {
         {loading ? (
           <div className="flex justify-center py-8">
             <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredSalaries.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
+            Không có dữ liệu bảng lương cho Tháng {filterMonth}/{filterYear}. 
+            <p className="text-xs mt-1">Bạn có thể bấm nút "Tính lương tự động" để quét và tạo nhanh bảng lương hàng loạt.</p>
           </div>
         ) : (
           <Table>
@@ -195,11 +287,12 @@ export function SalariesPanel() {
                 <TableHead>Hoa hồng</TableHead>
                 <TableHead>Thưởng</TableHead>
                 <TableHead>Tổng cộng</TableHead>
+                <TableHead>Trạng thái</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {salaries.map((s) => (
+              {filteredSalaries.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell>
                     <button
@@ -219,6 +312,19 @@ export function SalariesPanel() {
                   <TableCell className="font-bold text-green-700">
                     {formatCurrency(s.baseSalary + s.commission + s.bonus)}
                   </TableCell>
+                  
+                  <TableCell>
+                    {(s as any).isPaid ? (
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 font-medium">
+                        <CheckCircle2 className="h-3 w-3" /> Đã trả
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1 font-medium">
+                        <Clock className="h-3 w-3" /> Chưa trả
+                      </Badge>
+                    )}
+                  </TableCell>
+
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
                       <Pencil className="h-4 w-4 text-blue-500" />
@@ -234,7 +340,42 @@ export function SalariesPanel() {
         )}
       </CardContent>
 
-      {/* DIALOG: FORM THÊM/SỬA LƯƠNG */}
+      <Dialog open={calcDialogOpen} onOpenChange={setCalcDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-blue-600" />
+              Tính toán hệ thống lương tự động
+            </DialogTitle>
+          </DialogHeader>
+          <form className="grid gap-4" onSubmit={(e) => void handleAutomatedCalculate(e)}>
+            <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md border border-blue-100">
+              Hệ thống sẽ quét toàn bộ dòng tiền thực thu (Payments) và tổng hợp số đại lý mới được duyệt để tự động tạo bảng lương cho tháng đã chọn.
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+               <div className="grid gap-2">
+                 <Label htmlFor="calc-month">Tháng tính toán</Label>
+                 <Input id="calc-month" type="number" min="1" max="12" value={calcMonth} onChange={(e) => setCalcMonth(e.target.value)} required />
+               </div>
+               <div className="grid gap-2">
+                 <Label htmlFor="calc-year">Năm</Label>
+                 <Input id="calc-year" type="number" min="2000" value={calcYear} onChange={(e) => setCalcYear(e.target.value)} required />
+               </div>
+            </div>
+
+            <div className="grid gap-2">
+               <Label htmlFor="calc-rate">Tỷ lệ hoa hồng (%)</Label>
+               <Input id="calc-rate" type="number" step="0.1" min="0" max="100" value={calcRate} onChange={(e) => setCalcRate(e.target.value)} required />
+            </div>
+
+            <Button type="submit" disabled={calculating} className="w-full bg-blue-600 hover:bg-blue-700">
+              {calculating ? "Đang quét dữ liệu & tính toán..." : "Chạy tính lương hàng loạt"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -243,7 +384,6 @@ export function SalariesPanel() {
             </DialogTitle>
           </DialogHeader>
           <form className="grid gap-4" onSubmit={(e) => void handleSubmit(e)}>
-            {/* ... (Giữ nguyên các field cũ trong form) */}
             <div className="grid gap-2">
               <Label>Nhân viên</Label>
               <Select
@@ -262,7 +402,7 @@ export function SalariesPanel() {
                 </SelectContent>
               </Select>
             </div>
-            {/* ... các field month, year, baseSalary, v.v ... */}
+            
             <div className="grid grid-cols-2 gap-4">
                <div className="grid gap-2">
                  <Label htmlFor="month">Tháng</Label>
@@ -273,10 +413,12 @@ export function SalariesPanel() {
                  <Input id="year" type="number" min="2000" value={form.year} onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))} />
                </div>
             </div>
+            
             <div className="grid gap-2">
                <Label htmlFor="baseSalary">Lương cơ bản</Label>
                <Input id="baseSalary" type="number" value={form.baseSalary} onChange={(e) => setForm((f) => ({ ...f, baseSalary: e.target.value }))} />
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
                <div className="grid gap-2">
                  <Label htmlFor="commission">Hoa hồng</Label>
@@ -288,6 +430,22 @@ export function SalariesPanel() {
                </div>
             </div>
 
+            <div className="grid gap-2">
+              <Label>Trạng thái thanh toán</Label>
+              <Select
+                value={String(form.isPaid)}
+                onValueChange={(v) => setForm((f) => ({ ...f, isPaid: v === "true" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="false">Chưa thanh toán (Treo lương)</SelectItem>
+                  <SelectItem value="true">Đã thanh toán (Giải ngân thành công)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button type="submit" disabled={saving || !form.userId} className="w-full">
               {saving ? "Đang xử lý..." : "Xác nhận"}
             </Button>
@@ -295,7 +453,6 @@ export function SalariesPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG: POP-UP THÔNG TIN CHI TIẾT USER */}
       <Dialog open={userModalOpen} onOpenChange={setUserModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
