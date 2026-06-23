@@ -16,7 +16,6 @@ const ADMIN_SECTIONS: AppSection[] = [
   "imports",
   "customers",
   "activities",
-  "invoices",
   "users",
   "salaries",
 ];

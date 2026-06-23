@@ -3,7 +3,6 @@
 import {
   ClipboardList,
   DollarSign,
-  FileText,
   LogIn,
   LogOut,
   Package,
@@ -22,7 +21,7 @@ import { useAuth } from "@/lib/auth-context";
 import { sectionsForRole } from "@/lib/permissions";
 import { useEffect, useState } from "react";
 
-export type AppSection = "user-dashboard" | "admin-sales-dashboard" | "products" | "suppliers" | "imports" | "customers" | "activities" | "invoices" | "salaries" | "users";
+export type AppSection = "user-dashboard" | "admin-sales-dashboard" | "products" | "suppliers" | "imports" | "customers" | "activities" | "salaries" | "users";
 
 type NavItem = {
   id: AppSection;
@@ -69,11 +68,6 @@ const allNavItems: NavItem[] = [
     id: "activities",
     label: "Hoạt động",
     icon: <ClipboardList className="h-4 w-4" />,
-  },
-  {
-    id: "invoices",
-    label: "Hóa đơn",
-    icon: <FileText className="h-4 w-4" />,
   },
   {
     id: "users",
@@ -249,11 +243,7 @@ export const sectionMeta: Record<
   },
   activities: {
     title: "Hoạt động",
-    description: "Tạo đơn hàng, chi tiết và trạng thái xử lý",
-  },
-  invoices: {
-    title: "Hóa đơn",
-    description: "Quản lý hóa đơn và trạng thái thanh toán",
+    description: "Tạo đơn hàng, chi tiết, in hóa đơn và trạng thái xử lý",
   },
   users: {
     title: "Nhân sự",

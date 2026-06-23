@@ -10,7 +10,6 @@ import {
   sectionMeta,
   type AppSection,
 } from "@/components/layout/app-shell";
-import { InvoicesPanel } from "@/components/invoices/invoices-panel";
 import { ProductsPanel } from "@/components/products/products-panel";
 import { SalariesPanel } from "@/components/salaries/salaries-panel";
 import { SuppliersPanel } from "@/components/suppliers/suppliers-panel";
@@ -36,8 +35,6 @@ function SectionPanel({ section }: { section: AppSection }) {
       return <CustomersPanel />;
     case "activities":
       return <ActivitiesPanel />;
-    case "invoices":
-      return <InvoicesPanel />;
     case "users":
       return <UsersPanel />;
     case "salaries":

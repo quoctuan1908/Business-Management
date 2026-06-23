@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Pencil, Plus, Printer, RefreshCw, Trash2 } from "lucide-react";
 
 import {
   activitiesApi,
@@ -15,6 +15,10 @@ import {
   computePaymentPreview,
   type PendingPaymentLine,
 } from "@/lib/payment-preview";
+import {
+  buildSalesInvoicePrintData,
+  printSalesInvoice,
+} from "@/lib/print-sales-invoice";
 import type {
   Activity,
   ActivityDetail,
@@ -468,6 +472,23 @@ export function ActivityDetailDialog({
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePrintInvoice() {
+    if (!activity?.invoiceId) return;
+    setError(null);
+    try {
+      printSalesInvoice(
+        buildSalesInvoicePrintData({
+          activity,
+          details,
+          customer: customers.find((c) => c.id === activity.customerId),
+          sellerName: userName,
+        }),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "In hóa đơn thất bại");
     }
   }
 
@@ -939,6 +960,16 @@ export function ActivityDetailDialog({
             )}
 
             <section className="flex flex-col gap-2 border-t pt-4">
+              {activity.invoiceId && (
+                <Button
+                  variant="outline"
+                  disabled={saving || details.length === 0}
+                  onClick={() => void handlePrintInvoice()}
+                >
+                  <Printer className="h-4 w-4" />
+                  In hóa đơn (A5)
+                </Button>
+              )}
               {canManageOrder && isDraft && (
                 <>
                   <Button disabled={saving} onClick={() => void confirmOrder()}>
