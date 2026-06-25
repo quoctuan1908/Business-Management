@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Eye, Pencil, Plus, RefreshCw, Trash2, Check, Map, MapPin } from "lucide-react";
 
 import { CustomerDetailDialog } from "@/components/customers/customer-detail-dialog";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSearchBar } from "@/components/ui/list-search-bar";
 import {
   Select,
   SelectContent,
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
+import { matchesAnySearchField } from "@/lib/list-search";
 import { FieldScanDialog } from "./customer-scan-dialog";
 
 const emptyForm = {
@@ -72,6 +74,7 @@ export function CustomersPanel() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Trạng thái cho Bản đồ nhỏ ghim điểm
   const [innerMapOpen, setInnerMapOpen] = useState(false);
@@ -80,6 +83,37 @@ export function CustomersPanel() {
   const innerMapInstanceRef = useRef<any>(null);
   const innerMarkerRef = useRef<any>(null);
 
+  const locationMap = useMemo(
+    () =>
+      Object.fromEntries(
+        locations.map((l) => [l.id, locationLabel(l)]),
+      ),
+    [locations],
+  );
+
+  const filteredCustomers = useMemo(
+    () =>
+      customers.filter((customer) =>
+        matchesAnySearchField(
+          [
+            customer.id,
+            customer.companyName,
+            customer.businessType,
+            customer.representativeName,
+            customer.position,
+            customer.phoneNumber,
+            customer.currentBalance,
+            locationMap[customer.locationId],
+            customer.locationId,
+            customer.lat,
+            customer.lng,
+          ],
+          searchQuery,
+        ),
+      ),
+    [customers, locationMap, searchQuery],
+  );
+
   const {
     page,
     setPage,
@@ -87,11 +121,7 @@ export function CustomersPanel() {
     totalItems,
     totalPages,
     paginatedItems: paginatedCustomers,
-  } = usePagination(customers);
-
-  const locationMap = Object.fromEntries(
-    locations.map((l) => [l.id, locationLabel(l)]),
-  );
+  } = usePagination(filteredCustomers, undefined, searchQuery);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -313,8 +343,14 @@ export function CustomersPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-end space-y-0 pb-4">
-        <div className="flex gap-2">
+      <CardHeader className="space-y-3 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <ListSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Tìm theo công ty, người đại diện, SĐT, địa điểm..."
+          />
+          <div className="flex flex-wrap gap-2 sm:ml-auto">
           <Button 
             variant="outline" 
             size="sm" 
@@ -338,7 +374,14 @@ export function CustomersPanel() {
             <Plus className="h-4 w-4" />
             Thêm bằng tay
           </Button>
+          </div>
         </div>
+        {!loading && customers.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {filteredCustomers.length}
+            {searchQuery.trim() ? " kết quả" : " khách hàng"}
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         {error && (
@@ -355,6 +398,8 @@ export function CustomersPanel() {
           <p className="text-sm text-muted-foreground">Đang tải...</p>
         ) : customers.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có khách hàng.</p>
+        ) : filteredCustomers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Không có kết quả phù hợp.</p>
         ) : (
           <>
           <Table>

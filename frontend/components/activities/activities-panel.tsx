@@ -25,6 +25,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import { Input } from "@/components/ui/input";
 
+import { ListSearchBar } from "@/components/ui/list-search-bar";
+
 import {
   Select,
   SelectContent,
@@ -45,6 +47,8 @@ import {
 import { TablePagination } from "@/components/ui/table-pagination";
 
 import { usePagination } from "@/hooks/use-pagination";
+
+import { matchesAnySearchField } from "@/lib/list-search";
 
 
 
@@ -129,6 +133,8 @@ export function ActivitiesPanel() {
 
   const [filterTo, setFilterTo] = useState("");
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState<string | null>(null);
@@ -146,23 +152,6 @@ export function ActivitiesPanel() {
   const [exporting, setExporting] = useState(false);
   const [printingId, setPrintingId] = useState<number | null>(null);
 
-  const filteredActivities = useMemo(
-    () =>
-      activities.filter((activity) => {
-        const statusMatch =
-          filterStatus === "all" || activity.status === filterStatus;
-        const dateMatch = matchesDateFilter(
-          activity.activityDate,
-          filterFrom,
-          filterTo,
-        );
-        return statusMatch && dateMatch;
-      }),
-    [activities, filterStatus, filterFrom, filterTo],
-  );
-
-  const filterKey = `${filterStatus}|${filterFrom}|${filterTo}`;
-
   const userMap = useMemo(
     () => Object.fromEntries(users.map((u) => [u.id, u.fullName])),
     [users],
@@ -177,6 +166,47 @@ export function ActivitiesPanel() {
     () => Object.fromEntries(customers.map((c) => [c.id, c])),
     [customers],
   );
+
+  const filteredActivities = useMemo(
+    () =>
+      activities.filter((activity) => {
+        const statusMatch =
+          filterStatus === "all" || activity.status === filterStatus;
+        const dateMatch = matchesDateFilter(
+          activity.activityDate,
+          filterFrom,
+          filterTo,
+        );
+        if (!statusMatch || !dateMatch) return false;
+
+        return matchesAnySearchField(
+          [
+            activity.id,
+            customerMap[activity.customerId],
+            activity.customerId,
+            userMap[activity.userId],
+            activity.userId,
+            statusMap[activity.status],
+            activity.status,
+            activity.content,
+            formatDate(activity.activityDate),
+          ],
+          searchQuery,
+        );
+      }),
+    [
+      activities,
+      filterStatus,
+      filterFrom,
+      filterTo,
+      searchQuery,
+      customerMap,
+      userMap,
+      statusMap,
+    ],
+  );
+
+  const filterKey = `${filterStatus}|${filterFrom}|${filterTo}|${searchQuery}`;
 
   const {
     page,
@@ -279,12 +309,14 @@ export function ActivitiesPanel() {
 
     setFilterTo("");
 
+    setSearchQuery("");
+
   }
 
 
 
   const hasActiveFilters =
-    filterStatus !== "all" || filterFrom !== "" || filterTo !== "";
+    filterStatus !== "all" || filterFrom !== "" || filterTo !== "" || searchQuery.trim() !== "";
 
 
 
@@ -386,16 +418,13 @@ export function ActivitiesPanel() {
   return (
     <Card>
       <CardHeader className="space-y-3 pb-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">
-            {!loading && (
-              <>
-                {filteredActivities.length}
-                {hasActiveFilters ? " kết quả" : " mục"}
-              </>
-            )}
-          </p>
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ListSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Tìm theo khách hàng, nhân viên, nội dung, trạng thái..."
+          />
+          <div className="flex flex-wrap gap-2 sm:ml-auto">
             <Button variant="outline" size="sm" onClick={() => void load()}>
               <RefreshCw className="h-4 w-4" />
               Tải lại
@@ -405,6 +434,17 @@ export function ActivitiesPanel() {
               Thêm
             </Button>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">
+            {!loading && (
+              <>
+                {filteredActivities.length}
+                {hasActiveFilters ? " kết quả" : " mục"}
+              </>
+            )}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/20 px-3 py-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { productsApi } from "@/lib/api";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSearchBar } from "@/components/ui/list-search-bar";
 import {
   Table,
   TableBody,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
+import { matchesAnySearchField } from "@/lib/list-search";
 
 const emptyForm = {
   id: 0,
@@ -46,6 +48,18 @@ export function ProductsPanel() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredProducts = useMemo(
+    () =>
+      products.filter((product) =>
+        matchesAnySearchField(
+          [product.id, product.productName, product.unitPrice, product.stockQuantity],
+          searchQuery,
+        ),
+      ),
+    [products, searchQuery],
+  );
 
   const {
     page,
@@ -54,7 +68,7 @@ export function ProductsPanel() {
     totalItems,
     totalPages,
     paginatedItems: paginatedProducts,
-  } = usePagination(products);
+  } = usePagination(filteredProducts, undefined, searchQuery);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,8 +141,14 @@ export function ProductsPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-end space-y-0 pb-4">
-        <div className="flex gap-2">
+      <CardHeader className="space-y-3 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <ListSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Tìm theo tên, ID, giá, tồn kho..."
+          />
+          <div className="flex gap-2 sm:ml-auto">
           <Button variant="outline" size="sm" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" />
             Tải lại
@@ -139,7 +159,14 @@ export function ProductsPanel() {
               Thêm
             </Button>
           )}
+          </div>
         </div>
+        {!loading && products.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {filteredProducts.length}
+            {searchQuery.trim() ? " kết quả" : " sản phẩm"}
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         {error && (
@@ -151,6 +178,8 @@ export function ProductsPanel() {
           <p className="text-sm text-muted-foreground">Đang tải...</p>
         ) : products.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có sản phẩm.</p>
+        ) : filteredProducts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Không có kết quả phù hợp.</p>
         ) : (
           <>
           <Table>

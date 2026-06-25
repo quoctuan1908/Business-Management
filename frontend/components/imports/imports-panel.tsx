@@ -10,6 +10,7 @@ import type { ImportView, Supplier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ListSearchBar } from "@/components/ui/list-search-bar";
 import {
   Table,
   TableBody,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
+import { matchesAnySearchField } from "@/lib/list-search";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("vi-VN");
@@ -55,16 +57,31 @@ export function ImportsPanel() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredImports = useMemo(
     () =>
-      imports.filter((record) =>
-        matchesDateFilter(record.importDate, filterFrom, filterTo),
-      ),
-    [imports, filterFrom, filterTo],
+      imports.filter((record) => {
+        if (!matchesDateFilter(record.importDate, filterFrom, filterTo)) {
+          return false;
+        }
+        return matchesAnySearchField(
+          [
+            record.id,
+            record.supplierName,
+            record.supplierId,
+            record.content,
+            record.totalAmount,
+            record.lineCount,
+            formatDate(record.importDate),
+          ],
+          searchQuery,
+        );
+      }),
+    [imports, filterFrom, filterTo, searchQuery],
   );
 
-  const filterKey = `${filterFrom}|${filterTo}`;
+  const filterKey = `${filterFrom}|${filterTo}|${searchQuery}`;
 
   const {
     page,
@@ -111,9 +128,11 @@ export function ImportsPanel() {
   function clearFilters() {
     setFilterFrom("");
     setFilterTo("");
+    setSearchQuery("");
   }
 
-  const hasActiveFilters = filterFrom !== "" || filterTo !== "";
+  const hasActiveFilters =
+    filterFrom !== "" || filterTo !== "" || searchQuery.trim() !== "";
 
   async function handleDelete(id: number) {
     if (
@@ -135,16 +154,13 @@ export function ImportsPanel() {
   return (
     <Card>
       <CardHeader className="space-y-3 pb-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">
-            {!loading && (
-              <>
-                {filteredImports.length}
-                {hasActiveFilters ? " kết quả" : " phiếu"}
-              </>
-            )}
-          </p>
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ListSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Tìm theo nhà cung cấp, nội dung, ID..."
+          />
+          <div className="flex flex-wrap gap-2 sm:ml-auto">
             <Button variant="outline" size="sm" onClick={() => void load()}>
               <RefreshCw className="h-4 w-4" />
               Tải lại
@@ -156,6 +172,17 @@ export function ImportsPanel() {
               </Button>
             )}
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">
+            {!loading && (
+              <>
+                {filteredImports.length}
+                {hasActiveFilters ? " kết quả" : " phiếu"}
+              </>
+            )}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/20 px-3 py-2">
@@ -204,7 +231,7 @@ export function ImportsPanel() {
               <TableRow>
                 <TableHead>ID</TableHead>
                 <TableHead>Nhà cung cấp</TableHead>
-                <TableHead>Ngày nhập</TableHead>
+                <TableHead>Ngày tạo</TableHead>
                 <TableHead>Nội dung</TableHead>
                 <TableHead>Số dòng</TableHead>
                 <TableHead>Tổng giá trị</TableHead>

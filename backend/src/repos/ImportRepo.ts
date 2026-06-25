@@ -39,7 +39,10 @@ async function getAll() {
 
 async function add(input: IImportWrite): Promise<IImport> {
   const row = await prisma.import.create({
-    data: importWriteToPrismaData(input),
+    data: {
+      ...importWriteToPrismaData(input),
+      import_date: new Date(),
+    },
   });
   return toImport(row);
 }

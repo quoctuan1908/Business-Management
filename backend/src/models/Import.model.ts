@@ -31,7 +31,6 @@ export interface IImport extends Entity {
 
 export interface IImportWrite {
   supplierId: number;
-  importDate: Date;
   content: string;
 }
 
@@ -52,7 +51,6 @@ const isCompleteImport = testObject<IImport>({
 
 const writeSchema: Schema<IImportWrite> = {
   supplierId: isUnsignedInteger,
-  importDate: transformIsDate,
   content: isNonEmptyString,
 };
 
@@ -72,7 +70,6 @@ function newWrite(record?: Partial<IImportWrite>): IImportWrite {
   return parseImportWrite(
     {
       supplierId: 0,
-      importDate: new Date(),
       content: '',
       ...record,
     },

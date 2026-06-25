@@ -335,7 +335,6 @@ export function toImport(row: Import): IImport {
 export function importWriteToPrismaData(input: IImportWrite) {
   return {
     supplier_id: input.supplierId,
-    import_date: input.importDate,
     content: input.content,
   };
 }

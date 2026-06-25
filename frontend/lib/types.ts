@@ -138,12 +138,14 @@ export interface Supplier {
 
 export interface ImportWrite {
   supplierId: number;
-  importDate: string;
   content: string;
 }
 
-export interface Import extends ImportWrite {
+export interface Import {
   id: number;
+  supplierId: number;
+  importDate: string;
+  content: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { suppliersApi } from "@/lib/api";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSearchBar } from "@/components/ui/list-search-bar";
 import {
   Table,
   TableBody,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
+import { matchesAnySearchField } from "@/lib/list-search";
 
 const emptyForm = {
   id: 0,
@@ -44,6 +46,25 @@ export function SuppliersPanel() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredSuppliers = useMemo(
+    () =>
+      suppliers.filter((supplier) =>
+        matchesAnySearchField(
+          [
+            supplier.id,
+            supplier.supplierName,
+            supplier.businessType,
+            supplier.address,
+            supplier.phoneNumber,
+            supplier.email,
+          ],
+          searchQuery,
+        ),
+      ),
+    [suppliers, searchQuery],
+  );
 
   const {
     page,
@@ -52,7 +73,7 @@ export function SuppliersPanel() {
     totalItems,
     totalPages,
     paginatedItems: paginatedSuppliers,
-  } = usePagination(suppliers);
+  } = usePagination(filteredSuppliers, undefined, searchQuery);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -134,8 +155,14 @@ export function SuppliersPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-end space-y-0 pb-4">
-        <div className="flex gap-2">
+      <CardHeader className="space-y-3 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <ListSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Tìm theo tên, địa chỉ, SĐT, email..."
+          />
+          <div className="flex gap-2 sm:ml-auto">
           <Button variant="outline" size="sm" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" />
             Tải lại
@@ -146,7 +173,14 @@ export function SuppliersPanel() {
               Thêm
             </Button>
           )}
+          </div>
         </div>
+        {!loading && suppliers.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {filteredSuppliers.length}
+            {searchQuery.trim() ? " kết quả" : " nhà cung cấp"}
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         {error && (
@@ -158,6 +192,8 @@ export function SuppliersPanel() {
           <p className="text-sm text-muted-foreground">Đang tải...</p>
         ) : suppliers.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có nhà cung cấp.</p>
+        ) : filteredSuppliers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Không có kết quả phù hợp.</p>
         ) : (
           <>
           <Table>

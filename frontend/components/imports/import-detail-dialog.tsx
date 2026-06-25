@@ -91,7 +91,6 @@ export function ImportDetailDialog({
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [headerForm, setHeaderForm] = useState({
     supplierId: "",
-    importDate: "",
     content: "",
   });
 
@@ -112,7 +111,6 @@ export function ImportDetailDialog({
         setProducts(productList);
         setHeaderForm({
           supplierId: String(record.supplierId),
-          importDate: record.importDate.slice(0, 16),
           content: record.content,
         });
       } catch (e) {
@@ -134,7 +132,6 @@ export function ImportDetailDialog({
       setProducts(productList);
       setHeaderForm({
         supplierId: "",
-        importDate: new Date().toISOString().slice(0, 16),
         content: "",
       });
     } catch (e) {
@@ -168,9 +165,6 @@ export function ImportDetailDialog({
     if (!headerForm.content.trim()) {
       throw new Error("Vui lòng nhập nội dung");
     }
-    if (!headerForm.importDate) {
-      throw new Error("Vui lòng chọn ngày nhập");
-    }
   }
 
   async function ensureImportCreated(): Promise<Import> {
@@ -180,7 +174,6 @@ export function ImportDetailDialog({
     validateHeaderForCreate();
     const payload: ImportWrite = {
       supplierId: Number(headerForm.supplierId),
-      importDate: new Date(headerForm.importDate).toISOString(),
       content: headerForm.content.trim(),
     };
     const created = await importsApi.add(payload);
@@ -202,7 +195,6 @@ export function ImportDetailDialog({
       }
       const updated = await importsApi.update(importRecord.id, {
         supplierId: Number(headerForm.supplierId),
-        importDate: new Date(headerForm.importDate).toISOString(),
         content: headerForm.content,
       });
       setImportRecord(updated);
@@ -341,21 +333,12 @@ export function ImportDetailDialog({
                   )}
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Ngày nhập</p>
-                  {canManage ? (
-                    <Input
-                      type="datetime-local"
-                      value={headerForm.importDate}
-                      onChange={(e) =>
-                        setHeaderForm((f) => ({
-                          ...f,
-                          importDate: e.target.value,
-                        }))
-                      }
-                    />
-                  ) : (
-                    <p className="text-sm">{formatDate(importRecord.importDate)}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground">Ngày tạo</p>
+                  <p className="text-sm">
+                    {importRecord.id > 0
+                      ? formatDate(importRecord.importDate)
+                      : "—"}
+                  </p>
                 </div>
                 <div className="sm:col-span-2">
                   <p className="text-xs text-muted-foreground">Nội dung</p>
