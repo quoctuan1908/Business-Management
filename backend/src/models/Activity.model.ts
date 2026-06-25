@@ -18,6 +18,7 @@ const GetDefaults = (): IActivity => ({
   status: 'draft',
   paymentStatus: PaymentStatuses.UNPAID,
   activityDate: new Date(),
+  deliveryDate: null,
   content: '',
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -30,13 +31,13 @@ const schema: Schema<IActivity> = {
   status: isString,
   paymentStatus: (v) => tspo.isValue(PaymentStatuses, v),
   activityDate: transformIsDate,
+  deliveryDate: (v) => v === null || v === undefined || transformIsDate(v),
   content: isString,
 };
 
 const writeSchema: Schema<IActivityWrite> = {
   userId: isUnsignedInteger,
   customerId: isUnsignedInteger,
-  activityDate: transformIsDate,
   content: isString,
 };
 
@@ -54,14 +55,18 @@ export interface IActivity extends Entity {
   status: string;
   paymentStatus: PaymentStatusCode;
   activityDate: Date;
+  deliveryDate: Date | null;
   content: string;
 }
 
 export interface IActivityWrite {
   userId: number;
   customerId: number;
-  activityDate: Date;
   content: string;
+}
+
+export interface IActivityUpdate extends IActivityWrite {
+  id: number;
 }
 
 /******************************************************************************
@@ -77,8 +82,7 @@ const isCompleteActivityWrite = testObject<IActivityWrite>({
   content: isNonEmptyString,
 });
 
-const isCompleteActivityUpdate = testObject<IActivity>({
-  ...schema,
+const isCompleteActivityUpdate = testObject<IActivityUpdate>({
   id: isUnsignedInteger,
   userId: isUnsignedInteger,
   customerId: isUnsignedInteger,

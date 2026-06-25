@@ -111,7 +111,11 @@ async function update(req: Req, res: Res) {
   const scope = await resolveEmployeeDataScope(sessionUser);
   const updated = await ActivityService.updateOne(
     activity.id,
-    activityWriteForSession(sessionUser, activity),
+    activityWriteForSession(sessionUser, {
+      userId: activity.userId,
+      customerId: activity.customerId,
+      content: activity.content,
+    }),
     scope,
   );
   res.status(HttpStatusCodes.OK).json({ activity: updated });

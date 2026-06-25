@@ -502,7 +502,7 @@ export function ActivitiesPanel() {
                   <TableHead>Khách hàng</TableHead>
                   <TableHead className="w-[90px]">Hóa đơn</TableHead>
                   <TableHead className="w-[120px]">Trạng thái</TableHead>
-                  <TableHead className="w-[150px]">Ngày</TableHead>
+                  <TableHead className="w-[150px]">Ngày tạo</TableHead>
                   <TableHead>Nội dung</TableHead>
                   <TableHead className="w-[120px]">Thao tác</TableHead>
                 </TableRow>

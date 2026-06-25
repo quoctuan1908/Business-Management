@@ -120,6 +120,7 @@ function buildDraftActivity(userId: number): Activity {
     status: "draft",
     paymentStatus: "unpaid",
     activityDate: now,
+    deliveryDate: null,
     content: "",
     createdAt: now,
     updatedAt: now,
@@ -164,7 +165,6 @@ export function ActivityDetailDialog({
   const [headerForm, setHeaderForm] = useState({
     userId: "",
     customerId: "",
-    activityDate: "",
     content: "",
   });
 
@@ -239,7 +239,6 @@ export function ActivityDetailDialog({
       setHeaderForm({
         userId: String(act.userId),
         customerId: String(act.customerId),
-        activityDate: act.activityDate.slice(0, 16),
         content: act.content,
       });
     } catch (e) {
@@ -266,7 +265,6 @@ export function ActivityDetailDialog({
       setHeaderForm({
         userId: String(userId),
         customerId: "",
-        activityDate: new Date().toISOString().slice(0, 16),
         content: "",
       });
     } catch (e) {
@@ -306,9 +304,6 @@ export function ActivityDetailDialog({
     if (!headerForm.content.trim()) {
       throw new Error("Vui lòng nhập nội dung");
     }
-    if (!headerForm.activityDate) {
-      throw new Error("Vui lòng chọn ngày hoạt động");
-    }
   }
 
   async function ensureActivityCreated(): Promise<Activity> {
@@ -319,7 +314,6 @@ export function ActivityDetailDialog({
     const payload: ActivityWrite = {
       userId: Number(headerForm.userId),
       customerId: Number(headerForm.customerId),
-      activityDate: new Date(headerForm.activityDate).toISOString(),
       content: headerForm.content.trim(),
     };
     const created = await activitiesApi.add(payload);
@@ -366,10 +360,7 @@ export function ActivityDetailDialog({
         id: activity.id,
         userId: Number(headerForm.userId),
         customerId: Number(headerForm.customerId),
-        activityDate: new Date(headerForm.activityDate).toISOString(),
         content: headerForm.content,
-        status: activity.status,
-        invoiceId: activity.invoiceId,
       };
       const updated = await activitiesApi.update(payload);
       setActivity(updated);
@@ -581,21 +572,16 @@ export function ActivityDetailDialog({
                   )}
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Ngày hoạt động</p>
-                  {isDraft ? (
-                    <Input
-                      type="datetime-local"
-                      value={headerForm.activityDate}
-                      onChange={(e) =>
-                        setHeaderForm((f) => ({
-                          ...f,
-                          activityDate: e.target.value,
-                        }))
-                      }
-                    />
-                  ) : (
-                    <p className="text-sm">{formatDate(activity.activityDate)}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground">Ngày tạo</p>
+                  <p className="text-sm">{formatDate(activity.activityDate)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Ngày giao hàng</p>
+                  <p className="text-sm">
+                    {activity.deliveryDate
+                      ? formatDate(activity.deliveryDate)
+                      : "—"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Nội dung</p>

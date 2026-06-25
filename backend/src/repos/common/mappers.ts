@@ -170,6 +170,7 @@ export function toActivity(row: Activity): IActivity {
     status: row.status,
     paymentStatus: row.payment_status as PaymentStatusCode,
     activityDate: row.activity_date,
+    deliveryDate: row.delivery_date,
     content: row.content,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -279,7 +280,6 @@ export function activityWriteToPrismaData(input: IActivityWrite) {
   return {
     user_id: input.userId,
     customer_id: input.customerId,
-    activity_date: input.activityDate,
     content: input.content,
   };
 }

@@ -543,7 +543,7 @@ export async function getEmployeeTopDebtors(scope: SellerScope, province?: strin
   return {
     debtors: customers.map(cust => ({
       customerId: cust.customer_id,
-      customerName: !cust.company_name,
+      customerName: cust.company_name,
       phoneNumber: cust.phone_number,
       outstandingDebt: Number(cust.current_balance) || 0
     }))

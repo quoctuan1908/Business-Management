@@ -204,6 +204,109 @@ function customerPhone(index) {
   return `09${String(index + 1).padStart(8, "0")}`;
 }
 
+function seedSalePrice(unitPrice, markup = 1) {
+  return Math.round(Number(unitPrice) * markup).toFixed(2);
+}
+
+/**
+ * Tao don hang kem chi tiet; don da xac nhan tro len co hoa don.
+ */
+async function seedActivityOrder({
+  userId,
+  customerId,
+  status,
+  paymentStatus,
+  activityDate,
+  deliveryDate = null,
+  content,
+  lines,
+  products,
+  paidRatio = 0.5,
+  paymentMethod = "Tien mat",
+}) {
+  const activity = await prisma.activity.create({
+    data: {
+      user_id: userId,
+      customer_id: customerId,
+      status,
+      payment_status: paymentStatus,
+      activity_date: activityDate,
+      delivery_date: deliveryDate,
+      content: content.slice(0, 50),
+    },
+  });
+
+  if (lines.length === 0) {
+    return activity;
+  }
+
+  const detailRows = lines.map((line) => ({
+    activity_id: activity.activity_id,
+    product_id: products[line.productIndex].product_id,
+    quantity: line.quantity,
+    sale_price: seedSalePrice(
+      products[line.productIndex].unit_price,
+      line.markup ?? 1,
+    ),
+  }));
+
+  await prisma.activityDetail.createMany({ data: detailRows });
+
+  if (status === "draft") {
+    return activity;
+  }
+
+  const total = detailRows.reduce(
+    (sum, row) => sum + Number(row.sale_price) * row.quantity,
+    0,
+  );
+
+  const invoice = await prisma.invoice.create({
+    data: {
+      total_amount: total.toFixed(2),
+      date: activityDate,
+    },
+  });
+
+  await prisma.activity.update({
+    where: { activity_id: activity.activity_id },
+    data: { invoice_id: invoice.invoice_id },
+  });
+
+  if (paymentStatus === "paid") {
+    await prisma.payment.create({
+      data: {
+        activity_id: activity.activity_id,
+        paid_amount: total.toFixed(2),
+        payment_date: deliveryDate ?? activityDate,
+        method: paymentMethod,
+      },
+    });
+  } else if (paymentStatus === "partial") {
+    const paidAmount = Math.max(1, Math.floor(total * paidRatio));
+    await prisma.payment.create({
+      data: {
+        activity_id: activity.activity_id,
+        paid_amount: paidAmount.toFixed(2),
+        payment_date: deliveryDate ?? activityDate,
+        method: paymentMethod,
+      },
+    });
+  }
+
+  return activity;
+}
+
+function seedDate(year, month, day, hour = 9, minute = 0) {
+  return new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+}
+
+function deliveryAfter(activityDate, days = 1) {
+  const d = new Date(activityDate);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
 /**
  * 20 khách hàng — mỗi KH một phường/xã khác nhau.
  * nhanvien01: 10 vùng đầu | nhanvien02: 10 vùng sau (không trùng nhau).
@@ -345,29 +448,29 @@ async function main() {
   const suppliers = await Promise.all([
     prisma.supplier.create({
       data: {
-        supplier_name: "Cong ty Phan Mem ABC",
-        business_type: "Phan phoi phan mem",
-        address: "123 Nguyen Van Cu, Q1, TP.HCM",
-        phone_number: "0281234567",
-        email: "contact@abc-soft.vn",
+        supplier_name: "Bia Sai Gon",
+        business_type: "Phan phoi bia Sai Gon",
+        address: "187 Nguyen Chi Thanh, Q1, HCM",
+        phone_number: "0283822002",
+        email: "contact@sabeco.com.vn",
       },
     }),
     prisma.supplier.create({
       data: {
-        supplier_name: "Nha cung cap TechVN",
-        business_type: "Nhap khau thiet bi",
-        address: "45 Le Loi, Hai Chau, Da Nang",
-        phone_number: "0236378901",
-        email: "sales@techvn.vn",
+        supplier_name: "Bia Tiger",
+        business_type: "Phan phoi bia Tiger",
+        address: "Tan Thuan EPZ, Q7, HCM",
+        phone_number: "0283772008",
+        email: "sales@tigerbeer.com.vn",
       },
     }),
     prisma.supplier.create({
       data: {
-        supplier_name: "Dai ly SaaS Mekong",
-        business_type: "Dich vu cloud",
-        address: "88 Tran Hung Dao, Ninh Kieu, Can Tho",
-        phone_number: "0292387654",
-        email: "hello@mekongsaas.vn",
+        supplier_name: "Heineken VN",
+        business_type: "Phan phoi bia Heineken",
+        address: "KCN Di An, Binh Duong",
+        phone_number: "0274382288",
+        email: "info@heineken-vn.com",
       },
     }),
   ]);
@@ -376,14 +479,14 @@ async function main() {
     data: {
       supplier_id: suppliers[0].supplier_id,
       import_date: new Date("2026-04-05T08:00:00Z"),
-      content: "Nhap dot 1 quy 2",
+      content: "Nhap bia Sai Gon dot 1 quy 2",
     },
   });
   const import2 = await prisma.import.create({
     data: {
       supplier_id: suppliers[1].supplier_id,
       import_date: new Date("2026-04-20T14:30:00Z"),
-      content: "Bo sung ton kho thang 4",
+      content: "Nhap bia Tiger bo sung thang 4",
     },
   });
 
@@ -429,102 +532,206 @@ async function main() {
   }
 
   let activities = [];
-  if (staffUsers.length >= 2 && customers.length >= 11) {
-    const draft1 = await prisma.activity.create({
-      data: {
-        user_id: staffUsers[0].user_id,
-        customer_id: customers[0].customer_id,
+  if (staffUsers.length >= 2 && customers.length >= 20 && products.length >= 3) {
+    const nv01 = staffUsers[0].user_id;
+    const nv02 = staffUsers[1].user_id;
+    const line = (productIndex, quantity, markup = 1) => ({
+      productIndex,
+      quantity,
+      markup,
+    });
+
+    // --- Thang 4/2026: tat ca hoan thanh ---
+    activities.push(
+      await seedActivityOrder({
+        userId: nv01,
+        customerId: customers[0].customer_id,
+        status: "completed",
+        paymentStatus: "paid",
+        activityDate: seedDate(2026, 4, 4, 8, 30),
+        deliveryDate: deliveryAfter(seedDate(2026, 4, 4), 1),
+        content: "Don bia thang 4 - KH 01",
+        lines: [line(0, 3), line(2, 2)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv01,
+        customerId: customers[2].customer_id,
+        status: "completed",
+        paymentStatus: "paid",
+        activityDate: seedDate(2026, 4, 12, 10, 0),
+        deliveryDate: deliveryAfter(seedDate(2026, 4, 12), 2),
+        content: "Don bia thang 4 - KH 03",
+        lines: [line(1, 4)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv01,
+        customerId: customers[5].customer_id,
+        status: "completed",
+        paymentStatus: "partial",
+        paidRatio: 0.6,
+        paymentMethod: "Chuyen khoan",
+        activityDate: seedDate(2026, 4, 20, 14, 0),
+        deliveryDate: deliveryAfter(seedDate(2026, 4, 20), 1),
+        content: "Don bia thang 4 - KH 06",
+        lines: [line(3, 2), line(4, 1)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv01,
+        customerId: customers[8].customer_id,
+        status: "completed",
+        paymentStatus: "paid",
+        activityDate: seedDate(2026, 4, 28, 9, 15),
+        deliveryDate: deliveryAfter(seedDate(2026, 4, 28), 1),
+        content: "Don bia thang 4 - KH 09",
+        lines: [line(5, 2)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv02,
+        customerId: customers[10].customer_id,
+        status: "completed",
+        paymentStatus: "paid",
+        activityDate: seedDate(2026, 4, 8, 11, 0),
+        deliveryDate: deliveryAfter(seedDate(2026, 4, 8), 1),
+        content: "Don bia thang 4 - KH 11",
+        lines: [line(0, 2), line(6, 1)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv02,
+        customerId: customers[14].customer_id,
+        status: "completed",
+        paymentStatus: "paid",
+        activityDate: seedDate(2026, 4, 22, 15, 30),
+        deliveryDate: deliveryAfter(seedDate(2026, 4, 22), 2),
+        content: "Don bia thang 4 - KH 15",
+        lines: [line(7, 3)],
+        products,
+      }),
+    );
+
+    // --- Thang 5/2026: tat ca hoan thanh ---
+    activities.push(
+      await seedActivityOrder({
+        userId: nv01,
+        customerId: customers[1].customer_id,
+        status: "completed",
+        paymentStatus: "paid",
+        activityDate: seedDate(2026, 5, 3, 8, 0),
+        deliveryDate: deliveryAfter(seedDate(2026, 5, 3), 1),
+        content: "Don bia thang 5 - KH 02",
+        lines: [line(0, 2), line(2, 1)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv01,
+        customerId: customers[4].customer_id,
+        status: "completed",
+        paymentStatus: "partial",
+        paidRatio: 0.5,
+        paymentMethod: "Chuyen khoan",
+        activityDate: seedDate(2026, 5, 11, 10, 30),
+        deliveryDate: deliveryAfter(seedDate(2026, 5, 11), 1),
+        content: "Don bia thang 5 - KH 05",
+        lines: [line(2, 2), line(8, 1)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv01,
+        customerId: customers[6].customer_id,
+        status: "completed",
+        paymentStatus: "paid",
+        activityDate: seedDate(2026, 5, 19, 13, 0),
+        deliveryDate: deliveryAfter(seedDate(2026, 5, 19), 2),
+        content: "Don bia thang 5 - KH 07",
+        lines: [line(9, 2)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv02,
+        customerId: customers[12].customer_id,
+        status: "completed",
+        paymentStatus: "paid",
+        activityDate: seedDate(2026, 5, 7, 9, 0),
+        deliveryDate: deliveryAfter(seedDate(2026, 5, 7), 1),
+        content: "Don bia thang 5 - KH 13",
+        lines: [line(1, 3)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv02,
+        customerId: customers[15].customer_id,
+        status: "completed",
+        paymentStatus: "unpaid",
+        activityDate: seedDate(2026, 5, 16, 14, 0),
+        deliveryDate: deliveryAfter(seedDate(2026, 5, 16), 1),
+        content: "Don bia thang 5 - KH 16 (con no)",
+        lines: [line(0, 4)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv02,
+        customerId: customers[18].customer_id,
+        status: "completed",
+        paymentStatus: "paid",
+        activityDate: seedDate(2026, 5, 27, 16, 0),
+        deliveryDate: deliveryAfter(seedDate(2026, 5, 27), 1),
+        content: "Don bia thang 5 - KH 19",
+        lines: [line(3, 1), line(10, 2)],
+        products,
+      }),
+    );
+
+    // --- Thang 6/2026: don dang xu ly ---
+    activities.push(
+      await seedActivityOrder({
+        userId: nv01,
+        customerId: customers[0].customer_id,
         status: "draft",
-        payment_status: "unpaid",
-        activity_date: new Date("2026-05-11T09:30:00Z"),
-        content: "Don hang dang soan thao (vung NV01)",
-      },
-    });
-    const act2 = await prisma.activity.create({
-      data: {
-        user_id: staffUsers[0].user_id,
-        customer_id: customers[1].customer_id,
+        paymentStatus: "unpaid",
+        activityDate: seedDate(2026, 6, 5, 9, 30),
+        content: "Don nhap thang 6 - KH 01",
+        lines: [line(0, 2)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv01,
+        customerId: customers[3].customer_id,
         status: "confirmed",
-        payment_status: "unpaid",
-        activity_date: new Date("2026-05-02T08:00:00Z"),
-        content: "Ghe tham va chot don hang (vung NV01)",
-      },
-    });
-    const act3 = await prisma.activity.create({
-      data: {
-        user_id: staffUsers[1].user_id,
-        customer_id: customers[10].customer_id,
+        paymentStatus: "unpaid",
+        activityDate: seedDate(2026, 6, 12, 11, 0),
+        content: "Don da chot thang 6 - KH 04",
+        lines: [line(2, 2), line(4, 1)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv02,
+        customerId: customers[11].customer_id,
         status: "processing",
-        payment_status: "partial",
-        activity_date: new Date("2026-05-16T15:00:00Z"),
-        content: "Giao hang va thu tien (vung NV02)",
-      },
-    });
-    activities = [draft1, act2, act3];
-  }
-
-  if (activities.length >= 3 && products.length >= 3) {
-    const salePrice = (unitPrice, markup = 1) =>
-      Math.round(Number(unitPrice) * markup).toFixed(2);
-
-    await prisma.activityDetail.createMany({
-      data: [
-        {
-          activity_id: activities[1].activity_id,
-          product_id: products[0].product_id,
-          quantity: 2,
-          sale_price: salePrice(products[0].unit_price),
-        },
-        {
-          activity_id: activities[1].activity_id,
-          product_id: products[2].product_id,
-          quantity: 1,
-          sale_price: salePrice(products[2].unit_price),
-        },
-        {
-          activity_id: activities[2].activity_id,
-          product_id: products[0].product_id,
-          quantity: 3,
-          sale_price: salePrice(products[0].unit_price, 0.98),
-        },
-      ],
-    });
-
-    const total2 =
-      Number(salePrice(products[0].unit_price)) * 2 +
-      Number(salePrice(products[2].unit_price));
-    const inv2 = await prisma.invoice.create({
-      data: {
-        total_amount: total2.toFixed(2),
-        date: new Date("2026-05-02T08:00:00Z"),
-      },
-    });
-    await prisma.activity.update({
-      where: { activity_id: activities[1].activity_id },
-      data: { invoice_id: inv2.invoice_id, payment_status: "unpaid" },
-    });
-
-    const total3 = Number(salePrice(products[0].unit_price, 0.98)) * 3;
-    const inv3 = await prisma.invoice.create({
-      data: {
-        total_amount: total3.toFixed(2),
-        date: new Date("2026-05-16T15:00:00Z"),
-      },
-    });
-    await prisma.activity.update({
-      where: { activity_id: activities[2].activity_id },
-      data: { invoice_id: inv3.invoice_id, payment_status: "partial" },
-    });
-
-    const partialPaid = Math.floor(total3 / 2);
-    await prisma.payment.create({
-      data: {
-        activity_id: activities[2].activity_id,
-        paid_amount: partialPaid.toFixed(2),
-        payment_date: new Date("2026-05-17T10:00:00Z"),
-        method: "Chuyen khoan",
-      },
-    });
+        paymentStatus: "partial",
+        paidRatio: 0.4,
+        paymentMethod: "Chuyen khoan",
+        activityDate: seedDate(2026, 6, 18, 8, 0),
+        deliveryDate: seedDate(2026, 6, 19, 8, 0),
+        content: "Dang giao hang thang 6 - KH 12",
+        lines: [line(0, 3)],
+        products,
+      }),
+      await seedActivityOrder({
+        userId: nv02,
+        customerId: customers[17].customer_id,
+        status: "completed",
+        paymentStatus: "paid",
+        activityDate: seedDate(2026, 6, 24, 15, 0),
+        deliveryDate: seedDate(2026, 6, 25, 9, 0),
+        content: "Don hoan thanh thang 6 - KH 18",
+        lines: [line(5, 2), line(11, 1)],
+        products,
+      }),
+    );
   }
 
   const invoiceCount = await prisma.invoice.count();

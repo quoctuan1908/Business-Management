@@ -39,6 +39,7 @@ async function addDraft(input: IActivityWrite): Promise<IActivity> {
   const row = await prisma.activity.create({
     data: {
       ...activityWriteToPrismaData(input),
+      activity_date: new Date(),
       status: OrderStatusCodes.DRAFT,
     },
   });
@@ -77,10 +78,17 @@ async function linkInvoice(
   return toActivity(row);
 }
 
-async function setStatus(activityId: number, status: string): Promise<IActivity> {
+async function setStatus(
+  activityId: number,
+  status: string,
+  options?: { deliveryDate?: Date },
+): Promise<IActivity> {
   const row = await prisma.activity.update({
     where: { activity_id: activityId },
-    data: { status },
+    data: {
+      status,
+      ...(options?.deliveryDate ? { delivery_date: options.deliveryDate } : {}),
+    },
   });
   return toActivity(row);
 }

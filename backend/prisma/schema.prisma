@@ -181,6 +181,7 @@ model Activity {
   invoice_id     Int?             @unique
   status         String           @db.VarChar(50)
   activity_date  DateTime
+  delivery_date  DateTime?
   content        String           @db.VarChar(50)
   payment_status PaymentStatus    @default(unpaid)
   created_at     DateTime         @default(now())

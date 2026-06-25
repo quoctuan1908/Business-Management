@@ -250,7 +250,7 @@ export function UsersPanel() {
                   <TableHead className="font-bold">Họ và Tên</TableHead>
                   <TableHead className="font-bold">Phòng ban</TableHead>
                   <TableHead className="font-bold">Liên hệ</TableHead>
-                  <TableHead className="font-bold">Tài khoản lương</TableHead> {/* <-- THÊM: Cột hiển thị */}
+                  <TableHead className="font-bold">Tài khoản lương</TableHead>
                   <TableHead className="font-bold">Vai trò</TableHead>
                   <TableHead className="font-bold">Phân vùng</TableHead>
                   <TableHead className="font-bold">Trạng thái</TableHead>
@@ -274,8 +274,6 @@ export function UsersPanel() {
                       <div className="text-sm flex items-center gap-1.5"><Mail className="h-3 w-3 text-muted-foreground" /> {u.email}</div>
                       <div className="text-sm flex items-center gap-1.5"><Phone className="h-3 w-3 text-muted-foreground" /> {u.phoneNumber}</div>
                     </TableCell>
-                    
-                    {/* THÊM: Hiển thị thông tin ngân hàng ngoài danh sách danh mục */}
                     <TableCell>
                       {u.bankAccount ? (
                         <div className="text-sm">
@@ -289,7 +287,6 @@ export function UsersPanel() {
                         <span className="text-xs text-muted-foreground italic">Chưa thiết lập</span>
                       )}
                     </TableCell>
-
                     <TableCell>
                       <Badge 
                         variant="outline" 
@@ -318,7 +315,6 @@ export function UsersPanel() {
                         <UserCheck className="h-3 w-3" /> Đã duyệt
                       </Badge>
                     </TableCell>
-
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         {canAssignZones(u.role) && (

@@ -186,7 +186,13 @@ async function advanceStatus(
       return toActivity(row);
     });
   } else {
-    updated = await ActivityRepo.setStatus(activityId, next.statusCode);
+    const deliveryDate =
+      next.statusCode === OrderStatusCodes.PROCESSING && !activity.deliveryDate
+        ? new Date()
+        : undefined;
+    updated = await ActivityRepo.setStatus(activityId, next.statusCode, {
+      deliveryDate,
+    });
   }
 
   return {

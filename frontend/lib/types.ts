@@ -69,6 +69,8 @@ export interface Activity {
 
   activityDate: string;
 
+  deliveryDate: string | null;
+
   content: string;
 
   createdAt: string;
@@ -84,8 +86,6 @@ export interface ActivityWrite {
   userId: number;
 
   customerId: number;
-
-  activityDate: string;
 
   content: string;
 
