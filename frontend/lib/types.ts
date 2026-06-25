@@ -164,6 +164,11 @@ export interface ImportDetail {
   lineTotal: number;
 }
 
+export interface IBankAccount {
+  bankName: string;
+  accountNumber: string;
+}
+
 export interface User {
   id: number;
   username: string;
@@ -174,6 +179,7 @@ export interface User {
   phoneNumber: string;
   email: string;
   isActivated: boolean;
+  bankAccount: IBankAccount | null; 
   createdAt: string; 
   updatedAt: string;
   deletedAt: string | null;
@@ -205,14 +211,7 @@ export interface Salary {
 }
 
 export interface SalaryWithUser extends Salary {
-  user: {
-    username: string;
-    fullName: string;
-    role: string;
-    email?: string;
-    phoneNumber?: string;
-    department?: string;
-  } | null;
+  user: UserPublic | null;
 }
 
 export interface Location {

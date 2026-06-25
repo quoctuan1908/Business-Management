@@ -23,7 +23,7 @@ import { NextFunction } from 'express';
 ******************************************************************************/
 
 const reqValidators = {
-  add: parseReq({ user: User.isComplete }),
+  add: parseReq({ user: User.newCreate }),
   update: parseReq({ user: User.isComplete }),
   getOne: parseReq({ username: transform(String, isString) }),
   delete: parseReq({ id: transform(Number, isNumber) }),

@@ -1,13 +1,17 @@
-import { ISalary } from '@src/models/Salary.model';
+import { ISalary, ISalaryWithUser } from '@src/models/Salary.model';
 import prisma from './prisma';
 
 /**
  * Get all salary records with user information. Used by Admin/Accountant.
  */
-async function getAll(): Promise<any[]> {
+async function getAll(): Promise<ISalaryWithUser[]> {
   const rows = await prisma.salary.findMany({
     include: {
-      user: true,
+      user: {
+        include: {
+          bank_account: true, 
+        }
+      },
     },
     orderBy: [
       { year: 'desc' },

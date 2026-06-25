@@ -20,6 +20,7 @@ import type {
   ImportWrite,
   ImportView,
   ImportDetail,
+  SalaryWithUser,
 } from "@/lib/types";
 
 const API_BASE =
@@ -390,7 +391,7 @@ export const authApi = {
 
 export const salariesApi = {
   getAll: () =>
-    request<{ salaries: (Salary & { user: User | null })[] }>("/salaries/all", {
+    request<{ salaries: SalaryWithUser[] }>("/salaries/all", {
       method: "GET",
     }),  
   getByUserId: (userId: number) =>

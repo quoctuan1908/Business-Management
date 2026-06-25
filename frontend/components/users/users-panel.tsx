@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { 
   UserPlus, Search, Building2, Mail, Phone, 
   Trash2, Pencil, RefreshCw, UserCog,
-  UserCheck, UserX, ClipboardCheck, MapPin
+  UserCheck, UserX, ClipboardCheck, MapPin,
+  CreditCard // <-- THÊM: Icon đại diện cho Ngân hàng
 } from "lucide-react";
 
 import { employeeLocationsApi, usersApi } from "@/lib/api";
@@ -27,6 +28,7 @@ import { TablePagination } from "@/components/ui/table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
 import { EmployeeLocationsDialog } from "@/components/users/employee-locations-dialog";
 
+// Thêm cấu trúc bankAccount mặc định là null hoặc object trống
 const emptyUser: Partial<User> = {
   username: "",
   password: "",
@@ -35,7 +37,8 @@ const emptyUser: Partial<User> = {
   department: "",
   phoneNumber: "",
   email: "",
-  isActivated: false, 
+  isActivated: false,
+  bankAccount: null // <-- THÊM: Giá trị mặc định
 };
 
 export function UsersPanel() {
@@ -113,6 +116,8 @@ export function UsersPanel() {
       ...user,
       password: "",
       role: user.role === "user" ? "employee" : user.role,
+      // Khởi tạo object bankAccount rỗng để tránh lỗi uncontrolled input khi gõ phím
+      bankAccount: user.bankAccount ?? { bankName: "", accountNumber: "" } 
     });
     setDialogOpen(true);
   };
@@ -136,11 +141,22 @@ export function UsersPanel() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
+
+    // Chuẩn hóa dữ liệu trước khi gửi lên API: Nếu object ngân hàng trống trơn thì lưu dạng null
+    const payload = { ...form };
+    if (
+      payload.bankAccount && 
+      !payload.bankAccount.bankName?.trim() && 
+      !payload.bankAccount.accountNumber?.trim()
+    ) {
+      payload.bankAccount = null;
+    }
+
     try {
       if (form.id) {
-        await usersApi.update(form);
+        await usersApi.update(payload);
       } else {
-        await usersApi.add(form);
+        await usersApi.add(payload);
       }
       setDialogOpen(false);
       await loadUsers(); 
@@ -234,6 +250,7 @@ export function UsersPanel() {
                   <TableHead className="font-bold">Họ và Tên</TableHead>
                   <TableHead className="font-bold">Phòng ban</TableHead>
                   <TableHead className="font-bold">Liên hệ</TableHead>
+                  <TableHead className="font-bold">Tài khoản lương</TableHead> {/* <-- THÊM: Cột hiển thị */}
                   <TableHead className="font-bold">Vai trò</TableHead>
                   <TableHead className="font-bold">Phân vùng</TableHead>
                   <TableHead className="font-bold">Trạng thái</TableHead>
@@ -257,6 +274,22 @@ export function UsersPanel() {
                       <div className="text-sm flex items-center gap-1.5"><Mail className="h-3 w-3 text-muted-foreground" /> {u.email}</div>
                       <div className="text-sm flex items-center gap-1.5"><Phone className="h-3 w-3 text-muted-foreground" /> {u.phoneNumber}</div>
                     </TableCell>
+                    
+                    {/* THÊM: Hiển thị thông tin ngân hàng ngoài danh sách danh mục */}
+                    <TableCell>
+                      {u.bankAccount ? (
+                        <div className="text-sm">
+                          <div className="font-medium flex items-center gap-1 text-slate-700">
+                            <CreditCard className="h-3 w-3 text-muted-foreground shrink-0" />
+                            {u.bankAccount.bankName}
+                          </div>
+                          <div className="text-xs text-muted-foreground font-mono">{u.bankAccount.accountNumber}</div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Chưa thiết lập</span>
+                      )}
+                    </TableCell>
+
                     <TableCell>
                       <Badge 
                         variant="outline" 
@@ -318,7 +351,7 @@ export function UsersPanel() {
                     </TableCell>
                   </TableRow>
                 )) : (
-                  <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Không tìm thấy nhân viên nào khả dụng.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">Không tìm thấy nhân viên nào khả dụng.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -333,9 +366,7 @@ export function UsersPanel() {
         )}
       </CardContent>
 
-      {/* ==========================================================================
-         THÊM: POP-UP (DIALOG) RIÊNG XỬ LÝ TÀI KHOẢN CHỜ PHÊ DUYỆT
-         ========================================================================== */}
+      {/* Pop-up quản lý phê duyệt */}
       <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
         <DialogContent className="sm:max-w-[800px] max-h-[85vh] flex flex-col">
           <DialogHeader>
@@ -442,6 +473,45 @@ export function UsersPanel() {
                 <Label>Số điện thoại</Label>
                 <Input value={form.phoneNumber} onChange={e => setForm({...form, phoneNumber: e.target.value})} placeholder="090..." />
               </div>
+
+              {/* ==========================================================================
+                  THÊM BLOCK: THÔNG TIN TÀI KHOẢN NGÂN HÀNG (DÀNH CHO ADMIN CẬP NHẬT)
+                  ========================================================================== */}
+              <div className="space-y-3 col-span-2 border-t pt-4 mt-2">
+                <div className="text-sm font-semibold flex items-center gap-1.5 text-primary">
+                  <CreditCard className="h-4 w-4" />
+                  Thông tin tài khoản nhận lương (Admin)
+                </div>
+                <div className="grid grid-cols-2 gap-4 bg-muted/30 p-3 rounded-lg border border-dashed">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bankName" className="text-xs">Tên ngân hàng</Label>
+                    <Input 
+                      id="bankName" 
+                      className="bg-white h-9"
+                      value={form.bankAccount?.bankName ?? ""} 
+                      placeholder="Ví dụ: Vietcombank, MBBank"
+                      onChange={e => setForm({
+                        ...form, 
+                        bankAccount: { ...(form.bankAccount ?? {}), bankName: e.target.value }
+                      })} 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="accountNumber" className="text-xs">Số tài khoản</Label>
+                    <Input 
+                      id="accountNumber" 
+                      className="bg-white h-9 font-mono"
+                      value={form.bankAccount?.accountNumber ?? ""} 
+                      placeholder="Nhập số tài khoản"
+                      onChange={e => setForm({
+                        ...form, 
+                        bankAccount: { ...(form.bankAccount ?? {}), accountNumber: e.target.value }
+                      })} 
+                    />
+                  </div>
+                </div>
+              </div>
+              {/* ========================================================================== */}
 
               <div className="space-y-2 col-span-2 border-t pt-4 mt-2">
                 <Label>Trạng thái phê duyệt tài khoản</Label>

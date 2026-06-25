@@ -39,7 +39,6 @@ function SectionPanel({ section }: { section: AppSection }) {
       return <UsersPanel />;
     case "salaries":
       return <SalariesPanel />;
-    // Added: Handler to render the employee dashboard view
     case "user-dashboard":
       return <UserDashboard />;
     case "admin-sales-dashboard":
@@ -78,13 +77,21 @@ export default function HomePage() {
       activeSection={activeSection}
       onSectionChange={setActiveSection}
     >
-      <header className="border-b bg-card px-6 py-4">
-        {/* Safe navigation guard in case metadata for the new section isn't registered yet */}
-        <h2 className="text-xl font-semibold">{meta?.title || "Dashboard"}</h2>
-        <p className="text-sm text-muted-foreground">{meta?.description || "Employee Overview Analytics"}</p>
+      <header className="border-b bg-card px-4 py-3 md:px-6 md:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
+        <div className="min-w-0">
+          <h2 className="text-lg md:text-xl font-semibold tracking-tight truncate">
+            {meta?.title || "Dashboard"}
+          </h2>
+          <p className="text-xs md:text-sm text-muted-foreground truncate">
+            {meta?.description || "Employee Overview Analytics"}
+          </p>
+        </div>
       </header>
-      <div className="flex-1 p-6 overflow-auto">
-        <SectionPanel section={activeSection} />
+
+      <div className="flex-1 p-4 md:p-6 overflow-auto w-full max-w-full">
+        <div className="mx-auto w-full h-full container-fluid">
+          <SectionPanel section={activeSection} />
+        </div>
       </div>
     </AppShell>
   );

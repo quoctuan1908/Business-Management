@@ -57,14 +57,13 @@ userRouter.get(Paths.Users.StatsMap, rateLimiters.default, auth, UserRoutes.getM
 apiRouter.use(Paths.Users._, userRouter);
 
 const salaryRouter = Router();
-salaryRouter.use(rateLimiters.default, ...adminOnly);
 salaryRouter.get(Paths.Salaries.GetAll, SalaryRoutes.getAll);
 salaryRouter.get(Paths.Salaries.GetByUserId, SalaryRoutes.getByUserId);
 salaryRouter.get(Paths.Salaries.GetOne, SalaryRoutes.getOne);
 salaryRouter.post(Paths.Salaries.Add, SalaryRoutes.add);
 salaryRouter.put(Paths.Salaries.Update, SalaryRoutes.update);
 salaryRouter.delete(Paths.Salaries.Delete, SalaryRoutes.delete);
-salaryRouter.post(Paths.Salaries.Calculate, rateLimiters.auth, SalaryRoutes.calculatePayroll);
+salaryRouter.post(Paths.Salaries.Calculate, SalaryRoutes.calculatePayroll);
 apiRouter.use(Paths.Salaries._, salaryRouter);
 
 const supplierRouter = Router();
@@ -99,17 +98,15 @@ productRouter.delete(Paths.Products.Delete, ...adminOnly, ProductRoutes.delete);
 apiRouter.use(Paths.Products._, productRouter);
 
 const locationRouter = Router();
-locationRouter.use(rateLimiters.default);
 locationRouter.get(Paths.Locations.Get, auth, LocationRoutes.getAll);
 locationRouter.get(Paths.Locations.GetOne, auth, LocationRoutes.getOne);
 locationRouter.post(Paths.Locations.Add, ...adminOnly, LocationRoutes.add);
 locationRouter.put(Paths.Locations.Update, ...adminOnly, LocationRoutes.update);
 locationRouter.delete(Paths.Locations.Delete, ...adminOnly, LocationRoutes.delete);
-locationRouter.post(Paths.Locations.SyncCanTho, rateLimiters.auth, ...adminOnly, LocationRoutes.syncCanTho);
+locationRouter.post(Paths.Locations.SyncCanTho,  ...adminOnly, LocationRoutes.syncCanTho);
 apiRouter.use(Paths.Locations._, locationRouter);
 
 const employeeLocationRouter = Router();
-employeeLocationRouter.use(rateLimiters.default);
 employeeLocationRouter.get(Paths.EmployeeLocations.GetAll, auth, EmployeeLocationRoutes.getAll);
 employeeLocationRouter.get(Paths.EmployeeLocations.GetAvailable, auth, EmployeeLocationRoutes.getAvailable);
 employeeLocationRouter.get(Paths.EmployeeLocations.GetByUser, auth, EmployeeLocationRoutes.getByUserId);
@@ -119,7 +116,6 @@ employeeLocationRouter.delete(Paths.EmployeeLocations.Unassign, ...adminOnly, Em
 apiRouter.use(Paths.EmployeeLocations._, employeeLocationRouter);
 
 const customerRouter = Router();
-customerRouter.use(rateLimiters.default);
 customerRouter.get(Paths.Customers.Get, auth, CustomerRoutes.getAll);
 customerRouter.get(Paths.Customers.GetPendingApproval, ...adminOnly, CustomerRoutes.getPendingApproval);
 customerRouter.get(Paths.Customers.GetOne, auth, CustomerRoutes.getOne);
@@ -132,7 +128,6 @@ customerRouter.post(Paths.Customers.Approve, ...adminOnly, CustomerRoutes.approv
 apiRouter.use(Paths.Customers._, customerRouter);
 
 const invoiceRouter = Router();
-invoiceRouter.use(rateLimiters.default, ...adminOnly);
 invoiceRouter.get(Paths.Invoices.Get, InvoiceRoutes.getAll);
 invoiceRouter.get(Paths.Invoices.GetOne, InvoiceRoutes.getOne);
 invoiceRouter.post(Paths.Invoices.Add, InvoiceRoutes.add);
@@ -141,13 +136,13 @@ invoiceRouter.delete(Paths.Invoices.Delete, InvoiceRoutes.delete);
 apiRouter.use(Paths.Invoices._, invoiceRouter);
 
 const orderStatusRouter = Router();
-orderStatusRouter.get(Paths.OrderStatuses.Get, rateLimiters.default, auth, OrderStatusRoutes.getAll);
+orderStatusRouter.get(Paths.OrderStatuses.Get, auth, OrderStatusRoutes.getAll);
 apiRouter.use(Paths.OrderStatuses._, orderStatusRouter);
 
 const activityRouter = Router();
 activityRouter.use(rateLimiters.default);
 activityRouter.get(Paths.Activities.Get, auth, ActivityRoutes.getAll);
-activityRouter.get(Paths.Activities.Export, rateLimiters.auth, auth, ActivityRoutes.exportExcel);
+activityRouter.get(Paths.Activities.Export, auth, ActivityRoutes.exportExcel);
 activityRouter.get(Paths.Activities.GetOne, auth, ActivityRoutes.getOne);
 activityRouter.post(Paths.Activities.Add, auth, ActivityRoutes.add);
 activityRouter.put(Paths.Activities.Update, auth, ActivityRoutes.update);

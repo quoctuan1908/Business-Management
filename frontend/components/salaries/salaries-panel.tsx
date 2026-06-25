@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2, DollarSign, User as UserIcon, Mail, Phone, Briefcase, Calculator, CheckCircle2, Clock, Filter } from "lucide-react";
+import { 
+  Pencil, Plus, RefreshCw, Trash2, DollarSign, User as UserIcon, 
+  Mail, Phone, Briefcase, Calculator, CheckCircle2, Clock, Filter,
+  QrCode, CreditCard, Copy, Check
+} from "lucide-react";
 
 import { salariesApi, usersApi } from "@/lib/api";
 import type { Salary, SalaryWithUser, User } from "@/lib/types";
@@ -12,6 +16,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,6 +79,18 @@ export function SalariesPanel() {
   const [selectedUser, setSelectedUser] = useState<SalaryWithUser["user"] | null>(null);
   const [userModalOpen, setUserModalOpen] = useState(false);
 
+  // --- THÊM STATE CHO MODAL QR CODE ---
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrData, setQrData] = useState<{
+    qrUrl: string;
+    accountName: string;
+    accountNumber: string;
+    bankName: string;
+    amount: number;
+    description: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -125,6 +142,51 @@ export function SalariesPanel() {
     setSelectedUser(user);
     setUserModalOpen(true);
   }
+
+  // --- SỬA LOGIC TRÍCH XUẤT THÔNG TIN NGÂN HÀNG (USERBANK) TẠI ĐÂY ---
+  function handleGenerateQR(salary: SalaryWithUser) {
+    const totalAmount = salary.baseSalary + salary.commission + salary.bonus;
+    const userRaw = salary.user as any;
+
+    if (!userRaw) {
+      alert("Không tìm thấy dữ liệu nhân viên đính kèm với bản ghi lương này.");
+      return;
+    }
+
+    // Dự phòng (Fallback) kiểm tra chéo: Nếu backend trả về dạng user.bankAccount hoặc user dạng phẳng (user.bankName, user.accountNumber)
+    const bankName = userRaw.bankAccount?.bankName || userRaw.bankName || userRaw.bankCode;
+    const accountNumber = userRaw.bankAccount?.accountNumber || userRaw.accountNumber || userRaw.bankAccountNumber;
+
+    if (!bankName || !accountNumber) {
+      console.log("Dữ liệu User nhận được bị thiếu trường ngân hàng:", userRaw);
+      alert(`Nhân viên ${userRaw.fullName || 'này'} chưa được Admin cấu hình đầy đủ Ngân hàng và Số tài khoản thụ hưởng.`);
+      return;
+    }
+
+    const description = `THANH TOAN LUONG KY ${salary.month}_${salary.year} NV ${userRaw.username || salary.userId}`;
+    
+    // Sử dụng API VietQR Template Compact (Sinh mã QR động)
+    const encodedBank = encodeURIComponent(bankName);
+    const encodedDesc = encodeURIComponent(description);
+    const qrUrl = `https://img.vietqr.io/image/${encodedBank}-${accountNumber}-compact.png?amount=${totalAmount}&addInfo=${encodedDesc}&accountName=${encodeURIComponent(userRaw.fullName || '')}`;
+
+    setQrData({
+      qrUrl,
+      accountName: userRaw.fullName || "Chưa cập nhật",
+      accountNumber: accountNumber,
+      bankName: bankName,
+      amount: totalAmount,
+      description
+    });
+    setQrModalOpen(true);
+  }
+
+  const handleCopyDesc = () => {
+    if (!qrData) return;
+    void navigator.clipboard.writeText(qrData.description);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -326,12 +388,25 @@ export function SalariesPanel() {
                   </TableCell>
 
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
-                      <Pencil className="h-4 w-4 text-blue-500" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => void handleDelete(s.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      {!(s as any).isPaid && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleGenerateQR(s)}
+                          title="Quét mã QR chi trả nhanh"
+                        >
+                          <QrCode className="h-4 w-4 text-emerald-600" />
+                        </Button>
+                      )}
+
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
+                        <Pencil className="h-4 w-4 text-blue-500" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => void handleDelete(s.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -339,6 +414,67 @@ export function SalariesPanel() {
           </Table>
         )}
       </CardContent>
+
+      {/* ==========================================================================
+          DIALOG: HIỂN THỊ MÃ QR THANH TOÁN QUỐC GIA VIETQR
+          ========================================================================== */}
+      <Dialog open={qrModalOpen} onOpenChange={setQrModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-700">
+              <QrCode className="h-5 w-5" />
+              Mã QR thanh toán lương
+            </DialogTitle>
+          </DialogHeader>
+          
+          {qrData && (
+            <div className="flex flex-col items-center justify-center space-y-4 py-2">
+              <div className="bg-white p-3 border-2 border-emerald-500 rounded-xl shadow-inner">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={qrData.qrUrl} 
+                  alt="Mã QR chuyển khoản VietQR" 
+                  className="w-64 h-64 object-contain"
+                />
+              </div>
+
+              <div className="w-full space-y-2 bg-muted/50 p-3 rounded-lg text-sm border font-sans">
+                <div className="flex justify-between items-center border-b pb-1">
+                  <span className="text-muted-foreground flex items-center gap-1"><CreditCard className="h-3.5 w-3.5" /> Thụ hưởng:</span>
+                  <span className="font-semibold text-slate-800">{qrData.accountName}</span>
+                </div>
+                <div className="flex justify-between items-center border-b pb-1">
+                  <span className="text-muted-foreground">Số tài khoản:</span>
+                  <span className="font-mono font-bold tracking-wide">{qrData.accountNumber} ({qrData.bankName})</span>
+                </div>
+                <div className="flex justify-between items-center border-b pb-1">
+                  <span className="text-muted-foreground">Số tiền giải ngân:</span>
+                  <span className="font-bold text-green-700 text-base">{formatCurrency(qrData.amount)}</span>
+                </div>
+                <div className="flex flex-col space-y-1 pt-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Nội dung chuyển khoản:</span>
+                    <Button variant="ghost" size="lg" className="h-6 px-1.5 text-xs text-blue-600 gap-1" onClick={handleCopyDesc}>
+                      {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                      {copied ? "Đã sao chép" : "Sao chép"}
+                    </Button>
+                  </div>
+                  <p className="font-mono text-xs bg-white border p-1.5 rounded text-slate-600 break-all select-all">
+                    {qrData.description}
+                  </p>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground italic text-center w-full">
+                * Khuyến khích sử dụng ứng dụng ngân hàng (Mobile Banking) quét mã để tự động điền đầy đủ thông tin chuẩn VietQR.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button className="w-full" variant="outline" onClick={() => setQrModalOpen(false)}>Đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* ========================================================================== */}
 
       <Dialog open={calcDialogOpen} onOpenChange={setCalcDialogOpen}>
         <DialogContent className="max-w-md">
