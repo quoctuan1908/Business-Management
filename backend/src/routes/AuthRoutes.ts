@@ -137,6 +137,7 @@ async function verifyEmail(req: Req, res: Res) {
       fullName: pendingUser.fullName,
       department: pendingUser.department,
       phoneNumber: pendingUser.phoneNumber,
+      bankAccount: null,
       email: pendingUser.email,
       isActivated: false, 
     });

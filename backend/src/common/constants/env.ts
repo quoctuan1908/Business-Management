@@ -25,6 +25,7 @@ const EnvVars = jetEnv({
   PostgresPassword: str, 
   PostgresDb: str,
   DatabaseUrl: str,
+  FrontendUrl: str,
   JwtTokenKey: str,
   JwtRefreshTokenKey: str,
   MailUser: str,
