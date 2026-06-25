@@ -4,12 +4,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Eye, FileDown, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { Eye, FileDown, Plus, Printer, RefreshCw, Trash2, X } from "lucide-react";
 
 import { ActivityDetailDialog } from "@/components/activities/activity-detail-dialog";
 
-import { activitiesApi, lookupApi, orderStatusesApi } from "@/lib/api";
+import { activitiesApi, activityDetailsApi, lookupApi, orderStatusesApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import {
+  buildSalesInvoicePrintData,
+  printSalesInvoice,
+} from "@/lib/print-sales-invoice";
 
 import type { Activity, Customer, OrderStatus, User } from "@/lib/types";
 
@@ -140,6 +144,7 @@ export function ActivitiesPanel() {
   const [exportTo, setExportTo] = useState(defaultToDate);
 
   const [exporting, setExporting] = useState(false);
+  const [printingId, setPrintingId] = useState<number | null>(null);
 
   const filteredActivities = useMemo(
     () =>
@@ -158,8 +163,18 @@ export function ActivitiesPanel() {
 
   const filterKey = `${filterStatus}|${filterFrom}|${filterTo}`;
 
+  const userMap = useMemo(
+    () => Object.fromEntries(users.map((u) => [u.id, u.fullName])),
+    [users],
+  );
+
   const customerMap = useMemo(
     () => Object.fromEntries(customers.map((c) => [c.id, c.companyName])),
+    [customers],
+  );
+
+  const customerById = useMemo(
+    () => Object.fromEntries(customers.map((c) => [c.id, c])),
     [customers],
   );
 
@@ -313,6 +328,39 @@ export function ActivitiesPanel() {
 
 
 
+  async function handlePrint(activity: Activity) {
+    if (!activity.invoiceId) return;
+
+    setPrintingId(activity.id);
+    setError(null);
+
+    try {
+      const [act, detailList] = await Promise.all([
+        activitiesApi.getOne(activity.id),
+        activityDetailsApi.getByActivity(activity.id),
+      ]);
+
+      const sellerName =
+        userMap[act.userId] ??
+        (user?.userId === act.userId ? user.username : `#${act.userId}`);
+
+      printSalesInvoice(
+        buildSalesInvoicePrintData({
+          activity: act,
+          details: detailList,
+          customer: customerById[act.customerId],
+          sellerName,
+        }),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "In hóa đơn thất bại");
+    } finally {
+      setPrintingId(null);
+    }
+  }
+
+
+
   async function handleDelete(id: number) {
 
     if (!confirm("Xóa hoạt động này?")) return;
@@ -456,7 +504,7 @@ export function ActivitiesPanel() {
                   <TableHead className="w-[120px]">Trạng thái</TableHead>
                   <TableHead className="w-[150px]">Ngày</TableHead>
                   <TableHead>Nội dung</TableHead>
-                  <TableHead className="w-[100px]">Thao tác</TableHead>
+                  <TableHead className="w-[120px]">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -483,7 +531,7 @@ export function ActivitiesPanel() {
                       {activity.content}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -492,6 +540,17 @@ export function ActivitiesPanel() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
+                        {activity.invoiceId ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="In hóa đơn A5"
+                            disabled={printingId === activity.id}
+                            onClick={() => void handlePrint(activity)}
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                        ) : null}
                         {isAdmin ? (
                           <Button
                             variant="ghost"
@@ -501,9 +560,7 @@ export function ActivitiesPanel() {
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
-                        ) : (
-                          <span className="w-9" />
-                        )}
+                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>
