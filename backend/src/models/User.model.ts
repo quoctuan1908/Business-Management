@@ -17,6 +17,7 @@ const GetDefaults = (): IUser => ({
   phoneNumber: '',
   email: '',
   isActivated: false,
+  bankAccount: null, 
   createdAt: new Date(),
   updatedAt: new Date(),
   deletedAt: null,
@@ -32,6 +33,7 @@ const schema: Schema<IUser> = {
   phoneNumber: isString,
   email: isString,
   isActivated: isBoolean,
+  bankAccount: ((val: any) => val === null || (typeof val === 'object' && typeof val.bankName === 'string' && typeof val.accountNumber === 'string')) as any,
   createdAt: transformIsDate,
   updatedAt: transformIsDate,
   deletedAt: (() => true) as any,
@@ -40,6 +42,11 @@ const schema: Schema<IUser> = {
 /******************************************************************************
                                      Types
 ******************************************************************************/
+
+export interface IBankAccount {
+  bankName: string;
+  accountNumber: string;
+}
 
 /**
  * @entity users
@@ -53,7 +60,8 @@ export interface IUser extends Entity {
   phoneNumber: string;
   email: string;
   isActivated: boolean;
-  deletedAt: Date | null
+  bankAccount: IBankAccount | null; 
+  deletedAt: Date | null;
 }
 
 export type IUserPublic = Omit<IUser, 'password'>;

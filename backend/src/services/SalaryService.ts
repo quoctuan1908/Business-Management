@@ -27,6 +27,10 @@ async function getAll(): Promise<ISalaryWithUser[]> {
         department: user.department,
         email: user.email,
         phoneNumber: user.phoneNumber,
+        bankAccount: user.bankAccount ? {
+          bankName: user.bankAccount.bankName,
+          accountNumber: user.bankAccount.accountNumber,
+        } : null,
         role: user.role,
       } : null,
     };

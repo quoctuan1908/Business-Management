@@ -44,15 +44,16 @@ async function addOne(user: IUserCreate): Promise<IUserPublic> {
 
 async function updateOne(user: IUser): Promise<IUserPublic> {
   try {
-    const persists = await UserRepo.persists(user.id);
-    if (!persists) {
-      logger.warn('SYSTEM', `Cập nhật thất bại: Người dùng có ID [${user.id}] không tồn tại trên hệ thống.`);
-      throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
-    }
     const updated = await UserRepo.update(user);
+    
     logger.info('SYSTEM', `Cập nhật thông tin thành công cho tài khoản "${updated.username}" (ID: ${user.id}).`);
     return updated;
   } catch (error) {
+    if (error instanceof Error && error.message === 'User not found') {
+      logger.warn('SYSTEM', `Cập nhật thất bại: Người dùng có ID [${user.id}] không tồn tại trên hệ thống.`);
+      throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
+    }
+
     if (!(error instanceof RouteError)) {
       logger.error('SYSTEM', `Lỗi hệ thống khi cập nhật người dùng có ID [${user.id}]: ${error instanceof Error ? error.message : String(error)}`);
     }

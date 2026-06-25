@@ -2,11 +2,21 @@ import rateLimit from 'express-rate-limit';
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import { RouteError } from '@src/common/utils/route-errors';
 
+const isDev = process.env.NODE_ENV === 'development';
+
+const skipIfAuthenticated = (req: any) => {
+  if (req.user || req.session?.user || req.headers.authorization) {
+    return true;
+  }
+  return false;
+};
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100, 
+  windowMs: isDev ? 1 * 60 * 1000 : 15 * 60 * 1000,
+  max: isDev ? 1000 : 100, 
   standardHeaders: true, 
   legacyHeaders: false,
+  skip: skipIfAuthenticated,
   handler: () => {
     throw new RouteError(
       HttpStatusCodes.TOO_MANY_REQUESTS,
@@ -16,8 +26,8 @@ const limiter = rateLimit({
 });
 
 const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10, 
+  windowMs: isDev ? 1 * 60 * 1000 : 60 * 60 * 1000,
+  max: isDev ? 100 : 10, 
   standardHeaders: true,
   legacyHeaders: false,
   handler: () => {

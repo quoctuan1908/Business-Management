@@ -1,0 +1,5 @@
+[2026-06-23 09:30:02] [INFO] [SYSTEM] Tài khoản "admin" (ID: 1) đăng nhập thành công.
+[2026-06-23 09:30:02] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-23 09:30:02] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-23 09:30:03] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.
+[2026-06-23 09:30:03] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: Tất cả) vào tháng all/2026.

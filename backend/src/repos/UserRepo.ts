@@ -22,6 +22,10 @@ function mapRowToUser(row: any): IUser {
     phoneNumber: row.phone_number,
     email: row.email,
     isActivated: row.is_activated,
+    bankAccount: row.bank_account ? {
+      bankName: row.bank_account.bank_name,
+      accountNumber: row.bank_account.account_number,
+    } : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -39,6 +43,9 @@ async function getOne(username: string): Promise<IUser | null> {
       deleted_at: null,
       is_activated: true
     },
+    include: {
+      bank_account: true,
+    },
   });
   return row ? mapRowToUser(row) : null;
 }
@@ -48,6 +55,9 @@ async function getOneByEmail(email: string): Promise<IUser | null> {
     where: { 
       email: email,
       deleted_at: null,
+    },
+    include: {
+      bank_account: true,
     },
   });
   return row ? mapRowToUser(row) : null;
@@ -65,8 +75,15 @@ async function persists(id: number): Promise<boolean> {
 
 async function getAll(): Promise<IUserPublic[]> {
   const rows = await prisma.user.findMany({
-    where: { deleted_at: null, is_activated:true },
+    where: { 
+      deleted_at: null, 
+      is_activated: true 
+    },
+    include: {
+      bank_account: true,
+    },
   });
+  console.log(rows)
   return rows.map(row => userModel.toPublic(mapRowToUser(row)));
 }
 
@@ -123,9 +140,23 @@ async function update(user: Partial<IUser>): Promise<IUserPublic> {
   }
 
   let hashedPassword = existingUser.password;
-  
   if (user.password && user.password.trim() !== "" && user.password !== existingUser.password) {
+    const SALT_ROUNDS = 12;
     hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
+  }
+
+  const bankUpdatePayload: any = {};
+  if (user.bankAccount) {
+    bankUpdatePayload.upsert = {
+      create: {
+        bank_name: user.bankAccount.bankName,
+        account_number: user.bankAccount.accountNumber,
+      },
+      update: {
+        bank_name: user.bankAccount.bankName,
+        account_number: user.bankAccount.accountNumber,
+      },
+    };
   }
 
   const row = await prisma.user.update({
@@ -140,6 +171,10 @@ async function update(user: Partial<IUser>): Promise<IUserPublic> {
       email: user.email ?? existingUser.email,
       is_activated: user.isActivated ?? existingUser.is_activated,
       updated_at: new Date(),
+      bank_account: user.bankAccount ? bankUpdatePayload : undefined,
+    },
+    include: {
+      bank_account: true,
     },
   });
 
@@ -185,7 +220,6 @@ async function comparePassword(plainText: string, hash: string): Promise<boolean
 
 export type SellerScope = { mode: 'all' } | { mode: 'seller'; sellerId: number };
 
-// CẬP NHẬT: Thêm điều kiện kiểm tra tài khoản user phải đang hoạt động (is_activated: true)
 function userIdFilter(scope: SellerScope): { user_id?: number; user?: { is_activated: boolean } } {
   if (scope.mode === 'all') {
     return { user: { is_activated: true } };
