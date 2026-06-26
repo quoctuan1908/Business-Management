@@ -25,11 +25,7 @@ interface SellerStatisticProps {
 const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0
-  }).format(value);
+  return `${new Intl.NumberFormat("vi-VN").format(value)} đ`;
 }
 
 const extractArray = (data: any, expectedKey: string): any[] => {
@@ -165,23 +161,27 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
     setSelectedWard("all"); 
   };
 
+  // BIẾN ĐỔI DỮ LIỆU BIỂU ĐỒ: Phân tách rõ ràng 3 cột để tránh chồng lấn logic
   const locationChartData = locations.reduce((acc: any[], loc: any) => {
     const labelName = loc.ward 
       ? `${loc.ward} - ${loc.province || ""}`.replace(/ - $/, "")
       : (loc.province || "Địa bàn chung");
       
-    const paidAmount = Number(loc.revenueGenerated) || 0;
-    const debtAmount = Number(loc.outstandingDebt) || 0;
+    const totalSales = Number(loc.revenueGenerated) || 0; // Tổng giá trị đơn hàng phát sinh
+    const realPaid = Number(loc.collectedAmount) || 0;    // Số tiền mặt thực tế đã thu về
+    const realDebt = Number(loc.outstandingDebt) || 0;     // Tiền khách còn nợ lại
 
     const existingGroup = acc.find(item => item.name === labelName);
     if (existingGroup) {
-      existingGroup["Tiền khách đã trả"] += paidAmount;
-      existingGroup["Tiền khách còn thiếu"] += debtAmount;
+      existingGroup["Doanh số phát sinh"] += totalSales;
+      existingGroup["Tiền thực thu"] += realPaid;
+      existingGroup["Tiền khách đang nợ"] += realDebt;
     } else {
       acc.push({
         name: labelName,
-        "Tiền khách đã trả": paidAmount,
-        "Tiền khách còn thiếu": debtAmount
+        "Doanh số phát sinh": totalSales,
+        "Tiền thực thu": realPaid,
+        "Tiền khách đang nợ": realDebt
       });
     }
     return acc;
@@ -227,13 +227,14 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
 
   return (
     <div className="space-y-6">
+      {/* Tiêu đề & Bộ lọc */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-bold tracking-tight">
             Sổ Theo Dõi Bán Hàng {userName ? ` - ${userName}` : ""}
           </h3>
           <p className="text-sm text-muted-foreground">
-            Xem danh sách hợp đồng mang về, tiến độ tiền về và danh sách khách hàng chưa thanh toán xong.
+            Xem danh sách hợp đồng mang về, tiến độ dòng tiền thu hồi và quản lý rủi ro công nợ khách hàng.
           </p>
         </div>
         
@@ -304,6 +305,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
         </div>
       </div>
 
+      {/* 4 Thẻ Thống Kê Tổng Quan */}
       {overview && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -319,7 +321,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
           <Card>
             <CardContent className="p-6 flex items-center justify-between space-y-0">
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Tỷ lệ chốt đơn thành công</p>
+                <p className="text-sm font-medium text-muted-foreground">Tỷ lệ chốt thành công</p>
                 <div className="text-2xl font-bold">{overview.conversionRate || 0}%</div>
               </div>
               <Percent className="h-8 w-8 text-purple-500 bg-purple-50 p-1.5 rounded-lg" />
@@ -330,49 +332,63 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             <CardContent className="p-6 flex items-center justify-between space-y-0">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Doanh số mang về</p>
-                <div className="text-2xl font-bold text-emerald-600">
+                <div className="text-2xl font-bold text-blue-600">
                   {formatCurrency(overview.grossRevenue || 0)}
                 </div>
               </div>
-              <TrendingUp className="h-8 w-8 text-emerald-500 bg-emerald-50 p-1.5 rounded-lg" />
+              <TrendingUp className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg" />
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6 flex items-center justify-between space-y-0">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Tổng công nợ cần thu hồi</p>
-                <div className="text-2xl font-bold text-amber-600">
-                  {formatCurrency(overview.pendingRevenue || 0)}
+              <div className="space-y-1 w-full">
+                <p className="text-sm font-medium text-muted-foreground">Tài chính kỳ bộ lọc</p>
+                
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-[11px] text-muted-foreground font-medium">Nợ phát sinh:</span>
+                  <span className="text-xl font-bold text-red-600">
+                    {formatCurrency(overview.outstandingDebt || 0)}
+                  </span>
+                </div>
+
+                <div className="flex items-baseline gap-1.5 border-t pt-1 mt-1 border-dashed">
+                  <span className="text-[10px] text-muted-foreground">Ví dư hiện tại:</span>
+                  <span className="text-xs font-semibold text-emerald-600">
+                    {formatCurrency(overview.currentBalance || 0)}
+                  </span>
                 </div>
               </div>
-              <AlertCircle className="h-8 w-8 text-amber-600 bg-amber-50 p-1.5 rounded-lg" />
+              <AlertCircle className="h-8 w-8 text-amber-600 bg-amber-50 p-1.5 rounded-lg shrink-0" />
             </CardContent>
           </Card>
         </div>
       )}
 
+      {/* Biểu Đồ */}
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <BarChart3 className="h-5 w-5 text-indigo-600" /> Địa bàn hoạt động và tình hình tiền về của seller
+              <BarChart3 className="h-5 w-5 text-indigo-600" /> Địa bàn hoạt động & Tình hình công nợ
             </CardTitle>
           </CardHeader>
           <CardContent>
             {locations.length === 0 ? (
-              <p className="text-center py-16 text-sm text-muted-foreground">Chưa có dữ liệu vùng.</p>
+              <p className="text-center py-16 text-sm text-muted-foreground">Chưa có dữ liệu vùng miền.</p>
             ) : (
               <div className="h-[300px] min-h-[300px] w-full pt-4">
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={locationChartData} barGap={6}>
+                  {/* Cấu trúc 3 cột giải quyết hoàn toàn mâu thuẫn số liệu */}
+                  <BarChart data={locationChartData} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={10} tickLine={false} />
                     <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatYAxis} />
                     <Tooltip content={<CustomChartTooltip />} />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
-                    <Bar dataKey="Tiền khách đã trả" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Tiền khách còn thiếu" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Doanh số phát sinh" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Tiền thực thu" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Tiền khách đang nợ" fill="#ef4444" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -388,7 +404,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
           </CardHeader>
           <CardContent>
             {statusBreakdown.length === 0 ? (
-              <p className="text-center py-16 text-sm text-muted-foreground">Chưa có dữ liệu.</p>
+              <p className="text-center py-16 text-sm text-muted-foreground">Chưa có dữ liệu trạng thái.</p>
             ) : (
               <div className="h-[300px] min-h-[300px] w-full flex flex-col sm:flex-row items-center justify-center gap-4">
                 <div className="w-full sm:w-[50%] min-h-[240px]">
@@ -418,39 +434,57 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
         </Card>
       </div>
 
+      {/* Bảng Dữ Liệu Chi Tiết */}
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <Users className="h-5 w-5 text-amber-500" /> Danh sách khách hàng còn nợ tiền (Cũ + Mới)
+              <Users className="h-5 w-5 text-amber-500" /> Theo dõi số dư & Công nợ Khách hàng
             </CardTitle>
           </CardHeader>
           <CardContent>
             {debtors.length === 0 ? (
-              <p className="text-center py-6 text-sm text-muted-foreground">Khách đã trả hết tiền, không nợ đồng nào.</p>
+              <p className="text-center py-6 text-sm text-muted-foreground">Không có biến động số dư khách hàng nào.</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tên khách hàng / Công ty</TableHead>
                     <TableHead>Số điện thoại</TableHead>
-                    <TableHead className="text-right">Tổng số tiền còn nợ</TableHead>
+                    <TableHead className="text-right">Tình trạng tài khoản</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {debtors.map((debtor, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-semibold">{debtor.customerName || debtor.companyName}</TableCell>
-                      <TableCell>{debtor.phoneNumber || "Không có số"}</TableCell>
-                      <TableCell className="text-right text-amber-600 font-bold">{formatCurrency(debtor.outstandingDebt || 0)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {debtors.map((debtor, idx) => {
+                    const realDebt = Number(debtor.outstandingDebt ?? debtor.totalDebt ?? 0);
+                    const realBalance = Number(debtor.currentBalance) || 0;
+
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell className="font-semibold">{debtor.customerName || debtor.companyName}</TableCell>
+                        <TableCell>{debtor.phoneNumber || "Không có số"}</TableCell>
+                        <TableCell className="text-right space-y-0.5">
+                          {realDebt > 0 ? (
+                            <div className="text-xs text-red-600 font-bold">
+                              Nợ tích lũy: {formatCurrency(realDebt)}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-400 italic">Không nợ</div>
+                          )}
+                          <div className="text-[10px] text-muted-foreground font-medium">
+                            Quỹ dư hiện tại: {formatCurrency(realBalance)}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
           </CardContent>
         </Card>
 
+        {/* Các hợp đồng vừa chốt gần đây */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
