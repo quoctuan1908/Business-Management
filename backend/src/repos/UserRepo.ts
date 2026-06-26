@@ -283,6 +283,24 @@ export async function getEmployeeOverviewStats(userId: number) {
 /**
  * Detailed monthly productivity and individual targets for a specific employee
  */
+function getDateFilter(month: string, year: string) {
+  if (!year || year === "all") return undefined;
+  
+  const y = parseInt(year);
+  if (month && month !== "all") {
+    const m = parseInt(month);
+    return {
+      gte: new Date(y, m - 1, 1),
+      lt: new Date(y, m, 1),
+    };
+  } else {
+    return {
+      gte: new Date(y, 0, 1),
+      lt: new Date(y + 1, 0, 1),
+    };
+  }
+}
+
 export async function getEmployeeMonthlyStats(userId: number, inputMonth?: number, inputYear?: number) {
   const now = new Date();
   const month = inputMonth ?? (now.getMonth() + 1);
@@ -323,24 +341,6 @@ export async function getEmployeeMonthlyStats(userId: number, inputMonth?: numbe
   };
 }
 
-function getDateFilter(month: string, year: string) {
-  if (!year || year === "all") return undefined;
-  
-  const y = parseInt(year);
-  if (month && month !== "all") {
-    const m = parseInt(month);
-    return {
-      gte: new Date(y, m - 1, 1),
-      lt: new Date(y, m, 1),
-    };
-  } else {
-    return {
-      gte: new Date(y, 0, 1),
-      lt: new Date(y + 1, 0, 1),
-    };
-  }
-}
-
 export async function getEmployeeLocationStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
   const dateFilter = getDateFilter(month, year);
   const userFilter = userIdFilter(scope);
@@ -378,9 +378,12 @@ export async function getEmployeeLocationStats(scope: SellerScope, month: string
             where: {
               ...userFilter,
               ...(dateFilter ? { activity_date: dateFilter } : {}),
+              status: { not: "cancelled" }
             },
             select: {
-              invoice: { select: { total_amount: true } }
+              invoice: { select: { total_amount: true } },
+              details: { select: { quantity: true, sale_price: true } },
+              payments: { select: { paid_amount: true } }
             }
           }
         }
@@ -391,13 +394,27 @@ export async function getEmployeeLocationStats(scope: SellerScope, month: string
   return {
     locations: locations.map(loc => {
       let revenueGenerated = 0;
+      let collectedAmount = 0; 
       let outstandingDebt = 0;
 
       loc.customers.forEach(cust => {
-        outstandingDebt += Number(cust.current_balance) || 0;
         cust.activities.forEach(act => {
-          if (act.invoice) {
-            revenueGenerated += Number(act.invoice.total_amount) || 0;
+          let orderTotal = 0;
+          if (act.invoice?.total_amount) {
+            orderTotal = Number(act.invoice.total_amount);
+          } else if (act.details && act.details.length > 0) {
+            orderTotal = act.details.reduce((sum, det) => sum + (det.quantity * Number(det.sale_price)), 0);
+          }
+
+          revenueGenerated += orderTotal;
+
+          const orderPaid = act.payments?.reduce((sum, p) => sum + Number(p.paid_amount), 0) || 0;
+          
+          collectedAmount += orderPaid; 
+
+          const remaining = orderTotal - orderPaid;
+          if (remaining > 0) {
+            outstandingDebt += remaining;
           }
         });
       });
@@ -407,6 +424,7 @@ export async function getEmployeeLocationStats(scope: SellerScope, month: string
         ward: loc.ward,
         activeCustomersCount: loc.customers.length,
         revenueGenerated,
+        collectedAmount,
         outstandingDebt
       };
     })
@@ -422,41 +440,63 @@ export async function getSellerOverviewStats(scope: SellerScope, month: string, 
 
   const baseActivityWhere = activityScopeWhere(scope, dateFilter, locationFilter);
 
-  const [totalActivities, validOrdersCount, invoiceAggregate] = await Promise.all([
-    prisma.activity.count({ where: baseActivityWhere }),
-    prisma.activity.count({ where: { ...baseActivityWhere, NOT: { status: 'draft' } } }),
-    prisma.invoice.aggregate({
-      where: { activity: baseActivityWhere },
-      _sum: { total_amount: true },
-      _count: { invoice_id: true }
-    })
-  ]);
-
-  const grossRevenue = Number(invoiceAggregate._sum.total_amount) || 0; 
-
   const sellerActivities = await prisma.activity.findMany({
-    where: baseActivityWhere,
-    select: { activity_id: true }
+    where: {
+      ...baseActivityWhere,
+      status: { not: "cancelled" }
+    },
+    select: {
+      activity_id: true,
+      status: true,
+      invoice: { select: { total_amount: true } },
+      details: { select: { quantity: true, sale_price: true } },
+      payments: { select: { paid_amount: true } }
+    }
   });
 
-  const activityIds = sellerActivities.map(act => act.activity_id);
+  let totalActivities = sellerActivities.length;
+  let validOrdersCount = sellerActivities.filter(act => act.status !== 'draft').length;
+  
+  let grossRevenue = 0;
+  let collectedRevenue = 0;
+  let outstandingDebt = 0;
 
-  const paymentAggregate = activityIds.length > 0
-    ? await prisma.payment.aggregate({
-        where: { activity_id: { in: activityIds } },
-        _sum: { paid_amount: true }
-      })
-    : { _sum: { paid_amount: null } };
+  sellerActivities.forEach(act => {
+    let orderTotal = 0;
+    if (act.invoice?.total_amount) {
+      orderTotal = Number(act.invoice.total_amount);
+    } else if (act.details && act.details.length > 0) {
+      orderTotal = act.details.reduce((sum, det) => sum + (det.quantity * Number(det.sale_price)), 0);
+    }
 
-  const collectedRevenue = Number(paymentAggregate._sum.paid_amount) || 0; 
+    grossRevenue += orderTotal;
+
+    const orderPaid = act.payments?.reduce((sum, p) => sum + Number(p.paid_amount), 0) || 0;
+    collectedRevenue += orderPaid;
+
+    const remaining = orderTotal - orderPaid;
+    if (remaining > 0) {
+      outstandingDebt += remaining;
+    }
+  });
+
+  const customersInScope = await prisma.customer.findMany({
+    where: { 
+      activities: { some: userIdFilter(scope) },
+      ...(Object.keys(locationFilter).length > 0 ? { location: locationFilter } : {})
+    },
+    select: { current_balance: true }
+  });
+  const currentBalance = customersInScope.reduce((sum, c) => sum + (Number(c.current_balance) || 0), 0);
 
   return {
     totalActivities, 
     conversionRate: totalActivities > 0 ? Number(((validOrdersCount / totalActivities) * 100).toFixed(2)) : 0, 
     grossRevenue, 
     collectedRevenue,
-    pendingRevenue: Math.max(0, grossRevenue - collectedRevenue), 
-    averageOrderValue: invoiceAggregate._count.invoice_id > 0 ? Number((grossRevenue / invoiceAggregate._count.invoice_id).toFixed(0)) : 0
+    outstandingDebt, 
+    currentBalance,  
+    averageOrderValue: totalActivities > 0 ? Number((grossRevenue / totalActivities).toFixed(0)) : 0
   };
 }
 
@@ -527,26 +567,68 @@ export async function getEmployeeTopDebtors(scope: SellerScope, province?: strin
   const customers = await prisma.customer.findMany({
     where: { 
       activities: { some: userFilter },
-      current_balance: { gt: 0 },
       ...(Object.keys(locationFilter).length > 0 ? { location: locationFilter } : {})
     },
     select: {
       customer_id: true,
       company_name: true,
       phone_number: true,
-      current_balance: true
-    },
-    orderBy: { current_balance: 'desc' },
-    take: 5
+      current_balance: true,
+      activities: {
+        where: {
+          ...userFilter,
+          status: { not: "cancelled" } 
+        },
+        select: {
+          invoice: { select: { total_amount: true } },
+          details: { select: { quantity: true, sale_price: true } },
+          payments: { select: { paid_amount: true } }
+        }
+      },
+      _count: {
+        select: {
+          activities: { where: userFilter }
+        }
+      }
+    }
   });
 
-  return {
-    debtors: customers.map(cust => ({
+  const mappedDebtors = customers.map(cust => {
+    const currentBalance = Number(cust.current_balance) || 0;
+    
+    const totalDebt = cust.activities.reduce((sum, activity) => {
+      let orderTotal = 0;
+      if (activity.invoice?.total_amount) {
+        orderTotal = Number(activity.invoice.total_amount);
+      } else if (activity.details && activity.details.length > 0) {
+        orderTotal = activity.details.reduce((dSum, det) => {
+          return dSum + (det.quantity * Number(det.sale_price));
+        }, 0);
+      }
+
+      const orderPaid = activity.payments.reduce((pSum, p) => pSum + Number(p.paid_amount), 0);
+      const remaining = orderTotal - orderPaid;
+      
+      return sum + (remaining > 0 ? remaining : 0);
+    }, 0);
+
+    return {
       customerId: cust.customer_id,
       customerName: cust.company_name,
       phoneNumber: cust.phone_number,
-      outstandingDebt: Number(cust.current_balance) || 0
-    }))
+      currentBalance: currentBalance, 
+      outstandingDebt: totalDebt,      
+      totalDebt: totalDebt,            
+      totalOrders: cust._count.activities 
+    };
+  });
+
+  const topDebtors = mappedDebtors
+    .sort((a, b) => b.outstandingDebt - a.outstandingDebt)
+    .slice(0, 5);
+
+  return {
+    debtors: topDebtors
   };
 }
 
@@ -561,7 +643,7 @@ export async function getSellerMonthlyStats(sellerId: number, inputMonth?: numbe
   const activities = await prisma.activity.findMany({
     where: {
       user_id: sellerId,
-      user: { is_activated: true }, // THÊM ĐIỀU KIỆN
+      user: { is_activated: true }, 
       activity_date: { gte: startOfMonth, lt: startOfNextMonth }
     },
     select: {
@@ -593,7 +675,7 @@ export async function getSellerMonthlyStats(sellerId: number, inputMonth?: numbe
 export async function getEmployeeTopProducts(userId: number) {
   const groupedProducts = await prisma.activityDetail.groupBy({
     by: ['product_id'],
-    where: { activity: { user_id: userId, user: { is_activated: true } } }, // THÊM ĐIỀU KIỆN
+    where: { activity: { user_id: userId, user: { is_activated: true } } }, 
     _sum: { quantity: true },
     orderBy: { _sum: { quantity: 'desc' } },
     take: 5 
@@ -609,7 +691,7 @@ export async function getEmployeeTopProducts(userId: number) {
   const detailsInfo = await prisma.activityDetail.findMany({
     where: {
       product_id: { in: groupedProducts.map(p => p.product_id) },
-      activity: { user_id: userId, user: { is_activated: true } } // THÊM ĐIỀU KIỆN
+      activity: { user_id: userId, user: { is_activated: true } } 
     },
     select: { product_id: true, sale_price: true, quantity: true }
   });
