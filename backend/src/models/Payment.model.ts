@@ -46,6 +46,10 @@ export interface IPaymentSummary {
   paidTotal: number;
   remaining: number;
   customerBalance: number;
+  /** Tổng nợ tích lũy (mọi đơn có HĐ của khách). */
+  customerTotalDebt: number;
+  /** Nợ các đơn khác (không tính phần còn lại của đơn hiện tại). */
+  customerDebtOtherOrders: number;
   paymentStatus: PaymentStatusCode;
   paymentStatusLabel: string;
   canRecordPayment: boolean;

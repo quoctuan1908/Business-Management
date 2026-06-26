@@ -1,8 +1,14 @@
-import { IActivity, IActivityWrite } from '@src/models/Activity.model';
+import { IActivity, IActivityListItem, IActivityWrite } from '@src/models/Activity.model';
 
 import { OrderStatusCodes } from '@src/common/constants/order-status';
+import {
+  PaymentStatusLabels,
+} from '@src/common/constants/payment-status';
 import { activityWriteToPrismaData, toActivity } from './common/mappers';
 import prisma from './common/prisma';
+import {
+  resolvePaymentStatus,
+} from '@src/services/PaymentService';
 
 /******************************************************************************
                                 Functions
@@ -30,9 +36,46 @@ async function getByInvoiceId(invoiceId: number): Promise<IActivity | null> {
 async function getAll(userId?: number): Promise<IActivity[]> {
   const rows = await prisma.activity.findMany({
     where: userId !== undefined ? { user_id: userId } : {},
-    orderBy: { activity_id: 'asc' },
+    orderBy: [{ created_at: 'desc' }, { activity_id: 'desc' }],
   });
   return rows.map(toActivity);
+}
+
+async function getAllWithPaymentInfo(
+  userId?: number,
+): Promise<IActivityListItem[]> {
+  const rows = await prisma.activity.findMany({
+    where: userId !== undefined ? { user_id: userId } : {},
+    include: {
+      invoice: { select: { total_amount: true } },
+      payments: { select: { paid_amount: true } },
+    },
+    orderBy: [{ created_at: 'desc' }, { activity_id: 'desc' }],
+  });
+
+  return rows.map((row) => {
+    const activity = toActivity(row);
+    const invoiceTotal = row.invoice
+      ? Number(row.invoice.total_amount)
+      : 0;
+    const paidTotal = row.payments.reduce(
+      (sum, p) => sum + Number(p.paid_amount),
+      0,
+    );
+    const remaining =
+      row.invoice_id != null
+        ? Math.max(0, invoiceTotal - paidTotal)
+        : 0;
+    const paymentStatus = resolvePaymentStatus(paidTotal, invoiceTotal);
+
+    return {
+      ...activity,
+      invoiceTotal,
+      paidTotal,
+      remaining,
+      paymentStatusLabel: PaymentStatusLabels[paymentStatus],
+    };
+  });
 }
 
 async function addDraft(input: IActivityWrite): Promise<IActivity> {
@@ -133,6 +176,7 @@ export default {
   persists,
   getByInvoiceId,
   getAll,
+  getAllWithPaymentInfo,
   getForExport,
   addDraft,
   update,

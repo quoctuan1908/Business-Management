@@ -59,6 +59,14 @@ export interface IActivity extends Entity {
   content: string;
 }
 
+/** Bổ sung thông tin thanh toán khi liệt kê hoạt động. */
+export interface IActivityListItem extends IActivity {
+  invoiceTotal: number;
+  paidTotal: number;
+  remaining: number;
+  paymentStatusLabel: string;
+}
+
 export interface IActivityWrite {
   userId: number;
   customerId: number;

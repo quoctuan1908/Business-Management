@@ -18,11 +18,12 @@ import ActivityRepo from '@src/repos/ActivityRepo';
 import CustomerRepo from '@src/repos/CustomerRepo';
 import LocationRepo from '@src/repos/LocationRepo';
 import prisma from '@src/repos/common/prisma';
-import PaymentService, {
-  recordPaymentEntryInternal,
+import {
+  allocateCustomerPayment,
   resolvePaymentStatus,
   sumPayments,
 } from '@src/services/PaymentService';
+import { computeCustomerTotalDebt } from '@src/services/customer-debt';
 import type { EmployeeDataScope } from '@src/services/employee-scope';
 import {
   assertCustomerInScope,
@@ -147,7 +148,7 @@ async function getAccount(
 ): Promise<ICustomerAccount> {
   const customer = await getOne(customerId, scope);
   const orders = await buildOrderRows(customerId);
-  const totalDebt = orders.reduce((sum, o) => sum + o.remaining, 0);
+  const totalDebt = await computeCustomerTotalDebt(customerId);
 
   return {
     customer,
@@ -172,51 +173,12 @@ async function receivePayment(
   await getOne(customerId, scope);
 
   return prisma.$transaction(async (tx) => {
-    const activities = await tx.activity.findMany({
-      where: {
-        customer_id: customerId,
-        invoice_id: { not: null },
-      },
-      include: { invoice: true },
-      orderBy: [{ created_at: 'asc' }, { activity_id: 'asc' }],
-    });
-
-    const allocations: ICustomerReceivePaymentResult['allocations'] = [];
-    let left = input.amount;
-
-    for (const act of activities) {
-      if (left <= 0) break;
-
-      const invoiceTotal = Number(act.invoice?.total_amount ?? 0);
-      const paidTotal = await sumPayments(act.activity_id, tx);
-      const remaining = Math.max(0, invoiceTotal - paidTotal);
-      if (remaining <= 0) continue;
-
-      const paymentStatus = resolvePaymentStatus(paidTotal, invoiceTotal);
-      if (paymentStatus === PaymentStatuses.PAID) continue;
-
-      const pay = Math.min(left, remaining);
-      await recordPaymentEntryInternal(
-        act.activity_id,
-        customerId,
-        {
-          paidAmount: pay,
-          method: input.method.trim(),
-          paymentDate: new Date(),
-        },
-        tx,
-      );
-      await PaymentService.syncActivityPaymentStatus(act.activity_id, tx);
-      left -= pay;
-      allocations.push({ activityId: act.activity_id, paidAmount: pay });
-    }
-
-    if (left > 0) {
-      await tx.customer.update({
-        where: { customer_id: customerId },
-        data: { current_balance: { increment: left } },
-      });
-    }
+    const { allocations, excessToBalance } = await allocateCustomerPayment(
+      customerId,
+      input.amount,
+      input.method.trim(),
+      tx,
+    );
 
     const customer = await CustomerRepo.getOne(customerId);
     if (!customer) {
@@ -224,11 +186,11 @@ async function receivePayment(
     }
 
     const orders = await buildOrderRows(customerId, tx);
-    const totalDebt = orders.reduce((sum, o) => sum + o.remaining, 0);
+    const totalDebt = await computeCustomerTotalDebt(customerId, tx);
 
     return {
       allocations,
-      excessToBalance: left > 0 ? left : 0,
+      excessToBalance,
       account: {
         customer,
         currentBalance: customer.currentBalance,

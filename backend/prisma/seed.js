@@ -307,6 +307,84 @@ function deliveryAfter(activityDate, days = 1) {
   return d;
 }
 
+function calcOrderTotal(activity) {
+  if (activity.invoice?.total_amount != null) {
+    return Number(activity.invoice.total_amount);
+  }
+  if (activity.details?.length) {
+    return activity.details.reduce(
+      (sum, det) => sum + det.quantity * Number(det.sale_price),
+      0,
+    );
+  }
+  return 0;
+}
+
+function calcOutstandingDebt(activities) {
+  return activities
+    .filter((a) => a.status !== "draft" && a.status !== "cancelled")
+    .reduce((sum, activity) => {
+      const orderTotal = calcOrderTotal(activity);
+      const orderPaid = (activity.payments ?? []).reduce(
+        (paid, p) => paid + Number(p.paid_amount),
+        0,
+      );
+      const remaining = orderTotal - orderPaid;
+      return sum + (remaining > 0 ? remaining : 0);
+    }, 0);
+}
+
+/**
+ * Sau khi seed don hang: khach con no -> so du = 0.
+ * Khach khong con no co the co vi du (tien tra truoc / tra thua).
+ */
+async function finalizeSeedCustomerBalances() {
+  const customers = await prisma.customer.findMany({
+    orderBy: { customer_id: "asc" },
+    include: {
+      activities: {
+        where: { status: { not: "draft" } },
+        include: { invoice: true, payments: true, details: true },
+      },
+    },
+  });
+
+  /** Vi du tra truoc cho KH khong con no (theo thu tu KH 01..20). */
+  const prepaidIfDebtFree = [
+    500_000, // KH 01 - don da tra du, con vi nho
+    1_200_000, // KH 02
+    800_000, // KH 03
+    0, // KH 04 - con no don da chot
+    0, // KH 05 - con no (thanh toan 1 phan)
+    0, // KH 06 - con no (thanh toan 1 phan)
+    600_000, // KH 07
+    2_500_000, // KH 08 - chua co don, tra truoc
+    1_500_000, // KH 09
+    1_000_000, // KH 10 - chua co don
+    900_000, // KH 11
+    0, // KH 12 - con no don dang giao
+    1_100_000, // KH 13
+    3_000_000, // KH 14 - chua co don
+    750_000, // KH 15
+    0, // KH 16 - con no
+    1_800_000, // KH 17 - chua co don
+    950_000, // KH 18
+    400_000, // KH 19
+    2_200_000, // KH 20 - chua co don
+  ];
+
+  for (let i = 0; i < customers.length; i++) {
+    const customer = customers[i];
+    const debt = calcOutstandingDebt(customer.activities);
+    const balance = debt > 0 ? 0 : (prepaidIfDebtFree[i] ?? 0);
+
+    await prisma.customer.update({
+      where: { customer_id: customer.customer_id },
+      data: { current_balance: balance.toFixed(2) },
+    });
+  }
+}
+
 /**
  * 20 khách hàng — mỗi KH một phường/xã khác nhau.
  * nhanvien01: 10 vùng đầu | nhanvien02: 10 vùng sau (không trùng nhau).
@@ -339,7 +417,7 @@ async function seedCustomersAndEmployeeZones(sellerUser01, sellerUser02) {
         representative_name: REPRESENTATIVE_NAMES[i],
         position: i % 2 === 0 ? "Giam doc" : "Truong phong kinh doanh",
         phone_number: customerPhone(i),
-        current_balance: `${((i + 1) * 750000).toFixed(2)}`,
+        current_balance: "0.00",
         lat: coords.lat,
         lng: coords.lng,
         is_approved: true,
@@ -733,6 +811,8 @@ async function main() {
       }),
     );
   }
+
+  await finalizeSeedCustomerBalances();
 
   const invoiceCount = await prisma.invoice.count();
   const activityCount = await prisma.activity.count();

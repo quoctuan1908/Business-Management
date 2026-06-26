@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { 
   Truck, DollarSign, CheckCircle2, RefreshCw, 
-  BarChart3, Calendar, ShieldCheck, MapPin
+  BarChart3, ShieldCheck, MapPin
 } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -14,7 +14,13 @@ import { usersApi } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DashboardDateFilter } from "@/components/statistics/dashboard-date-filter";
+import {
+  createDefaultDashboardTimeFilter,
+  dashboardTimeFilterToQuery,
+  formatDashboardPeriodLabel,
+  type DashboardTimeFilterState,
+} from "@/lib/dashboard-date-filter";
 
 interface ShipperStatisticProps {
   userId: number | string;
@@ -34,10 +40,11 @@ export function ShipperStatistic({ userId, userName }: ShipperStatisticProps) {
   const [monthlyStats, setMonthlyStats] = useState<any>(null);
   const [locations, setLocations] = useState<any[]>([]);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
-  const [selectedYear, setSelectedYear] = useState<string>("2026");
+  const [timeFilter, setTimeFilter] = useState<DashboardTimeFilterState>(createDefaultDashboardTimeFilter);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const dateQuery = useMemo(() => dashboardTimeFilterToQuery(timeFilter), [timeFilter]);
 
   const loadStats = useCallback(async () => {
     if (!userId || userId === "NaN") {
@@ -49,13 +56,23 @@ export function ShipperStatistic({ userId, userName }: ShipperStatisticProps) {
     setError(null);
     try {
       const safeId = typeof userId === 'string' ? encodeURIComponent(userId) : userId;
-      const monthParam = selectedMonth === "all" ? undefined : Number(selectedMonth);
-      const yearParam = Number(selectedYear);
+      const monthParam =
+        dateQuery.date || dateQuery.month === "all"
+          ? undefined
+          : Number(dateQuery.month);
+      const yearParam = dateQuery.date
+        ? undefined
+        : Number(dateQuery.year ?? new Date().getFullYear());
 
       const [overviewData, monthlyData, locationsData] = await Promise.all([
-        usersApi.getShipperOverviewStats(safeId),
-        usersApi.getShipperMonthlyStats(safeId, monthParam, yearParam),
-        usersApi.getLocationStats(safeId) // Tận dụng thông tin phân phối tỉnh thành sẵn có
+        usersApi.getShipperOverviewStats(safeId, dateQuery),
+        usersApi.getShipperMonthlyStats(
+          safeId,
+          monthParam,
+          yearParam,
+          dateQuery.date,
+        ),
+        usersApi.getLocationStats(safeId, dateQuery),
       ]);
 
       setOverview(overviewData);
@@ -66,7 +83,7 @@ export function ShipperStatistic({ userId, userName }: ShipperStatisticProps) {
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedMonth, selectedYear]);
+  }, [userId, dateQuery]);
 
   useEffect(() => {
     void loadStats();
@@ -107,32 +124,14 @@ export function ShipperStatistic({ userId, userName }: ShipperStatisticProps) {
           </h3>
           <p className="text-sm text-muted-foreground">
             Quản lý hành trình giao hàng, kiểm soát tiền thu hộ (COD) vật lý cầm về từ các đại lý.
+            <span className="ml-1 font-medium text-foreground">
+              (Kỳ: {formatDashboardPeriodLabel(timeFilter)})
+            </span>
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[110px] h-9">
-              <SelectValue placeholder="Tháng" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Cả năm</SelectItem>
-              {Array.from({ length: 12 }, (_, i) => (
-                <SelectItem key={i + 1} value={(i + 1).toString()}>Tháng {i + 1}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[90px] h-9">
-              <SelectValue placeholder="Năm" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="2025">2025</SelectItem>
-              <SelectItem value="2026">2026</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <DashboardDateFilter value={timeFilter} onChange={setTimeFilter} />
 
           <Button variant="outline" size="sm" onClick={() => void loadStats()} className="h-9">
             <RefreshCw className="h-4 w-4" />

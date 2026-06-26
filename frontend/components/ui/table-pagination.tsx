@@ -25,7 +25,7 @@ export function TablePagination({
   const end = Math.min(page * pageSize, totalItems);
 
   return (
-    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-muted-foreground">
         Hiển thị {start}–{end} / {totalItems}
       </p>
@@ -39,7 +39,7 @@ export function TablePagination({
           <ChevronLeft className="h-4 w-4" />
           Trước
         </Button>
-        <span className="min-w-[88px] text-center text-sm text-muted-foreground">
+        <span className="inline-block min-w-[88px] text-center text-sm text-muted-foreground tabular-nums">
           Trang {page} / {totalPages}
         </span>
         <Button

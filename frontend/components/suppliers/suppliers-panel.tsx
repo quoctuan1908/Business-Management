@@ -26,7 +26,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { ListTableShell } from "@/components/ui/list-table-shell";
 import { usePagination } from "@/hooks/use-pagination";
+import { listCol, listCell } from "@/lib/list-table-layout";
 import { matchesAnySearchField } from "@/lib/list-search";
 
 const emptyForm = {
@@ -195,36 +197,46 @@ export function SuppliersPanel() {
         ) : filteredSuppliers.length === 0 ? (
           <p className="text-sm text-muted-foreground">Không có kết quả phù hợp.</p>
         ) : (
-          <>
+          <ListTableShell
+            pagination={
+              <TablePagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+              />
+            }
+          >
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Tên</TableHead>
-                <TableHead>Loại hình</TableHead>
+                <TableHead className={listCol.id}>ID</TableHead>
+                <TableHead className={listCol.name}>Tên</TableHead>
+                <TableHead className={listCol.type}>Loại hình</TableHead>
                 <TableHead>Địa chỉ</TableHead>
-                <TableHead>Điện thoại</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead className={listCol.phone}>Điện thoại</TableHead>
+                <TableHead className={listCol.email}>Email</TableHead>
                 {isAdmin && (
-                  <TableHead className="text-right">Thao tác</TableHead>
+                  <TableHead className={listCol.actions}>Thao tác</TableHead>
                 )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedSuppliers.map((supplier) => (
                 <TableRow key={supplier.id}>
-                  <TableCell>{supplier.id}</TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className={listCell.nowrap}>{supplier.id}</TableCell>
+                  <TableCell className={`font-medium ${listCell.truncate}`}>
                     {supplier.supplierName}
                   </TableCell>
-                  <TableCell>{supplier.businessType}</TableCell>
-                  <TableCell className="max-w-[180px] truncate">
+                  <TableCell className={listCell.truncate}>{supplier.businessType}</TableCell>
+                  <TableCell className={listCell.truncate}>
                     {supplier.address}
                   </TableCell>
-                  <TableCell>{supplier.phoneNumber}</TableCell>
-                  <TableCell>{supplier.email}</TableCell>
+                  <TableCell className={listCell.nowrap}>{supplier.phoneNumber}</TableCell>
+                  <TableCell className={listCell.truncate}>{supplier.email}</TableCell>
                   {isAdmin && (
-                    <TableCell className="text-right">
+                    <TableCell className={listCell.actions}>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -245,14 +257,7 @@ export function SuppliersPanel() {
               ))}
             </TableBody>
           </Table>
-          <TablePagination
-            page={page}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            pageSize={pageSize}
-            onPageChange={setPage}
-          />
-          </>
+          </ListTableShell>
         )}
       </CardContent>
 

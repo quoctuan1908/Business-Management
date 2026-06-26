@@ -15,6 +15,7 @@ import {
   assertSellerStatsAccess,
   parseSellerScope,
 } from '@src/services/stats-access';
+import { parseStatsPeriodQuery } from '@src/common/utils/stats-period';
 import type { SellerScope } from '@src/repos/UserRepo';
 import { NextFunction } from 'express';
 
@@ -56,6 +57,18 @@ function resolveSellerScope(req: Req, res: Res): SellerScope {
   const scope = parseSellerScope(userId);
   assertSellerStatsAccess(sessionUser, scope);
   return scope;
+}
+
+function readSellerStatsQuery(req: Req) {
+  const period = parseStatsPeriodQuery(req.query);
+  const province = typeof req.query.province === 'string' ? req.query.province : undefined;
+  const ward = typeof req.query.ward === 'string' ? req.query.ward : undefined;
+  return { ...period, province, ward };
+}
+
+function sendStatsJson(res: Res, payload: unknown) {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.status(HttpStatusCodes.OK).json(payload);
 }
 
 function resolveOwnUserId(req: Req, res: Res): number {
@@ -217,11 +230,16 @@ async function getMonthlyStats(req: Req, res: Res) {
  */
 async function getLocationStats(req: Req, res: Res) {
   const scope = resolveSellerScope(req, res);
-  const { month, year, province ,ward } = req.query as Record<string, string>;
-  console.log(ward)
-  const stats = await UserService.getEmployeeLocationStats(scope, month, year, province ,ward);
-  console.log(stats)
-  res.status(HttpStatusCodes.OK).json(stats);
+  const { month, year, date, province, ward } = readSellerStatsQuery(req);
+  const stats = await UserService.getEmployeeLocationStats(
+    scope,
+    month ?? 'all',
+    year ?? 'all',
+    province,
+    ward,
+    date,
+  );
+  sendStatsJson(res, stats);
 }
 
 /**
@@ -240,9 +258,16 @@ async function getTopProducts(req: Req, res: Res) {
  */
 async function getStatusBreakdown(req: Req, res: Res) {
   const scope = resolveSellerScope(req, res);
-  const { month, year, province, ward } = req.query as Record<string, string>;
-  const stats = await UserService.getEmployeeStatusBreakdown(scope, month, year, province, ward);
-  res.status(HttpStatusCodes.OK).json(stats);
+  const { month, year, date, province, ward } = readSellerStatsQuery(req);
+  const stats = await UserService.getEmployeeStatusBreakdown(
+    scope,
+    month ?? 'all',
+    year ?? 'all',
+    province,
+    ward,
+    date,
+  );
+  sendStatsJson(res, stats);
 }
 
 /**
@@ -251,9 +276,16 @@ async function getStatusBreakdown(req: Req, res: Res) {
  */
 async function getRecentSalesTimeline(req: Req, res: Res) {
   const scope = resolveSellerScope(req, res);
-  const { month, year, province, ward } = req.query as Record<string, string>;
-  const stats = await UserService.getEmployeeRecentSalesTimeline(scope, month, year, province, ward);
-  res.status(HttpStatusCodes.OK).json(stats);
+  const { month, year, date, province, ward } = readSellerStatsQuery(req);
+  const stats = await UserService.getEmployeeRecentSalesTimeline(
+    scope,
+    month ?? 'all',
+    year ?? 'all',
+    province,
+    ward,
+    date,
+  );
+  sendStatsJson(res, stats);
 }
 
 /******************************************************************************
@@ -266,9 +298,16 @@ async function getRecentSalesTimeline(req: Req, res: Res) {
  */
 async function getSellerOverviewStats(req: Req, res: Res) {
   const scope = resolveSellerScope(req, res);
-  const { month, year, province, ward } = req.query as Record<string, string>;
-  const stats = await UserService.getSellerOverviewStats(scope, month, year, province, ward);
-  res.status(HttpStatusCodes.OK).json(stats);
+  const { month, year, date, province, ward } = readSellerStatsQuery(req);
+  const stats = await UserService.getSellerOverviewStats(
+    scope,
+    month ?? 'all',
+    year ?? 'all',
+    province,
+    ward,
+    date,
+  );
+  sendStatsJson(res, stats);
 }
 
 /**
@@ -305,8 +344,9 @@ async function getEmployeeTopDebtors(req: Req, res: Res) {
  */
 async function getShipperOverviewStats(req: Req, res: Res) {
   const userId = resolveOwnUserId(req, res);
-  const stats = await UserService.getShipperOverviewStats(userId);
-  res.status(HttpStatusCodes.OK).json(stats);
+  const { month, year, date } = parseStatsPeriodQuery(req.query);
+  const stats = await UserService.getShipperOverviewStats(userId, month, year, date);
+  sendStatsJson(res, stats);
 }
 
 /**
@@ -315,10 +355,11 @@ async function getShipperOverviewStats(req: Req, res: Res) {
  */
 async function getShipperMonthlyStats(req: Req, res: Res) {
   const { userId, month, year } = reqValidators.getMonthlyStats({ ...req.params, ...req.query });
+  const { date } = parseStatsPeriodQuery(req.query);
   const sessionUser = res.locals.sessionUser as ISessionUser;
   assertOwnUserStatsAccess(sessionUser, userId);
-  const stats = await UserService.getShipperMonthlyStats(userId, month, year);
-  res.status(HttpStatusCodes.OK).json(stats);
+  const stats = await UserService.getShipperMonthlyStats(userId, month, year, date);
+  sendStatsJson(res, stats);
 }
 
 /**

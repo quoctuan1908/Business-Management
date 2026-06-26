@@ -25,7 +25,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { ListTableShell } from "@/components/ui/list-table-shell";
 import { usePagination } from "@/hooks/use-pagination";
+import { listCol, listCell } from "@/lib/list-table-layout";
 import { EmployeeLocationsDialog } from "@/components/users/employee-locations-dialog";
 
 // Thêm cấu trúc bankAccount mặc định là null hoặc object trống
@@ -242,39 +244,49 @@ export function UsersPanel() {
         {loading ? (
           <div className="flex justify-center py-10"><RefreshCw className="animate-spin h-8 w-8 text-muted-foreground" /></div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
+          <ListTableShell
+            pagination={
+              <TablePagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+              />
+            }
+          >
+            <Table className="min-w-[1100px]">
               <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableHead className="font-bold">Mã NV</TableHead>
-                  <TableHead className="font-bold">Họ và Tên</TableHead>
+                  <TableHead className={`font-bold ${listCol.id}`}>Mã NV</TableHead>
+                  <TableHead className={`font-bold ${listCol.name}`}>Họ và Tên</TableHead>
                   <TableHead className="font-bold">Phòng ban</TableHead>
-                  <TableHead className="font-bold">Liên hệ</TableHead>
+                  <TableHead className={`font-bold ${listCol.email}`}>Liên hệ</TableHead>
                   <TableHead className="font-bold">Tài khoản lương</TableHead>
-                  <TableHead className="font-bold">Vai trò</TableHead>
+                  <TableHead className={`font-bold ${listCol.role}`}>Vai trò</TableHead>
                   <TableHead className="font-bold">Phân vùng</TableHead>
-                  <TableHead className="font-bold">Trạng thái</TableHead>
-                  <TableHead className="text-right font-bold">Thao tác</TableHead>
+                  <TableHead className={`font-bold ${listCol.status}`}>Trạng thái</TableHead>
+                  <TableHead className={`font-bold ${listCol.actions}`}>Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedUsers.length > 0 ? paginatedUsers.map((u) => (
                   <TableRow key={u.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-medium text-muted-foreground">#{u.id}</TableCell>
-                    <TableCell>
-                      <div className="font-semibold">{u.fullName}</div>
-                      <div className="text-xs text-muted-foreground italic">@{u.username}</div>
+                    <TableCell className={`font-medium text-muted-foreground ${listCell.nowrap}`}>#{u.id}</TableCell>
+                    <TableCell className={listCell.truncate}>
+                      <div className="truncate font-semibold">{u.fullName}</div>
+                      <div className="truncate text-xs text-muted-foreground italic">@{u.username}</div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className={listCell.truncate}>
                       <Badge variant="outline" className="gap-1 px-2 py-1">
                         <Building2 className="h-3 w-3" /> {u.department || "Chưa gán"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="text-sm flex items-center gap-1.5"><Mail className="h-3 w-3 text-muted-foreground" /> {u.email}</div>
-                      <div className="text-sm flex items-center gap-1.5"><Phone className="h-3 w-3 text-muted-foreground" /> {u.phoneNumber}</div>
+                    <TableCell className={listCell.truncate}>
+                      <div className="truncate text-sm flex items-center gap-1.5"><Mail className="h-3 w-3 shrink-0 text-muted-foreground" /> {u.email}</div>
+                      <div className="truncate text-sm flex items-center gap-1.5"><Phone className="h-3 w-3 shrink-0 text-muted-foreground" /> {u.phoneNumber}</div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className={listCell.truncate}>
                       {u.bankAccount ? (
                         <div className="text-sm">
                           <div className="font-medium flex items-center gap-1 text-slate-700">
@@ -315,7 +327,7 @@ export function UsersPanel() {
                         <UserCheck className="h-3 w-3" /> Đã duyệt
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className={listCell.actions}>
                       <div className="flex justify-end gap-1">
                         {canAssignZones(u.role) && (
                           <Button
@@ -351,14 +363,7 @@ export function UsersPanel() {
                 )}
               </TableBody>
             </Table>
-            <TablePagination
-              page={page}
-              totalPages={totalPages}
-              totalItems={totalItems}
-              pageSize={pageSize}
-              onPageChange={setPage}
-            />
-          </div>
+          </ListTableShell>
         )}
       </CardContent>
 

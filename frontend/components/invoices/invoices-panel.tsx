@@ -24,6 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListTableShell } from "@/components/ui/list-table-shell";
+import { listCol, listCell } from "@/lib/list-table-layout";
 
 const emptyForm = {
   id: 0,
@@ -136,22 +138,23 @@ export function InvoicesPanel() {
         {loading ? (
           <p className="text-sm text-muted-foreground">Đang tải...</p>
         ) : (
+          <ListTableShell>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Số tiền</TableHead>
-                <TableHead>Ngày</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
+                <TableHead className={listCol.id}>ID</TableHead>
+                <TableHead className={listCol.money}>Số tiền</TableHead>
+                <TableHead className={listCol.datetime}>Ngày</TableHead>
+                <TableHead className={listCol.actions}>Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {invoices.map((invoice) => (
                 <TableRow key={invoice.id}>
-                  <TableCell>{invoice.id}</TableCell>
-                  <TableCell>{formatMoney(invoice.totalAmount)}</TableCell>
-                  <TableCell>{formatDate(invoice.date)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className={listCell.nowrap}>{invoice.id}</TableCell>
+                  <TableCell className={listCell.money}>{formatMoney(invoice.totalAmount)}</TableCell>
+                  <TableCell className={listCell.nowrap}>{formatDate(invoice.date)}</TableCell>
+                  <TableCell className={listCell.actions}>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -171,6 +174,7 @@ export function InvoicesPanel() {
               ))}
             </TableBody>
           </Table>
+          </ListTableShell>
         )}
       </CardContent>
 

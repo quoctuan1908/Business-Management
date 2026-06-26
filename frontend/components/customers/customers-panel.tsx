@@ -34,7 +34,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { ListTableShell } from "@/components/ui/list-table-shell";
 import { usePagination } from "@/hooks/use-pagination";
+import { listCol, listCell } from "@/lib/list-table-layout";
 import { matchesAnySearchField } from "@/lib/list-search";
 import { FieldScanDialog } from "./customer-scan-dialog";
 
@@ -401,48 +403,58 @@ export function CustomersPanel() {
         ) : filteredCustomers.length === 0 ? (
           <p className="text-sm text-muted-foreground">Không có kết quả phù hợp.</p>
         ) : (
-          <>
-          <Table>
+          <ListTableShell
+            pagination={
+              <TablePagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+              />
+            }
+          >
+          <Table className="min-w-[1080px]">
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Công ty</TableHead>
-                <TableHead>Loại hình</TableHead>
+                <TableHead className={listCol.id}>ID</TableHead>
+                <TableHead className={listCol.name}>Công ty</TableHead>
+                <TableHead className={listCol.type}>Loại hình</TableHead>
                 <TableHead>Người đại diện</TableHead>
-                <TableHead>SĐT</TableHead>
-                <TableHead>Số dư</TableHead>
+                <TableHead className={listCol.phone}>SĐT</TableHead>
+                <TableHead className={listCol.balance}>Số dư</TableHead>
                 <TableHead>Địa điểm</TableHead>
-                <TableHead>Tọa độ</TableHead>
-                {isAdmin && <TableHead>Trạng thái</TableHead>}
-                <TableHead className="text-right">Thao tác</TableHead>
+                <TableHead className={listCol.coords}>Tọa độ</TableHead>
+                {isAdmin && <TableHead className={listCol.status}>Trạng thái</TableHead>}
+                <TableHead className={listCol.actions}>Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedCustomers.map((customer) => (
                 <TableRow key={customer.id}>
-                  <TableCell>{customer.id}</TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className={listCell.nowrap}>{customer.id}</TableCell>
+                  <TableCell className={`font-medium ${listCell.truncate}`}>
                     <button
                       type="button"
-                      className="text-left hover:underline"
+                      className="truncate text-left hover:underline"
                       onClick={() => openDetail(customer)}
                     >
                       {customer.companyName}
                     </button>
                   </TableCell>
-                  <TableCell>{customer.businessType}</TableCell>
-                  <TableCell>
+                  <TableCell className={listCell.truncate}>{customer.businessType}</TableCell>
+                  <TableCell className={listCell.truncate}>
                     {customer.representativeName}
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="block truncate text-xs text-muted-foreground">
                       {customer.position}
                     </span>
                   </TableCell>
-                  <TableCell>{customer.phoneNumber}</TableCell>
-                  <TableCell>{formatMoney(customer.currentBalance)}</TableCell>
-                  <TableCell className="max-w-[140px] truncate text-sm">
+                  <TableCell className={listCell.nowrap}>{customer.phoneNumber}</TableCell>
+                  <TableCell className={listCell.money}>{formatMoney(customer.currentBalance)}</TableCell>
+                  <TableCell className={`text-sm ${listCell.truncate}`}>
                     {locationMap[customer.locationId] ?? customer.locationId}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className={`text-xs text-muted-foreground ${listCell.nowrap}`}>
                     {customer.lat && customer.lng ? (
                       <span>{customer.lat}, {customer.lng}</span>
                     ) : (
@@ -462,7 +474,7 @@ export function CustomersPanel() {
                       )}
                     </TableCell>
                   )}
-                  <TableCell className="text-right whitespace-nowrap">
+                  <TableCell className={listCell.actions}>
                     {isAdmin && !customer.isApproved && (
                       <Button
                         variant="ghost"
@@ -506,14 +518,7 @@ export function CustomersPanel() {
               ))}
             </TableBody>
           </Table>
-          <TablePagination
-            page={page}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            pageSize={pageSize}
-            onPageChange={setPage}
-          />
-          </>
+          </ListTableShell>
         )}
       </CardContent>
 

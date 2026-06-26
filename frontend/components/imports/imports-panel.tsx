@@ -20,7 +20,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { ListTableShell } from "@/components/ui/list-table-shell";
 import { usePagination } from "@/hooks/use-pagination";
+import { listCol, listCell } from "@/lib/list-table-layout";
 import { matchesAnySearchField } from "@/lib/list-search";
 
 function formatDate(value: string) {
@@ -225,35 +227,45 @@ export function ImportsPanel() {
             Không có kết quả phù hợp.
           </p>
         ) : (
-          <>
+          <ListTableShell
+            pagination={
+              <TablePagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+              />
+            }
+          >
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Nhà cung cấp</TableHead>
-                <TableHead>Ngày tạo</TableHead>
+                <TableHead className={listCol.id}>ID</TableHead>
+                <TableHead className={listCol.name}>Nhà cung cấp</TableHead>
+                <TableHead className={listCol.datetime}>Ngày tạo</TableHead>
                 <TableHead>Nội dung</TableHead>
-                <TableHead>Số dòng</TableHead>
-                <TableHead>Tổng giá trị</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
+                <TableHead className={listCol.number}>Số dòng</TableHead>
+                <TableHead className={listCol.money}>Tổng giá trị</TableHead>
+                <TableHead className={listCol.actions}>Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedImports.map((record) => (
                 <TableRow key={record.id}>
-                  <TableCell>{record.id}</TableCell>
-                  <TableCell>
+                  <TableCell className={listCell.nowrap}>{record.id}</TableCell>
+                  <TableCell className={listCell.truncate}>
                     {record.supplierName ?? `#${record.supplierId}`}
                   </TableCell>
-                  <TableCell>{formatDate(record.importDate)}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">
+                  <TableCell className={listCell.nowrap}>{formatDate(record.importDate)}</TableCell>
+                  <TableCell className={listCell.truncate}>
                     {record.content}
                   </TableCell>
-                  <TableCell>{record.lineCount ?? 0}</TableCell>
-                  <TableCell>
+                  <TableCell className={listCell.number}>{record.lineCount ?? 0}</TableCell>
+                  <TableCell className={listCell.money}>
                     {formatMoney(record.totalAmount ?? 0)} đ
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className={listCell.actions}>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -276,14 +288,7 @@ export function ImportsPanel() {
               ))}
             </TableBody>
           </Table>
-          <TablePagination
-            page={page}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            pageSize={pageSize}
-            onPageChange={setPage}
-          />
-          </>
+          </ListTableShell>
         )}
       </CardContent>
 

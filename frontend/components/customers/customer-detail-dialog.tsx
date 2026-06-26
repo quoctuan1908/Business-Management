@@ -84,32 +84,21 @@ export function CustomerDetailDialog({
       const locs = await locationsApi.getAll();
       setLocations(locs);
 
-      if (canManageAccount) {
-        const [acc, statuses] = await Promise.all([
-          customersApi.getAccount(customerId),
-          orderStatusesApi.getAll(),
-        ]);
-        setAccount(acc);
-        setStatusMap(
-          Object.fromEntries(statuses.map((s) => [s.statusCode, s.statusName])),
-        );
-      } else {
-        const customer = await customersApi.getOne(customerId);
-        setAccount({
-          customer,
-          currentBalance: customer.currentBalance,
-          totalDebt: 0,
-          orders: [],
-        });
-        setStatusMap({});
-      }
+      const [acc, statuses] = await Promise.all([
+        customersApi.getAccount(customerId),
+        orderStatusesApi.getAll(),
+      ]);
+      setAccount(acc);
+      setStatusMap(
+        Object.fromEntries(statuses.map((s) => [s.statusCode, s.statusName])),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
       setAccount(null);
     } finally {
       setLoading(false);
     }
-  }, [customerId, canManageAccount]);
+  }, [customerId]);
 
   useEffect(() => {
     if (open && customerId) {
@@ -184,9 +173,7 @@ export function CustomerDetailDialog({
             <Tabs defaultValue="info" className="w-full">
               <TabsList>
                 <TabsTrigger value="info">Thông tin</TabsTrigger>
-                {canManageAccount && (
-                  <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
-                )}
+                <TabsTrigger value="orders">Đơn hàng & nợ</TabsTrigger>
               </TabsList>
 
               <TabsContent value="info" className="space-y-4 text-sm pt-2">
@@ -212,6 +199,10 @@ export function CustomerDetailDialog({
                     <InfoRow
                       label="Số dư hiện tại"
                       value={`${formatMoney(account!.currentBalance)} đ`}
+                    />
+                    <InfoRow
+                      label="Tổng nợ"
+                      value={`${formatMoney(account!.totalDebt)} đ`}
                     />
                     <InfoRow
                       label="Tọa độ"
@@ -246,7 +237,6 @@ export function CustomerDetailDialog({
                 </div>
               </TabsContent>
 
-              {canManageAccount && (
               <TabsContent value="orders" className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-4">
                   <div className="grid gap-1 text-sm">
@@ -263,10 +253,12 @@ export function CustomerDetailDialog({
                       </span>
                     </p>
                   </div>
+                  {canManageAccount && (
                   <Button size="sm" onClick={() => setPayDialogOpen(true)}>
                     <Banknote className="mr-2 h-4 w-4" />
                     Trả tiền
                   </Button>
+                  )}
                 </div>
 
                 {account!.orders.length === 0 ? (
@@ -314,7 +306,6 @@ export function CustomerDetailDialog({
                   </Table>
                 )}
               </TabsContent>
-              )}
             </Tabs>
           ) : (
             !loading &&
@@ -333,8 +324,8 @@ export function CustomerDetailDialog({
             <DialogTitle>Trả tiền</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Số tiền sẽ được phân bổ tự động vào các đơn chưa thanh toán hoặc
-            trả một phần, theo thứ tự ngày tạo đơn (cũ nhất trước).
+            Số tiền sẽ trừ nợ các đơn chưa thanh toán (đơn cũ trước), phần thừa
+            mới cộng vào số dư khách hàng.
           </p>
           <form className="grid gap-4" onSubmit={(e) => void handleReceivePayment(e)}>
             <div className="grid gap-2">

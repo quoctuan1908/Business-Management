@@ -26,7 +26,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { ListTableShell } from "@/components/ui/list-table-shell";
 import { usePagination } from "@/hooks/use-pagination";
+import { listCol, listCell } from "@/lib/list-table-layout";
 import { matchesAnySearchField } from "@/lib/list-search";
 
 const emptyForm = {
@@ -181,30 +183,40 @@ export function ProductsPanel() {
         ) : filteredProducts.length === 0 ? (
           <p className="text-sm text-muted-foreground">Không có kết quả phù hợp.</p>
         ) : (
-          <>
+          <ListTableShell
+            pagination={
+              <TablePagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+              />
+            }
+          >
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
+                <TableHead className={listCol.id}>ID</TableHead>
                 <TableHead>Tên sản phẩm</TableHead>
-                <TableHead>Đơn giá</TableHead>
-                <TableHead>Tồn kho</TableHead>
+                <TableHead className={listCol.money}>Đơn giá</TableHead>
+                <TableHead className={listCol.number}>Tồn kho</TableHead>
                 {isAdmin && (
-                  <TableHead className="text-right">Thao tác</TableHead>
+                  <TableHead className={listCol.actions}>Thao tác</TableHead>
                 )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedProducts.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell>{product.id}</TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className={listCell.nowrap}>{product.id}</TableCell>
+                  <TableCell className={`font-medium ${listCell.truncate}`}>
                     {product.productName}
                   </TableCell>
-                  <TableCell>{formatMoney(product.unitPrice)}</TableCell>
-                  <TableCell>{product.stockQuantity}</TableCell>
+                  <TableCell className={listCell.money}>{formatMoney(product.unitPrice)}</TableCell>
+                  <TableCell className={listCell.number}>{product.stockQuantity}</TableCell>
                   {isAdmin && (
-                    <TableCell className="text-right">
+                    <TableCell className={listCell.actions}>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -225,14 +237,7 @@ export function ProductsPanel() {
               ))}
             </TableBody>
           </Table>
-          <TablePagination
-            page={page}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            pageSize={pageSize}
-            onPageChange={setPage}
-          />
-          </>
+          </ListTableShell>
         )}
       </CardContent>
 

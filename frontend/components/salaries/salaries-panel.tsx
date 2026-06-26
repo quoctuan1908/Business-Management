@@ -35,6 +35,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListTableShell } from "@/components/ui/list-table-shell";
+import { listCol, listCell } from "@/lib/list-table-layout";
 import { Badge } from "@/components/ui/badge";
 
 const emptyForm = {
@@ -340,38 +342,39 @@ export function SalariesPanel() {
             <p className="text-xs mt-1">Bạn có thể bấm nút "Tính lương tự động" để quét và tạo nhanh bảng lương hàng loạt.</p>
           </div>
         ) : (
+          <ListTableShell>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nhân viên</TableHead>
-                <TableHead>Kỳ lương</TableHead>
-                <TableHead>Lương cơ bản</TableHead>
-                <TableHead>Hoa hồng</TableHead>
-                <TableHead>Thưởng</TableHead>
-                <TableHead>Tổng cộng</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
+                <TableHead className={listCol.name}>Nhân viên</TableHead>
+                <TableHead className={listCol.date}>Kỳ lương</TableHead>
+                <TableHead className={listCol.money}>Lương cơ bản</TableHead>
+                <TableHead className={listCol.money}>Hoa hồng</TableHead>
+                <TableHead className={listCol.money}>Thưởng</TableHead>
+                <TableHead className={listCol.money}>Tổng cộng</TableHead>
+                <TableHead className={listCol.status}>Trạng thái</TableHead>
+                <TableHead className={listCol.actions}>Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredSalaries.map((s) => (
                 <TableRow key={s.id}>
-                  <TableCell>
+                  <TableCell className={listCell.truncate}>
                     <button
                       onClick={() => showUserProfile(s.user)}
-                      className="font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors text-left"
+                      className="truncate font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors text-left"
                     >
                       {s.user?.fullName || s.user?.username || `User #${s.userId}`}
                     </button>
-                    <span className="block text-xs text-muted-foreground italic">
+                    <span className="block truncate text-xs text-muted-foreground italic">
                       @{s.user?.username}
                     </span>
                   </TableCell>
-                  <TableCell className="font-medium">{`${s.month}/${s.year}`}</TableCell>
-                  <TableCell>{formatCurrency(s.baseSalary)}</TableCell>
-                  <TableCell>{formatCurrency(s.commission)}</TableCell>
-                  <TableCell>{formatCurrency(s.bonus)}</TableCell>
-                  <TableCell className="font-bold text-green-700">
+                  <TableCell className={`font-medium ${listCell.nowrap}`}>{`${s.month}/${s.year}`}</TableCell>
+                  <TableCell className={listCell.money}>{formatCurrency(s.baseSalary)}</TableCell>
+                  <TableCell className={listCell.money}>{formatCurrency(s.commission)}</TableCell>
+                  <TableCell className={listCell.money}>{formatCurrency(s.bonus)}</TableCell>
+                  <TableCell className={`font-bold text-green-700 ${listCell.money}`}>
                     {formatCurrency(s.baseSalary + s.commission + s.bonus)}
                   </TableCell>
                   
@@ -387,7 +390,7 @@ export function SalariesPanel() {
                     )}
                   </TableCell>
 
-                  <TableCell className="text-right">
+                  <TableCell className={listCell.actions}>
                     <div className="flex justify-end gap-1">
                       {!(s as any).isPaid && (
                         <Button 
@@ -412,6 +415,7 @@ export function SalariesPanel() {
               ))}
             </TableBody>
           </Table>
+          </ListTableShell>
         )}
       </CardContent>
 

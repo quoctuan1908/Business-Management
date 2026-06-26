@@ -456,6 +456,32 @@ export const employeeLocationsApi = {
     ).then((d) => d.assignments),
 };
 
+type StatsPeriodOptions = {
+  month?: string;
+  year?: string;
+  date?: string;
+  province?: string;
+  ward?: string;
+};
+
+function buildStatsQueryString(options?: StatsPeriodOptions) {
+  const params = new URLSearchParams();
+  if (options?.date) {
+    params.set("date", options.date);
+  } else {
+    if (options?.month) params.set("month", options.month);
+    if (options?.year) params.set("year", options.year);
+  }
+  if (options?.province) params.set("province", options.province);
+  if (options?.ward) params.set("ward", options.ward);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+function statsRequest<T>(path: string) {
+  return request<T>(path, { cache: "no-store" });
+}
+
 export const usersApi = {
   getAll: () =>
     request<{ users: UserPublic[] }>("/users/all").then((d) => d.users),
@@ -495,44 +521,20 @@ export const usersApi = {
     return request<any>(`/users/stats/monthly/${userId}${queryString}`);
   },
 
-  getLocationStats: (userId: number | string, options?: { month?: string; year?: string; province?: string, ward?: string }) => {
-    const params = new URLSearchParams();
-    if (options?.month) params.append("month", options.month);
-    if (options?.year) params.append("year", options.year);
-    if (options?.province) params.append("province", options.province);
-    const queryString = params.toString() ? `?${params.toString()}` : "";
-    return request<any>(`/users/stats/locations/${userId}${queryString}`);
-  },
+  getLocationStats: (userId: number | string, options?: StatsPeriodOptions) =>
+    statsRequest<any>(`/users/stats/locations/${userId}${buildStatsQueryString(options)}`),
 
   getTopProducts: (userId: number | string) => 
     request<any>(`/users/stats/top-products/${userId}`),
 
-  getStatusBreakdown: (userId: number | string, options?: { month?: string; year?: string; province?: string, ward?: string  }) => {
-    const params = new URLSearchParams();
-    if (options?.month) params.append("month", options.month);
-    if (options?.year) params.append("year", options.year);
-    if (options?.province) params.append("province", options.province);
-    const queryString = params.toString() ? `?${params.toString()}` : "";
-    return request<any>(`/users/stats/status-breakdown/${userId}${queryString}`);
-  },
+  getStatusBreakdown: (userId: number | string, options?: StatsPeriodOptions) =>
+    statsRequest<any>(`/users/stats/status-breakdown/${userId}${buildStatsQueryString(options)}`),
 
-  getRecentSalesTimeline: (userId: number | string, options?: { month?: string; year?: string; province?: string, ward?: string  }) => {
-    const params = new URLSearchParams();
-    if (options?.month) params.append("month", options.month);
-    if (options?.year) params.append("year", options.year);
-    if (options?.province) params.append("province", options.province);
-    const queryString = params.toString() ? `?${params.toString()}` : "";
-    return request<any>(`/users/stats/recent-sales/${userId}${queryString}`);
-  },
+  getRecentSalesTimeline: (userId: number | string, options?: StatsPeriodOptions) =>
+    statsRequest<any>(`/users/stats/recent-sales/${userId}${buildStatsQueryString(options)}`),
 
-  getSellerOverviewStats: (userId: number | string, options?: { month?: string; year?: string; province?: string, ward?: string }) => {
-    const params = new URLSearchParams();
-    if (options?.month) params.append("month", options.month);
-    if (options?.year) params.append("year", options.year);
-    if (options?.province) params.append("province", options.province);
-    const queryString = params.toString() ? `?${params.toString()}` : "";
-    return request<any>(`/users/stats/seller/overview/${userId}${queryString}`);
-  },
+  getSellerOverviewStats: (userId: number | string, options?: StatsPeriodOptions) =>
+    statsRequest<any>(`/users/stats/seller/overview/${userId}${buildStatsQueryString(options)}`),
 
   getSellerMonthlyStats: (userId: number | string, month?: number, year?: number) => {
     const params = new URLSearchParams();
@@ -549,15 +551,19 @@ export const usersApi = {
     return request<any>(`/users/stats/seller/top-debtors/${userId}${queryString}`);
   },
   
-  getShipperOverviewStats: (userId: number | string) => 
-    request<any>(`/users/stats/shipper/overview/${userId}`),
+  getShipperOverviewStats: (userId: number | string, options?: StatsPeriodOptions) =>
+    statsRequest<any>(`/users/stats/shipper/overview/${userId}${buildStatsQueryString(options)}`),
 
-  getShipperMonthlyStats: (userId: number | string, month?: number, year?: number) => {
+  getShipperMonthlyStats: (userId: number | string, month?: number, year?: number, date?: string) => {
     const params = new URLSearchParams();
-    if (month !== undefined) params.append("month", month.toString());
-    if (year !== undefined) params.append("year", year.toString());
+    if (date) {
+      params.set("date", date);
+    } else {
+      if (month !== undefined) params.set("month", month.toString());
+      if (year !== undefined) params.set("year", year.toString());
+    }
     const queryString = params.toString() ? `?${params.toString()}` : "";
-    return request<any>(`/users/stats/shipper/monthly/${userId}${queryString}`);
+    return statsRequest<any>(`/users/stats/shipper/monthly/${userId}${queryString}`);
   },
 
   getMapStatus: (date: string) => {

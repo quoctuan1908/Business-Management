@@ -45,9 +45,11 @@ import {
 } from "@/components/ui/table";
 
 import { TablePagination } from "@/components/ui/table-pagination";
+import { ListTableShell } from "@/components/ui/list-table-shell";
 
 import { usePagination } from "@/hooks/use-pagination";
 
+import { listCol, listCell } from "@/lib/list-table-layout";
 import { matchesAnySearchField } from "@/lib/list-search";
 
 
@@ -56,6 +58,10 @@ function formatDate(value: string) {
 
   return new Date(value).toLocaleString("vi-VN");
 
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("vi-VN").format(value);
 }
 
 
@@ -114,6 +120,17 @@ function matchesDateFilter(
 
 
 
+function matchesDebtFilter(
+  activity: Activity,
+  filterDebt: "all" | "debt" | "paid",
+) {
+  if (filterDebt === "all") return true;
+  if (!activity.invoiceId) return false;
+  const remaining = activity.remaining ?? 0;
+  if (filterDebt === "debt") return remaining > 0;
+  return remaining <= 0;
+}
+
 export function ActivitiesPanel() {
   const { user, isAdmin } = useAuth();
 
@@ -128,6 +145,8 @@ export function ActivitiesPanel() {
   const [orderStatuses, setOrderStatuses] = useState<OrderStatus[]>([]);
 
   const [filterStatus, setFilterStatus] = useState("all");
+
+  const [filterDebt, setFilterDebt] = useState<"all" | "debt" | "paid">("all");
 
   const [filterFrom, setFilterFrom] = useState("");
 
@@ -177,7 +196,8 @@ export function ActivitiesPanel() {
           filterFrom,
           filterTo,
         );
-        if (!statusMatch || !dateMatch) return false;
+        const debtMatch = matchesDebtFilter(activity, filterDebt);
+        if (!statusMatch || !dateMatch || !debtMatch) return false;
 
         return matchesAnySearchField(
           [
@@ -197,6 +217,7 @@ export function ActivitiesPanel() {
     [
       activities,
       filterStatus,
+      filterDebt,
       filterFrom,
       filterTo,
       searchQuery,
@@ -206,7 +227,7 @@ export function ActivitiesPanel() {
     ],
   );
 
-  const filterKey = `${filterStatus}|${filterFrom}|${filterTo}|${searchQuery}`;
+  const filterKey = `${filterStatus}|${filterDebt}|${filterFrom}|${filterTo}|${searchQuery}`;
 
   const {
     page,
@@ -305,6 +326,8 @@ export function ActivitiesPanel() {
 
     setFilterStatus("all");
 
+    setFilterDebt("all");
+
     setFilterFrom("");
 
     setFilterTo("");
@@ -316,7 +339,11 @@ export function ActivitiesPanel() {
 
 
   const hasActiveFilters =
-    filterStatus !== "all" || filterFrom !== "" || filterTo !== "" || searchQuery.trim() !== "";
+    filterStatus !== "all" ||
+    filterDebt !== "all" ||
+    filterFrom !== "" ||
+    filterTo !== "" ||
+    searchQuery.trim() !== "";
 
 
 
@@ -462,10 +489,26 @@ export function ActivitiesPanel() {
             </SelectContent>
           </Select>
 
+          <Select
+            value={filterDebt}
+            onValueChange={(v) => setFilterDebt(v as "all" | "debt" | "paid")}
+          >
+            <SelectTrigger
+              id="filter-debt"
+              className="h-8 w-[150px] bg-background text-xs"
+            >
+              <SelectValue placeholder="Công nợ" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả công nợ</SelectItem>
+              <SelectItem value="debt">Còn nợ</SelectItem>
+              <SelectItem value="paid">Đã trả đủ</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Input
             id="filter-from"
             type="date"
-            title="Lọc từ ngày"
             value={filterFrom}
             onChange={(e) => setFilterFrom(e.target.value)}
             className="h-8 w-[140px] bg-background text-xs"
@@ -534,29 +577,42 @@ export function ActivitiesPanel() {
             Không có kết quả phù hợp.
           </p>
         ) : (
-          <>
-            <Table>
+          <ListTableShell
+            pagination={
+              <TablePagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+              />
+            }
+          >
+            <Table className="min-w-[960px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[60px]">ID</TableHead>
-                  <TableHead>Khách hàng</TableHead>
-                  <TableHead className="w-[90px]">Hóa đơn</TableHead>
-                  <TableHead className="w-[120px]">Trạng thái</TableHead>
-                  <TableHead className="w-[150px]">Ngày tạo</TableHead>
+                  <TableHead className={listCol.id}>ID</TableHead>
+                  <TableHead className={listCol.name}>Khách hàng</TableHead>
+                  <TableHead className={listCol.invoice}>Hóa đơn</TableHead>
+                  <TableHead className={listCol.status}>Trạng thái</TableHead>
+                  <TableHead className={listCol.payment}>Thanh toán</TableHead>
+                  <TableHead className={listCol.money}>Tổng đơn</TableHead>
+                  <TableHead className={listCol.money}>Đã thanh toán</TableHead>
+                  <TableHead className={listCol.datetime}>Ngày tạo</TableHead>
                   <TableHead>Nội dung</TableHead>
-                  <TableHead className="w-[120px]">Thao tác</TableHead>
+                  <TableHead className={listCol.actions}>Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedActivities.map((activity) => (
                   <TableRow key={activity.id}>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className={`text-muted-foreground ${listCell.nowrap}`}>
                       {activity.id}
                     </TableCell>
-                    <TableCell className="max-w-[180px] truncate text-sm">
+                    <TableCell className={`text-sm ${listCell.truncate}`}>
                       {customerMap[activity.customerId] ?? `#${activity.customerId}`}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className={listCell.nowrap}>
                       {activity.invoiceId ? `#${activity.invoiceId}` : "—"}
                     </TableCell>
                     <TableCell>
@@ -564,13 +620,28 @@ export function ActivitiesPanel() {
                         {statusMap[activity.status] ?? activity.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="text-xs">
+                      {activity.invoiceId
+                        ? activity.paymentStatusLabel ?? activity.paymentStatus
+                        : "—"}
+                    </TableCell>
+                    <TableCell className={listCell.money}>
+                      {activity.invoiceId && activity.invoiceTotal != null
+                        ? `${formatMoney(activity.invoiceTotal)} đ`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className={`${listCell.money} font-medium text-emerald-700`}>
+                      {activity.invoiceId && activity.paidTotal != null
+                        ? `${formatMoney(activity.paidTotal)} đ`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className={`text-sm ${listCell.nowrap}`}>
                       {formatDate(activity.activityDate)}
                     </TableCell>
-                    <TableCell className="max-w-[220px] truncate text-sm">
+                    <TableCell className={`text-sm ${listCell.truncate}`}>
                       {activity.content}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className={listCell.actions}>
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
@@ -607,15 +678,7 @@ export function ActivitiesPanel() {
                 ))}
               </TableBody>
             </Table>
-
-            <TablePagination
-              page={page}
-              totalPages={totalPages}
-              totalItems={totalItems}
-              pageSize={pageSize}
-              onPageChange={setPage}
-            />
-          </>
+          </ListTableShell>
         )}
       </CardContent>
 

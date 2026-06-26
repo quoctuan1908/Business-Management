@@ -190,6 +190,7 @@ export function ActivityDetailDialog({
     return computePaymentPreview(
       paymentSummary.invoiceTotal,
       paymentSummary.customerBalance,
+      paymentSummary.customerDebtOtherOrders,
       pendingPayments,
       useBalanceOnComplete,
     );
@@ -792,12 +793,40 @@ export function ActivityDetailDialog({
                     </span>
                   </p>
                   <p>
-                    <span className="text-muted-foreground">Còn lại: </span>
+                    <span className="text-muted-foreground">Còn lại (đơn này): </span>
                     <span className="font-medium">
                       {formatMoney(
                         isProcessing && paymentPreview
                           ? paymentPreview.remaining
                           : paymentSummary.remaining,
+                      )}{" "}
+                      đ
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">
+                      Nợ các đơn khác:{" "}
+                    </span>
+                    <span className="font-medium text-amber-700">
+                      {formatMoney(
+                        isProcessing && paymentPreview
+                          ? paymentSummary.customerDebtOtherOrders
+                          : paymentSummary.customerDebtOtherOrders,
+                      )}{" "}
+                      đ
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">
+                      {isProcessing
+                        ? "Tổng nợ KH sau HT (dự kiến): "
+                        : "Tổng nợ KH: "}
+                    </span>
+                    <span className="font-medium text-destructive">
+                      {formatMoney(
+                        isProcessing && paymentPreview
+                          ? paymentPreview.projectedCustomerTotalDebt
+                          : paymentSummary.customerTotalDebt,
                       )}{" "}
                       đ
                     </span>
@@ -837,9 +866,16 @@ export function ActivityDetailDialog({
                               <TableCell>{formatMoney(p.paidAmount)} đ</TableCell>
                               <TableCell>
                                 {p.isBalance ? "Số dư khách hàng" : p.method}
+                                {p.note ? (
+                                  <span className="block text-[10px] text-muted-foreground">
+                                    {p.note}
+                                  </span>
+                                ) : null}
                               </TableCell>
                               <TableCell className="text-right">
-                                {!p.isBalance && (
+                                {!p.isBalance &&
+                                  !p.clientId.includes("_other") &&
+                                  !p.clientId.includes("_excess") && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -867,8 +903,9 @@ export function ActivityDetailDialog({
                 {isProcessing && paymentSummary.canRecordPayment && (
                   <div className="space-y-3 border-t pt-3">
                     <p className="text-xs text-muted-foreground">
-                      Thêm các hình thức thanh toán (chưa lưu). Thu vượt tổng đơn
-                      sẽ cộng phần dư vào số dư khách hàng khi hoàn thành.
+                      Thêm các hình thức thanh toán (chưa lưu). Tiền thu sẽ trừ
+                      nợ đơn này trước, sau đó các đơn còn nợ khác (cũ trước);
+                      phần thừa mới cộng vào số dư khi hoàn thành.
                     </p>
                     {paymentSummary.customerBalance > 0 && (
                       <label className="flex items-center gap-2 text-sm">
@@ -879,11 +916,12 @@ export function ActivityDetailDialog({
                             setUseBalanceOnComplete(e.target.checked)
                           }
                         />
-                        Khi hoàn thành: dùng số dư khách hàng trước (tối đa{" "}
+                        Khi hoàn thành: dùng số dư trừ nợ các đơn cũ trước, sau đó
+                        đơn này (tối đa{" "}
                         {formatMoney(
                           Math.min(
                             paymentSummary.customerBalance,
-                            paymentSummary.invoiceTotal,
+                            paymentSummary.customerTotalDebt,
                           ),
                         )}{" "}
                         đ)

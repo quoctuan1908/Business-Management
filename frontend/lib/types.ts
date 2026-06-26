@@ -46,6 +46,8 @@ export interface PaymentSummary {
   paidTotal: number;
   remaining: number;
   customerBalance: number;
+  customerTotalDebt: number;
+  customerDebtOtherOrders: number;
   paymentStatus: PaymentStatus;
   paymentStatusLabel: string;
   canRecordPayment: boolean;
@@ -77,6 +79,11 @@ export interface Activity {
 
   updatedAt: string;
 
+  /** Chỉ có khi lấy danh sách hoạt động */
+  invoiceTotal?: number;
+  paidTotal?: number;
+  remaining?: number;
+  paymentStatusLabel?: string;
 }
 
 

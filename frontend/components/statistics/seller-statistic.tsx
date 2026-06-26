@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { 
   Activity, DollarSign, TrendingUp, MapPin,
   RefreshCw, Percent, BarChart3, PieChart as PieIcon, 
-  Calendar, Users, Clock, AlertCircle
+  Users, Clock, AlertCircle
 } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -16,6 +16,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DashboardDateFilter } from "@/components/statistics/dashboard-date-filter";
+import {
+  createDefaultDashboardTimeFilter,
+  dashboardTimeFilterToQuery,
+  formatDashboardPeriodLabel,
+  type DashboardTimeFilterState,
+} from "@/lib/dashboard-date-filter";
 
 interface SellerStatisticProps {
   userId: number | string;
@@ -73,8 +80,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
   const [availableProvinces, setAvailableProvinces] = useState<string[]>([]);
   const [availableWards, setAvailableWards] = useState<string[]>([]);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
-  const [selectedYear, setSelectedYear] = useState<string>("2026");
+  const [timeFilter, setTimeFilter] = useState<DashboardTimeFilterState>(createDefaultDashboardTimeFilter);
   const [selectedProvince, setSelectedProvince] = useState<string>("all");
   const [selectedWard, setSelectedWard] = useState<string>("all");
   
@@ -86,7 +92,12 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
       if (!userId || userId === "NaN") return;
       try {
         const safeId = typeof userId === 'string' ? encodeURIComponent(userId) : userId;
-        const data = await usersApi.getLocationStats(safeId, { month: "all", year: "2026", province: "all", ward: "all" });
+        const data = await usersApi.getLocationStats(safeId, {
+          month: "all",
+          year: timeFilter.year,
+          province: "all",
+          ward: "all",
+        });
         const locArray = extractArray(data, 'locations');
         setMasterLocations(locArray);
         
@@ -97,7 +108,9 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
       }
     }
     void initMasterFilters();
-  }, [userId]);
+  }, [userId, timeFilter.year]);
+
+  const dateQuery = useMemo(() => dashboardTimeFilterToQuery(timeFilter), [timeFilter]);
 
   useEffect(() => {
     if (masterLocations.length > 0) {
@@ -125,10 +138,9 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
     try {
       const safeId = typeof userId === 'string' ? encodeURIComponent(userId) : userId;
       const params = {
-        month: selectedMonth,
-        year: selectedYear,
+        ...dateQuery,
         province: selectedProvince,
-        ward: selectedWard
+        ward: selectedWard,
       };
 
       const [overviewData, locationsData, statusData, salesData, debtorsData] = await Promise.all([
@@ -150,7 +162,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedMonth, selectedYear, selectedProvince, selectedWard]);
+  }, [userId, dateQuery, selectedProvince, selectedWard]);
 
   useEffect(() => {
     void loadStats();
@@ -235,6 +247,9 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
           </h3>
           <p className="text-sm text-muted-foreground">
             Xem danh sách hợp đồng mang về, tiến độ dòng tiền thu hồi và quản lý rủi ro công nợ khách hàng.
+            <span className="ml-1 font-medium text-foreground">
+              (Kỳ: {formatDashboardPeriodLabel(timeFilter)})
+            </span>
           </p>
         </div>
         
@@ -271,33 +286,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             </Select>
           </div>
 
-          <div className="flex items-center gap-1.5 border rounded-md px-2.5 py-1.5 bg-background h-9 text-xs text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            <span className="font-medium hidden sm:inline">Thời gian:</span>
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="border-0 p-0 h-auto w-[80px] focus:ring-0 shadow-none text-foreground font-semibold">
-                <SelectValue placeholder="Tháng" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Cả năm</SelectItem>
-                {Array.from({ length: 12 }, (_, i) => (
-                  <SelectItem key={i + 1} value={(i + 1).toString()}>Tháng {i + 1}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <span className="text-muted-foreground/40">/</span>
-
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="border-0 p-0 h-auto w-[55px] focus:ring-0 shadow-none text-foreground font-semibold">
-                <SelectValue placeholder="Năm" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2025">2025</SelectItem>
-                <SelectItem value="2026">2026</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <DashboardDateFilter value={timeFilter} onChange={setTimeFilter} />
 
           <Button variant="outline" size="sm" onClick={() => void loadStats()} className="h-9 w-9 p-0">
             <RefreshCw className="h-4 w-4" />
@@ -344,7 +333,6 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             <CardContent className="p-6 flex items-center justify-between space-y-0">
               <div className="space-y-1 w-full">
                 <p className="text-sm font-medium text-muted-foreground">Tài chính kỳ bộ lọc</p>
-                
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-[11px] text-muted-foreground font-medium">Nợ phát sinh:</span>
                   <span className="text-xl font-bold text-red-600">
@@ -441,6 +429,9 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
               <Users className="h-5 w-5 text-amber-500" /> Theo dõi số dư & Công nợ Khách hàng
             </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Công nợ tích lũy theo toàn bộ đơn hàng (không giới hạn theo kỳ lọc).
+            </p>
           </CardHeader>
           <CardContent>
             {debtors.length === 0 ? (

@@ -119,7 +119,7 @@ const customerRouter = Router();
 customerRouter.get(Paths.Customers.Get, auth, CustomerRoutes.getAll);
 customerRouter.get(Paths.Customers.GetPendingApproval, ...adminOnly, CustomerRoutes.getPendingApproval);
 customerRouter.get(Paths.Customers.GetOne, auth, CustomerRoutes.getOne);
-customerRouter.get(Paths.Customers.Account, ...adminOnly, CustomerRoutes.getAccount);
+customerRouter.get(Paths.Customers.Account, auth, CustomerRoutes.getAccount);
 customerRouter.post(Paths.Customers.ReceivePayment, ...adminOnly, CustomerRoutes.receivePayment);
 customerRouter.post(Paths.Customers.Add, auth, CustomerRoutes.add);
 customerRouter.put(Paths.Customers.Update, ...adminOnly, CustomerRoutes.update);

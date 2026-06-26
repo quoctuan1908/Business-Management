@@ -15,12 +15,24 @@ import ActivityRepo from '@src/repos/ActivityRepo';
 import PaymentRepo from '@src/repos/PaymentRepo';
 import { toPayment } from '@src/repos/common/mappers';
 import prisma from '@src/repos/common/prisma';
+import { computeCustomerTotalDebt } from '@src/services/customer-debt';
 
 type Tx = Prisma.TransactionClient;
 
 export interface ISettlePaymentsOptions {
   pendingPayments: IPaymentRecordInput[];
   applyCustomerBalance?: boolean;
+}
+
+export interface IAllocatePaymentResult {
+  allocations: { activityId: number; paidAmount: number }[];
+  excessToBalance: number;
+}
+
+export interface IAllocatePaymentOptions {
+  /** Ưu tiên trừ nợ đơn này trước, sau đó các đơn còn lại theo thứ tự cũ → mới. */
+  priorityActivityId?: number;
+  paymentDate?: Date;
 }
 
 async function getInvoiceTotal(
@@ -90,16 +102,108 @@ function rejectIfProcessingDeferred(activityId: number) {
   });
 }
 
-async function applyCustomerBalanceInternal(
+async function getInvoicedActivitiesForCustomer(customerId: number, tx: Tx) {
+  return tx.activity.findMany({
+    where: {
+      customer_id: customerId,
+      invoice_id: { not: null },
+    },
+    include: { invoice: true },
+    orderBy: [{ created_at: 'asc' }, { activity_id: 'asc' }],
+  });
+}
+
+async function getOrderRemaining(activityId: number, tx: Tx): Promise<number> {
+  const invoiceTotal = await getInvoiceTotal(activityId, tx);
+  const paidTotal = await sumPayments(activityId, tx);
+  return Math.max(0, invoiceTotal - paidTotal);
+}
+
+function orderActivitiesWithPriority<T extends { activity_id: number }>(
+  activities: T[],
+  priorityActivityId?: number,
+): T[] {
+  if (!priorityActivityId) return activities;
+  const priority = activities.find((a) => a.activity_id === priorityActivityId);
+  const rest = activities.filter((a) => a.activity_id !== priorityActivityId);
+  return priority ? [priority, ...rest] : activities;
+}
+
+async function recordPaymentToOrder(
   activityId: number,
+  paidAmount: number,
+  method: string,
+  paymentDate: Date,
+  tx: Tx,
+): Promise<void> {
+  if (paidAmount <= 0) return;
+  const remaining = await getOrderRemaining(activityId, tx);
+  const toOrder = Math.min(paidAmount, remaining);
+  if (toOrder <= 0) return;
+
+  await tx.payment.create({
+    data: {
+      activity_id: activityId,
+      paid_amount: toOrder,
+      payment_date: paymentDate,
+      method,
+    },
+  });
+}
+
+/**
+ * Phân bổ tiền vào các đơn còn nợ (giống module khách hàng).
+ * Tiền thừa sau khi trừ hết nợ mới cộng vào số dư.
+ */
+export async function allocateCustomerPayment(
+  customerId: number,
+  amount: number,
+  method: string,
+  tx: Tx,
+  options?: IAllocatePaymentOptions,
+): Promise<IAllocatePaymentResult> {
+  if (amount <= 0) {
+    return { allocations: [], excessToBalance: 0 };
+  }
+
+  const paymentDate = options?.paymentDate ?? new Date();
+  let left = amount;
+  const allocations: IAllocatePaymentResult['allocations'] = [];
+
+  const activities = await getInvoicedActivitiesForCustomer(customerId, tx);
+  const ordered = orderActivitiesWithPriority(
+    activities,
+    options?.priorityActivityId,
+  );
+
+  for (const act of ordered) {
+    if (left <= 0) break;
+
+    const remaining = await getOrderRemaining(act.activity_id, tx);
+    if (remaining <= 0) continue;
+
+    const pay = Math.min(left, remaining);
+    await recordPaymentToOrder(act.activity_id, pay, method, paymentDate, tx);
+    await syncActivityPaymentStatus(act.activity_id, tx);
+    left -= pay;
+    allocations.push({ activityId: act.activity_id, paidAmount: pay });
+  }
+
+  if (left > 0) {
+    await tx.customer.update({
+      where: { customer_id: customerId },
+      data: { current_balance: { increment: left } },
+    });
+  }
+
+  return { allocations, excessToBalance: left > 0 ? left : 0 };
+}
+
+/** Trừ số dư khách vào các đơn còn nợ (đơn cũ trước). */
+export async function applyCustomerBalanceAcrossOrders(
   customerId: number,
   tx: Tx,
 ): Promise<number> {
-  const invoiceTotal = await getInvoiceTotal(activityId, tx);
-  const paidTotal = await sumPayments(activityId, tx);
-  const remaining = Math.max(0, invoiceTotal - paidTotal);
-  if (remaining <= 0) return 0;
-
   const customer = await tx.customer.findUnique({
     where: { customer_id: customerId },
   });
@@ -107,69 +211,37 @@ async function applyCustomerBalanceInternal(
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.CUSTOMER_NOT_FOUND);
   }
 
-  const balance = Number(customer.current_balance);
-  const applyAmount = Math.min(balance, remaining);
-  if (applyAmount <= 0) return 0;
+  let balance = Number(customer.current_balance);
+  if (balance <= 0) return 0;
 
-  await tx.customer.update({
-    where: { customer_id: customerId },
-    data: { current_balance: { decrement: applyAmount } },
-  });
+  const activities = await getInvoicedActivitiesForCustomer(customerId, tx);
+  let totalApplied = 0;
 
-  await tx.payment.create({
-    data: {
-      activity_id: activityId,
-      paid_amount: applyAmount,
-      payment_date: new Date(),
-      method: PAYMENT_METHOD_CUSTOMER_BALANCE,
-    },
-  });
+  for (const act of activities) {
+    if (balance <= 0) break;
 
-  return applyAmount;
-}
+    const remaining = await getOrderRemaining(act.activity_id, tx);
+    if (remaining <= 0) continue;
 
-async function recordPaymentEntryInternal(
-  activityId: number,
-  customerId: number,
-  input: IPaymentRecordInput,
-  tx: Tx,
-): Promise<number> {
-  if (input.paidAmount <= 0) {
-    throw new RouteError(HttpStatusCodes.BAD_REQUEST, Errors.INVALID_AMOUNT);
-  }
-
-  let remaining = Math.max(
-    0,
-    (await getInvoiceTotal(activityId, tx)) - (await sumPayments(activityId, tx)),
-  );
-
-  const paymentDate = input.paymentDate ? new Date(input.paymentDate) : new Date();
-  let amountLeft = input.paidAmount;
-  let excessToBalance = 0;
-
-  if (remaining > 0 && amountLeft > 0) {
-    const toOrder = Math.min(amountLeft, remaining);
-    await tx.payment.create({
-      data: {
-        activity_id: activityId,
-        paid_amount: toOrder,
-        payment_date: paymentDate,
-        method: input.method,
-      },
-    });
-    amountLeft -= toOrder;
-    remaining -= toOrder;
-  }
-
-  if (amountLeft > 0) {
-    excessToBalance = amountLeft;
+    const apply = Math.min(balance, remaining);
     await tx.customer.update({
       where: { customer_id: customerId },
-      data: { current_balance: { increment: amountLeft } },
+      data: { current_balance: { decrement: apply } },
     });
+    await tx.payment.create({
+      data: {
+        activity_id: act.activity_id,
+        paid_amount: apply,
+        payment_date: new Date(),
+        method: PAYMENT_METHOD_CUSTOMER_BALANCE,
+      },
+    });
+    await syncActivityPaymentStatus(act.activity_id, tx);
+    balance -= apply;
+    totalApplied += apply;
   }
 
-  return excessToBalance;
+  return totalApplied;
 }
 
 async function buildSummaryInTx(activityId: number, tx: Tx): Promise<IPaymentSummary> {
@@ -192,12 +264,20 @@ async function buildSummaryInTx(activityId: number, tx: Tx): Promise<IPaymentSum
 
   const isProcessing = activity.status === OrderStatusCodes.PROCESSING;
 
+  const customerTotalDebt = await computeCustomerTotalDebt(
+    activity.customer_id,
+    tx,
+  );
+  const customerDebtOtherOrders = Math.max(0, customerTotalDebt - remaining);
+
   return {
     activityId,
     invoiceTotal,
     paidTotal,
     remaining,
     customerBalance: Number(customer?.current_balance ?? 0),
+    customerTotalDebt,
+    customerDebtOtherOrders,
     paymentStatus,
     paymentStatusLabel: PaymentStatusLabels[paymentStatus],
     canRecordPayment:
@@ -215,11 +295,22 @@ async function settlePendingPaymentsInTx(
   tx: Tx,
 ): Promise<void> {
   if (options.applyCustomerBalance !== false) {
-    await applyCustomerBalanceInternal(activityId, customerId, tx);
+    await applyCustomerBalanceAcrossOrders(customerId, tx);
   }
 
   for (const entry of options.pendingPayments) {
-    await recordPaymentEntryInternal(activityId, customerId, entry, tx);
+    await allocateCustomerPayment(
+      customerId,
+      entry.paidAmount,
+      entry.method,
+      tx,
+      {
+        priorityActivityId: activityId,
+        paymentDate: entry.paymentDate
+          ? new Date(entry.paymentDate)
+          : new Date(),
+      },
+    );
   }
 
   await syncActivityPaymentStatus(activityId, tx);
@@ -264,12 +355,17 @@ async function getSummary(activityId: number): Promise<IPaymentSummary> {
   const payments = await PaymentRepo.getByActivity(activityId);
   const isProcessing = activity.status === OrderStatusCodes.PROCESSING;
 
+  const customerTotalDebt = await computeCustomerTotalDebt(activity.customerId);
+  const customerDebtOtherOrders = Math.max(0, customerTotalDebt - remaining);
+
   return {
     activityId,
     invoiceTotal,
     paidTotal: isProcessing ? 0 : paidTotal,
     remaining: isProcessing ? invoiceTotal : remaining,
     customerBalance,
+    customerTotalDebt,
+    customerDebtOtherOrders,
     paymentStatus: isProcessing ? PaymentStatuses.UNPAID : paymentStatus,
     paymentStatusLabel: isProcessing
       ? PaymentStatusLabels[PaymentStatuses.UNPAID]
@@ -295,8 +391,7 @@ async function applyCustomerBalance(activityId: number) {
   }
 
   return prisma.$transaction(async (tx) => {
-    const applied = await applyCustomerBalanceInternal(
-      activityId,
+    const applied = await applyCustomerBalanceAcrossOrders(
       activity.customerId,
       tx,
     );
@@ -314,14 +409,20 @@ async function recordPayment(activityId: number, input: IPaymentRecordInput) {
 
   return prisma.$transaction(async (tx) => {
     if (input.applyCustomerBalance !== false) {
-      await applyCustomerBalanceInternal(activityId, activity.customerId, tx);
+      await applyCustomerBalanceAcrossOrders(activity.customerId, tx);
     }
 
-    const excessToBalance = await recordPaymentEntryInternal(
-      activityId,
+    const { excessToBalance } = await allocateCustomerPayment(
       activity.customerId,
-      input,
+      input.paidAmount,
+      input.method,
       tx,
+      {
+        priorityActivityId: activityId,
+        paymentDate: input.paymentDate
+          ? new Date(input.paymentDate)
+          : new Date(),
+      },
     );
 
     await syncActivityPaymentStatus(activityId, tx);
@@ -366,7 +467,13 @@ async function deleteOne(paymentId: number): Promise<void> {
   });
 }
 
-export { recordPaymentEntryInternal, sumPayments, resolvePaymentStatus, settlePendingPaymentsInTx };
+export {
+  allocateCustomerPayment,
+  applyCustomerBalanceAcrossOrders,
+  sumPayments,
+  resolvePaymentStatus,
+  settlePendingPaymentsInTx,
+};
 
 export default {
   Errors,

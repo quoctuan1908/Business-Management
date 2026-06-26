@@ -124,9 +124,9 @@ async function getEmployeeMonthlyStats(userId: number, month?: number, year?: nu
   return UserRepo.getEmployeeMonthlyStats(userId, month, year);
 }
 
-async function getEmployeeLocationStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
+async function getEmployeeLocationStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string, date?: string) {
   logger.info('SYSTEM', `Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: ${province || 'Tất cả'}, Xã/Phường: ${ward || 'Tất cả'}) vào tháng ${month}/${year}.`);
-  return UserRepo.getEmployeeLocationStats(scope, month, year, province, ward);
+  return UserRepo.getEmployeeLocationStats(scope, month, year, province, ward, date);
 }
 
 async function getEmployeeTopProducts(userId: number) {
@@ -138,16 +138,16 @@ async function getEmployeeTopProducts(userId: number) {
   return UserRepo.getEmployeeTopProducts(userId);
 }
 
-async function getEmployeeStatusBreakdown(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
-  return UserRepo.getEmployeeStatusBreakdown(scope, month, year, province, ward);
+async function getEmployeeStatusBreakdown(scope: SellerScope, month: string, year: string, province?: string, ward?: string, date?: string) {
+  return UserRepo.getEmployeeStatusBreakdown(scope, month, year, province, ward, date);
 }
 
-async function getEmployeeRecentSalesTimeline(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
-  return UserRepo.getEmployeeRecentSalesTimeline(scope, month, year, province, ward);
+async function getEmployeeRecentSalesTimeline(scope: SellerScope, month: string, year: string, province?: string, ward?: string, date?: string) {
+  return UserRepo.getEmployeeRecentSalesTimeline(scope, month, year, province, ward, date);
 }
 
-async function getSellerOverviewStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
-  return UserRepo.getSellerOverviewStats(scope, month, year, province, ward);
+async function getSellerOverviewStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string, date?: string) {
+  return UserRepo.getSellerOverviewStats(scope, month, year, province, ward, date);
 }
 
 async function getSellerMonthlyStats(sellerId: number, month?: number, year?: number) {
@@ -162,22 +162,22 @@ async function getEmployeeTopDebtors(scope: SellerScope, province?: string, ward
   return UserRepo.getEmployeeTopDebtors(scope, province, ward);
 }
 
-async function getShipperOverviewStats(shipperId: number) {
+async function getShipperOverviewStats(shipperId: number, month?: string, year?: string, date?: string) {
   const exists = await UserRepo.persists(shipperId);
   if (!exists) {
     logger.warn('SYSTEM', `Truy cập thống kê shipper thất bại: Shipper ID [${shipperId}] không tồn tại.`);
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
   logger.info('SYSTEM', `Truy xuất tổng quan chuyến giao hàng và tiền COD của Shipper ID [${shipperId}].`);
-  return UserRepo.getShipperOverviewStats(shipperId);
+  return UserRepo.getShipperOverviewStats(shipperId, month, year, date);
 }
 
-async function getShipperMonthlyStats(shipperId: number, month?: number, year?: number) {
+async function getShipperMonthlyStats(shipperId: number, month?: number, year?: number, date?: string) {
   const exists = await UserRepo.persists(shipperId);
   if (!exists) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.USER_NOT_FOUND);
   }
-  return UserRepo.getShipperMonthlyStats(shipperId, month, year);
+  return UserRepo.getShipperMonthlyStats(shipperId, month, year, date);
 }
 
 async function getMapStatusByActivities(dateString: string) {

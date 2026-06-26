@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import userModel, { IUser, IUserCreate, IUserPublic } from '@src/models/User.model';
 import prisma from './prisma';
+import { buildActivityDateFilter } from '@src/common/utils/stats-period';
 
 const SALT_ROUNDS = 12;
 
@@ -30,6 +31,36 @@ function mapRowToUser(row: any): IUser {
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
   };
+}
+
+type ActivityDebtRow = {
+  invoice?: { total_amount: unknown } | null;
+  details?: { quantity: number; sale_price: unknown }[];
+  payments?: { paid_amount: unknown }[];
+};
+
+/** Chi tinh no tren don da co hoa don (giong CustomerService.buildOrderRows). */
+function getActivityRemainingDebt(activity: ActivityDebtRow): number {
+  if (activity.invoice?.total_amount == null) return 0;
+  const orderTotal = Number(activity.invoice.total_amount);
+  const orderPaid = (activity.payments ?? []).reduce(
+    (sum, p) => sum + Number(p.paid_amount),
+    0,
+  );
+  return Math.max(0, orderTotal - orderPaid);
+}
+
+function getGrossOrderTotal(activity: ActivityDebtRow): number {
+  if (activity.invoice?.total_amount != null) {
+    return Number(activity.invoice.total_amount);
+  }
+  if (activity.details?.length) {
+    return activity.details.reduce(
+      (sum, det) => sum + det.quantity * Number(det.sale_price),
+      0,
+    );
+  }
+  return 0;
 }
 
 /******************************************************************************
@@ -283,22 +314,8 @@ export async function getEmployeeOverviewStats(userId: number) {
 /**
  * Detailed monthly productivity and individual targets for a specific employee
  */
-function getDateFilter(month: string, year: string) {
-  if (!year || year === "all") return undefined;
-  
-  const y = parseInt(year);
-  if (month && month !== "all") {
-    const m = parseInt(month);
-    return {
-      gte: new Date(y, m - 1, 1),
-      lt: new Date(y, m, 1),
-    };
-  } else {
-    return {
-      gte: new Date(y, 0, 1),
-      lt: new Date(y + 1, 0, 1),
-    };
-  }
+function getDateFilter(month?: string, year?: string, date?: string) {
+  return buildActivityDateFilter({ month, year, date });
 }
 
 export async function getEmployeeMonthlyStats(userId: number, inputMonth?: number, inputYear?: number) {
@@ -341,8 +358,8 @@ export async function getEmployeeMonthlyStats(userId: number, inputMonth?: numbe
   };
 }
 
-export async function getEmployeeLocationStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
-  const dateFilter = getDateFilter(month, year);
+export async function getEmployeeLocationStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string, date?: string) {
+  const dateFilter = getDateFilter(month, year, date);
   const userFilter = userIdFilter(scope);
   
   const locations = await prisma.location.findMany({
@@ -399,12 +416,7 @@ export async function getEmployeeLocationStats(scope: SellerScope, month: string
 
       loc.customers.forEach(cust => {
         cust.activities.forEach(act => {
-          let orderTotal = 0;
-          if (act.invoice?.total_amount) {
-            orderTotal = Number(act.invoice.total_amount);
-          } else if (act.details && act.details.length > 0) {
-            orderTotal = act.details.reduce((sum, det) => sum + (det.quantity * Number(det.sale_price)), 0);
-          }
+          const orderTotal = getGrossOrderTotal(act);
 
           revenueGenerated += orderTotal;
 
@@ -412,10 +424,7 @@ export async function getEmployeeLocationStats(scope: SellerScope, month: string
           
           collectedAmount += orderPaid; 
 
-          const remaining = orderTotal - orderPaid;
-          if (remaining > 0) {
-            outstandingDebt += remaining;
-          }
+          outstandingDebt += getActivityRemainingDebt(act);
         });
       });
 
@@ -431,8 +440,8 @@ export async function getEmployeeLocationStats(scope: SellerScope, month: string
   };
 }
 
-export async function getSellerOverviewStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
-  const dateFilter = getDateFilter(month, year);
+export async function getSellerOverviewStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string, date?: string) {
+  const dateFilter = getDateFilter(month, year, date);
 
   const locationFilter: Record<string, string> = {};
   if (province && province !== "all") locationFilter.province = province;
@@ -462,22 +471,14 @@ export async function getSellerOverviewStats(scope: SellerScope, month: string, 
   let outstandingDebt = 0;
 
   sellerActivities.forEach(act => {
-    let orderTotal = 0;
-    if (act.invoice?.total_amount) {
-      orderTotal = Number(act.invoice.total_amount);
-    } else if (act.details && act.details.length > 0) {
-      orderTotal = act.details.reduce((sum, det) => sum + (det.quantity * Number(det.sale_price)), 0);
-    }
+    const orderTotal = getGrossOrderTotal(act);
 
     grossRevenue += orderTotal;
 
     const orderPaid = act.payments?.reduce((sum, p) => sum + Number(p.paid_amount), 0) || 0;
     collectedRevenue += orderPaid;
 
-    const remaining = orderTotal - orderPaid;
-    if (remaining > 0) {
-      outstandingDebt += remaining;
-    }
+    outstandingDebt += getActivityRemainingDebt(act);
   });
 
   const customersInScope = await prisma.customer.findMany({
@@ -500,8 +501,8 @@ export async function getSellerOverviewStats(scope: SellerScope, month: string, 
   };
 }
 
-export async function getEmployeeStatusBreakdown(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
-  const dateFilter = getDateFilter(month, year);
+export async function getEmployeeStatusBreakdown(scope: SellerScope, month: string, year: string, province?: string, ward?: string, date?: string) {
+  const dateFilter = getDateFilter(month, year, date);
   
   const locationFilter: Record<string, string> = {};
   if (province && province !== "all") locationFilter.province = province;
@@ -521,8 +522,8 @@ export async function getEmployeeStatusBreakdown(scope: SellerScope, month: stri
   };
 }
 
-export async function getEmployeeRecentSalesTimeline(scope: SellerScope, month: string, year: string, province?: string, ward?: string) {
-  const dateFilter = getDateFilter(month, year);
+export async function getEmployeeRecentSalesTimeline(scope: SellerScope, month: string, year: string, province?: string, ward?: string, date?: string) {
+  const dateFilter = getDateFilter(month, year, date);
 
   const locationFilter: Record<string, string> = {};
   if (province && province !== "all") locationFilter.province = province;
@@ -596,21 +597,10 @@ export async function getEmployeeTopDebtors(scope: SellerScope, province?: strin
   const mappedDebtors = customers.map(cust => {
     const currentBalance = Number(cust.current_balance) || 0;
     
-    const totalDebt = cust.activities.reduce((sum, activity) => {
-      let orderTotal = 0;
-      if (activity.invoice?.total_amount) {
-        orderTotal = Number(activity.invoice.total_amount);
-      } else if (activity.details && activity.details.length > 0) {
-        orderTotal = activity.details.reduce((dSum, det) => {
-          return dSum + (det.quantity * Number(det.sale_price));
-        }, 0);
-      }
-
-      const orderPaid = activity.payments.reduce((pSum, p) => pSum + Number(p.paid_amount), 0);
-      const remaining = orderTotal - orderPaid;
-      
-      return sum + (remaining > 0 ? remaining : 0);
-    }, 0);
+    const totalDebt = cust.activities.reduce(
+      (sum, activity) => sum + getActivityRemainingDebt(activity),
+      0,
+    );
 
     return {
       customerId: cust.customer_id,
@@ -714,18 +704,21 @@ export async function getEmployeeTopProducts(userId: number) {
   return { products };
 }
 
-export async function getShipperOverviewStats(shipperId: number) {
+export async function getShipperOverviewStats(shipperId: number, month?: string, year?: string, date?: string) {
+  const dateFilter = getDateFilter(month ?? "all", year ?? "all", date);
   const userActivatedFilter = { user_id: shipperId, user: { is_activated: true } };
+  const activityDateWhere = dateFilter ? { activity_date: dateFilter } : {};
+  const paymentDateWhere = dateFilter ? { payment_date: dateFilter } : {};
 
   const [totalDeliveryTrips, completedDeliveries, moneyCollectedAggregate] = await Promise.all([
     prisma.activity.count({
-      where: { ...userActivatedFilter, content: { contains: 'Delivery' } } 
+      where: { ...userActivatedFilter, content: { contains: 'Delivery' }, ...activityDateWhere } 
     }),
     prisma.activity.count({
-      where: { ...userActivatedFilter, status: 'completed' }
+      where: { ...userActivatedFilter, status: 'completed', ...activityDateWhere }
     }),
     prisma.payment.aggregate({
-      where: { activity: userActivatedFilter },
+      where: { activity: userActivatedFilter, ...paymentDateWhere },
       _sum: { paid_amount: true }
     })
   ]);
@@ -738,31 +731,45 @@ export async function getShipperOverviewStats(shipperId: number) {
   };
 }
 
-export async function getShipperMonthlyStats(shipperId: number, inputMonth?: number, inputYear?: number) {
+export async function getShipperMonthlyStats(shipperId: number, inputMonth?: number, inputYear?: number, date?: string) {
   const now = new Date();
   const month = inputMonth ?? (now.getMonth() + 1);
   const year = inputYear ?? now.getFullYear();
 
-  const startOfMonth = new Date(year, month - 1, 1);
-  const startOfNextMonth = new Date(year, month, 1);
+  const dateFilter = date
+    ? getDateFilter("all", String(year), date)
+    : getDateFilter(String(month), String(year));
+
+  if (!dateFilter) {
+    return {
+      period: `${month.toString().padStart(2, '0')}/${year}`,
+      monthlyTrips: 0,
+      monthlySuccess: 0,
+      monthlyMoneyCollected: 0,
+    };
+  }
 
   const userActivatedFilter = { user_id: shipperId, user: { is_activated: true } };
 
   const [monthlyTrips, monthlySuccess, monthlyPayments] = await Promise.all([
     prisma.activity.count({
-      where: { ...userActivatedFilter, content: { contains: 'Delivery' }, activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
+      where: { ...userActivatedFilter, content: { contains: 'Delivery' }, activity_date: dateFilter }
     }),
     prisma.activity.count({
-      where: { ...userActivatedFilter, status: 'completed', activity_date: { gte: startOfMonth, lt: startOfNextMonth } }
+      where: { ...userActivatedFilter, status: 'completed', activity_date: dateFilter }
     }),
     prisma.payment.aggregate({
-      where: { activity: userActivatedFilter, payment_date: { gte: startOfMonth, lt: startOfNextMonth } },
+      where: { activity: userActivatedFilter, payment_date: dateFilter },
       _sum: { paid_amount: true }
     })
   ]);
 
+  const period = date
+    ? date.split("-").reverse().join("/")
+    : `${month.toString().padStart(2, '0')}/${year}`;
+
   return {
-    period: `${month.toString().padStart(2, '0')}/${year}`,
+    period,
     monthlyTrips,
     monthlySuccess,
     monthlyMoneyCollected: Number(monthlyPayments._sum.paid_amount) || 0

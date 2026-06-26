@@ -50,9 +50,9 @@ async function assertDraft(activityId: number) {
 
 async function getAll(scope: EmployeeDataScope) {
   if (scope.mode === 'all') {
-    return ActivityRepo.getAll();
+    return ActivityRepo.getAllWithPaymentInfo();
   }
-  return ActivityRepo.getAll(scope.userId);
+  return ActivityRepo.getAllWithPaymentInfo(scope.userId);
 }
 
 async function getOne(id: number, scope: EmployeeDataScope) {
