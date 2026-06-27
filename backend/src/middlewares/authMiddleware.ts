@@ -13,7 +13,7 @@ const AUTH_ERR = 'Session invalid or expired';
  */
 async function auth(req: Req, res: Res, next: NextFunction) {
   try {
-    const { accessToken } = req.cookies;
+    const { accessToken } = req.cookies as { accessToken?: string };
     if (!accessToken) {
       throw new RouteError(HttpStatusCodes.UNAUTHORIZED, AUTH_ERR);
     }
@@ -23,7 +23,7 @@ async function auth(req: Req, res: Res, next: NextFunction) {
     );
     res.locals.sessionUser = sessionUser;
     return next();
-  } catch (err) {
+  } catch (_err) {
     return next(new RouteError(HttpStatusCodes.UNAUTHORIZED, AUTH_ERR));
   }
 }
@@ -32,9 +32,10 @@ async function auth(req: Req, res: Res, next: NextFunction) {
  * Middleware to restrict access based on user roles.
  */
 function authorize(...allowedRoles: string[]) {
-  return (req: Req, res: Res, next: NextFunction) => {
-    const user = res.locals.sessionUser;
-    console.log(user)
+  return (_req: Req, res: Res, next: NextFunction) => {
+
+    const user = res.locals.sessionUser as ISessionUser | undefined;
+
     if (!user || !allowedRoles.includes(user.role)) {
       return next(
         new RouteError(HttpStatusCodes.FORBIDDEN, 'Permission denied'),

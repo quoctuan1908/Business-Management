@@ -11,11 +11,11 @@ const redisClient = createClient({
   }
 });
 
-redisClient.on('error', (err) => {
+redisClient.on('error', (err : Error) => {
   console.error('Redis Connection Error:', err.message);
 });
 
-redisClient.connect().catch((err) => {
+redisClient.connect().catch((err : Error) => {
   console.error('Could not connect to Redis:', err.message);
 });
 

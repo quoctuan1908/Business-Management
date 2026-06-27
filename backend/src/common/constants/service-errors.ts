@@ -109,3 +109,7 @@ export const ImportDetailErrors = {
   INVALID_PRICE: 'Import price must be greater than zero',
   INSUFFICIENT_STOCK: 'Insufficient stock to remove this quantity',
 } as const;
+
+export const BankAccountErrors = {
+  BANK_ACCOUNT_NOT_FOUND: "Bank account not found"
+}

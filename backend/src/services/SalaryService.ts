@@ -3,22 +3,24 @@ import { RouteError } from '@src/common/utils/route-errors';
 import SalaryModel, { ISalary, ISalaryWithUser } from '@src/models/Salary.model';
 import SalaryRepo from '@src/repos/SalaryRepo';
 import UserRepo from '@src/repos/UserRepo';
+import BankAccountRepo from '@src/repos/BankAccountRepo';
 
 /******************************************************************************
                                    Functions
 ******************************************************************************/
 
-/**
- * Get all salaries and attach the corresponding user object.
- */
 async function getAll(): Promise<ISalaryWithUser[]> {
-  const [salaries, users] = await Promise.all([
+  const [salaries, users, bankAccounts] = await Promise.all([
     SalaryRepo.getAll(),
     UserRepo.getAll(),
+    BankAccountRepo.getAll(), 
   ]);
 
   return salaries.map(salary => {
     const user = users.find(u => u.id === salary.userId);
+    
+    const bankAccount = user ? bankAccounts.find(b => b.userId === user.id) : null;
+
     return {
       ...salary,
       user: user ? {
@@ -27,11 +29,11 @@ async function getAll(): Promise<ISalaryWithUser[]> {
         department: user.department,
         email: user.email,
         phoneNumber: user.phoneNumber,
-        bankAccount: user.bankAccount ? {
-          bankName: user.bankAccount.bankName,
-          accountNumber: user.bankAccount.accountNumber,
-        } : null,
         role: user.role,
+        bankAccount: bankAccount ? {
+          bankName: bankAccount.bankName,
+          accountNumber: bankAccount.accountNumber,
+        } : null,
       } : null,
     };
   });
