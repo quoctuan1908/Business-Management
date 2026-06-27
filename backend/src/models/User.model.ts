@@ -1,7 +1,7 @@
 import { isBoolean, isString, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 import { transformIsDate } from '@src/common/utils/validators';
-import { AutoCreatePayload, createInsertValidator, Entity } from './common/types';
+import { AutoCreatePayload, Entity } from './common/types';
 
 /******************************************************************************
                                    Constants
@@ -17,7 +17,6 @@ const GetDefaults = (): IUser => ({
   phoneNumber: '',
   email: '',
   isActivated: false,
-  bankAccount: null, 
   createdAt: new Date(),
   updatedAt: new Date(),
   deletedAt: null,
@@ -33,20 +32,25 @@ const schema: Schema<IUser> = {
   phoneNumber: isString,
   email: isString,
   isActivated: isBoolean,
-  bankAccount: ((val: any) => val === null || (typeof val === 'object' && typeof val.bankName === 'string' && typeof val.accountNumber === 'string')) as any,
   createdAt: transformIsDate,
   updatedAt: transformIsDate,
-  deletedAt: (() => true) as any,
+  deletedAt: (val: unknown) => val === null || transformIsDate(val),
+};
+
+const userCreateSchema: Schema<IUserCreate> = {
+  username: isString,
+  password: isString,
+  role: isString,
+  fullName: isString,
+  department: isString,
+  phoneNumber: isString,
+  email: isString,
+  isActivated: isBoolean,
 };
 
 /******************************************************************************
                                      Types
 ******************************************************************************/
-
-export interface IBankAccount {
-  bankName: string;
-  accountNumber: string;
-}
 
 /**
  * @entity users
@@ -60,7 +64,6 @@ export interface IUser extends Entity {
   phoneNumber: string;
   email: string;
   isActivated: boolean;
-  bankAccount: IBankAccount | null; 
   deletedAt: Date | null;
 }
 
@@ -68,7 +71,7 @@ export type IUserPublic = Omit<IUser, 'password'>;
 
 export type IUserCreate = AutoCreatePayload<IUser>;
 
-const newCreate = createInsertValidator<IUser, IUserCreate>(schema, 'Invalid User Registration');
+const parseUserCreate = parseObject<IUserCreate>(userCreateSchema);
 
 /******************************************************************************
                                      Setup
@@ -89,6 +92,12 @@ const isCompleteUser = testObject<IUser>({
                                    Functions
 ******************************************************************************/
 
+function newCreate(payload: unknown): IUserCreate {
+  return parseUserCreate(payload, (errors) => {
+    throw new Error(`Invalid User Registration: ${JSON.stringify(errors)}`);
+  });
+}
+
 function new_(user?: Partial<IUser>): IUser {
   return parseUser({ ...GetDefaults(), ...user }, (errors) => {
     throw new Error('Setup new user failed ' + JSON.stringify(errors, null, 2));
@@ -100,13 +109,47 @@ function toPublic(user: IUser): IUserPublic {
   return publicUser;
 }
 
+/**
+ * Map Prisma row (snake_case) to Model (camelCase)
+ */
+function mapRowToUser(row: {
+  user_id: number;
+  username: string;
+  password: string;
+  role: string;
+  full_name: string;
+  department: string;
+  phone_number: string;
+  email: string;
+  is_activated: boolean;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+}): IUser {
+  return {
+    id: row.user_id,
+    username: row.username,
+    password: row.password,
+    role: row.role,
+    fullName: row.full_name,
+    department: row.department,
+    phoneNumber: row.phone_number,
+    email: row.email,
+    isActivated: row.is_activated,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+  };
+}
+
 /******************************************************************************
-                                 Export default
+                                   Export default
 ******************************************************************************/
 
 export default {
   new: new_,
   newCreate,
   isComplete: isCompleteUser,
-  toPublic
+  toPublic,
+  mapRow: mapRowToUser,
 } as const;

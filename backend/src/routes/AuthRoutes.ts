@@ -5,7 +5,7 @@ import AuthService from '@src/services/AuthService';
 import JwtUtils from '@src/common/utils/session-authenticate';
 import { RouteError } from '@src/common/utils/route-errors';
 import { isNonEmptyString, isString } from 'jet-validators';
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcrypt';
 import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
 import EnvVars from '@src/common/constants/env';
@@ -18,6 +18,22 @@ import { Prisma } from '@prisma/client';
 /******************************************************************************
                                 Constants
 ******************************************************************************/
+
+interface PendingUser {
+  username: string;
+  password: string;
+  email: string;
+  role: string;
+  fullName: string;
+  department: string;
+  phoneNumber: string;
+}
+
+interface DBUserRelation {
+  user_id: number;
+  username: string;
+  role: string;
+}
 
 const reqValidators = {
   login: parseReq({ 
@@ -47,8 +63,8 @@ const reqValidators = {
  * Check authentication status and return current user data.
  * @route GET /api/auth/check
  */
-async function check(req: Req, res: Res) {
-  const token = req.cookies.accessToken;
+function check(req: Req, res: Res) {
+  const token = req.cookies.accessToken as string | undefined;
   if (!token) {
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Session not found');
   }
@@ -60,7 +76,7 @@ async function check(req: Req, res: Res) {
       user: userData,
       isLoggedIn: true 
     });
-  } catch (err) {
+  } catch (_err) {
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'Invalid or expired session');
   }
 }
@@ -81,7 +97,7 @@ async function register(req: Req, res: Res) {
   const SALT_ROUNDS = 12;
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const pendingUserData = {
+  const pendingUserData: PendingUser = {
     username: username,
     password: hashedPassword,
     email: email || '',
@@ -127,7 +143,7 @@ async function verifyEmail(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'The activation link is invalid or has expired.');
   }
 
-  const pendingUser = JSON.parse(rawData);
+  const pendingUser = JSON.parse(rawData) as PendingUser;
 
   try {
     await UserService.addOne({
@@ -137,7 +153,6 @@ async function verifyEmail(req: Req, res: Res) {
       fullName: pendingUser.fullName,
       department: pendingUser.department,
       phoneNumber: pendingUser.phoneNumber,
-      bankAccount: null,
       email: pendingUser.email,
       isActivated: false, 
     });
@@ -216,9 +231,9 @@ async function resetPassword(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'The password reset link is invalid or has expired.');
   }
 
-  const { userId } = JSON.parse(rawData);
+  const data = JSON.parse(rawData) as { userId: number };
   try {
-    await UserService.updatePassword(userId, password);
+    await UserService.updatePassword(data.userId, password);
   } catch (error) {
     console.error('Failed to update new password in DB:', error);
     throw new RouteError(HttpStatusCodes.INTERNAL_SERVER_ERROR, 'Internal server error. Failed to update password.');
@@ -265,62 +280,35 @@ async function login(req: Req, res: Res) {
  * @route GET /api/auth/refresh
  */
 async function refresh(req: Req, res: Res) {
-  const { refreshToken } = req.cookies;
-  console.log('====== DEBUG REFRESH: START ======');
-  console.log('1. Raw RefreshToken từ Cookie:', refreshToken);
+  const refreshToken = req.cookies.refreshToken as string | undefined;
 
   if (!refreshToken) {
-    console.log('Lỗi: Không tìm thấy refreshToken trong Cookie');
     throw new RouteError(HttpStatusCodes.UNAUTHORIZED, 'No refresh token provided');
   }
   const tokenDb = await AuthRepo.findToken(refreshToken);
-  console.log('2. Dữ liệu Token lấy từ DB:', JSON.stringify(tokenDb, null, 2));
 
   if (!tokenDb) {
-    console.log('Lỗi: Token này không tồn tại trong Database (Có thể đã bị xóa hoặc Logout trước đó)');
     throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Session expired');
   }
 
-  console.log('3. So sánh thời gian hết hạn:', {
-    'Hạn của Token (expires_at)': tokenDb.expires_at,
-    'Thời gian hiện tại (now)': new Date(),
-    'Đã hết hạn chưa?': tokenDb.expires_at < new Date()
-  });
-
   if (tokenDb.expires_at < new Date()) {
-    console.log('Lỗi: Token trong DB đã hết hạn. Đang tiến hành xóa...');
     await AuthRepo.deleteToken(refreshToken);
     throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Session expired');
   }
 
-  try {
-    await JwtUtils.verifyToken(refreshToken, EnvVars.JwtRefreshTokenKey);
-    console.log('4. Xác thực chữ ký JWT: Thành công (Token hợp lệ)');
-  } catch (jwtErr) {
-    console.log('❌ Lỗi: Chữ ký JWT không hợp lệ hoặc sai Secret Key:', jwtErr);
-    throw jwtErr;
-  }
+  await JwtUtils.verifyToken(refreshToken, EnvVars.JwtRefreshTokenKey);
 
-  console.log('5. Kiểm tra dữ liệu user thô từ DB:', {
-    user_id: tokenDb.user?.user_id,
-    id: (tokenDb.user as any)?.id,
-    username: tokenDb.user?.username,
-    role: tokenDb.user?.role
-  });
+  const tokenUser = tokenDb.user as unknown as DBUserRelation;
 
   const sessionUser: ISessionUser = {
-    userId: tokenDb.user.user_id,
-    username: tokenDb.user.username,
-    role: tokenDb.user.role,
+    userId: tokenUser.user_id,
+    username: tokenUser.username,
+    role: tokenUser.role,
   };
   
-  console.log('6. Cấu trúc Object Session nạp vào Access Token mới:', sessionUser);
-
   const newAccessToken = JwtUtils.generateAccessToken(sessionUser);
-  console.log('7. Access Token mới sinh ra thành công:', newAccessToken);
 
   res.cookie('accessToken', newAccessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
-  console.log('====== DEBUG REFRESH: END ======');
 
   return res.status(HttpStatusCodes.OK).json({ message: 'Token refreshed' });
 }
@@ -330,7 +318,7 @@ async function refresh(req: Req, res: Res) {
  * @route GET /api/auth/logout
  */
 async function logout(req: Req, res: Res) {
-  const { refreshToken } = req.cookies;
+  const refreshToken = req.cookies.refreshToken as string | undefined;
   if (refreshToken) {
     await AuthRepo.deleteToken(refreshToken);
   }

@@ -2,6 +2,7 @@ import { ICustomer } from '@src/models/Customer.model';
 
 import { customerToPrismaData, toCustomer } from './common/mappers';
 import prisma from './common/prisma';
+import { Customer } from '@prisma/client';
 
 /******************************************************************************
                                 Functions
@@ -74,8 +75,9 @@ async function delete_(id: number): Promise<void> {
   await prisma.customer.delete({ where: { customer_id: id } });
 }
 
+
 async function getNearby(lat: number, lng: number, radiusInKm: number): Promise<ICustomer[]> {
-  const rows = await prisma.$queryRaw<any[]>`
+  const rows = await prisma.$queryRaw<(Customer & { distance: number })[]>`
     SELECT *, 
       (6371 * acos(cos(radians(${lat})) * cos(radians(lat)) * cos(radians(lng) - radians(${lng})) + sin(radians(${lat})) * sin(radians(lat)))) AS distance 
     FROM customers
@@ -84,7 +86,7 @@ async function getNearby(lat: number, lng: number, radiusInKm: number): Promise<
     ORDER BY distance ASC
   `;
   
-  return rows.map(toCustomer);
+  return rows.map((row) => toCustomer(row));
 }
 
 /******************************************************************************

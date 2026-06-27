@@ -2,36 +2,14 @@ import bcrypt from 'bcrypt';
 import userModel, { IUser, IUserCreate, IUserPublic } from '@src/models/User.model';
 import prisma from './prisma';
 import { buildActivityDateFilter } from '@src/common/utils/stats-period';
+import { User } from '@prisma/client';
+import { toUser } from './common/mappers';
 
 const SALT_ROUNDS = 12;
 
 /******************************************************************************
                                     Helpers
  ******************************************************************************/
-
-/**
- * Map Prisma row (snake_case) to Model (camelCase)
- */
-function mapRowToUser(row: any): IUser {
-  return {
-    id: row.user_id,
-    username: row.username,
-    password: row.password,
-    role: row.role,
-    fullName: row.full_name,
-    department: row.department,
-    phoneNumber: row.phone_number,
-    email: row.email,
-    isActivated: row.is_activated,
-    bankAccount: row.bank_account ? {
-      bankName: row.bank_account.bank_name,
-      accountNumber: row.bank_account.account_number,
-    } : null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    deletedAt: row.deleted_at,
-  };
-}
 
 type ActivityDebtRow = {
   invoice?: { total_amount: unknown } | null;
@@ -66,7 +44,6 @@ function getGrossOrderTotal(activity: ActivityDebtRow): number {
 /******************************************************************************
                                     Functions
 ******************************************************************************/
-
 async function getOne(username: string): Promise<IUser | null> {
   const row = await prisma.user.findFirst({
     where: { 
@@ -74,11 +51,8 @@ async function getOne(username: string): Promise<IUser | null> {
       deleted_at: null,
       is_activated: true
     },
-    include: {
-      bank_account: true,
-    },
   });
-  return row ? mapRowToUser(row) : null;
+  return row ? toUser(row) : null;
 }
 
 async function getOneByEmail(email: string): Promise<IUser | null> {
@@ -87,11 +61,8 @@ async function getOneByEmail(email: string): Promise<IUser | null> {
       email: email,
       deleted_at: null,
     },
-    include: {
-      bank_account: true,
-    },
   });
-  return row ? mapRowToUser(row) : null;
+  return row ? toUser(row) : null;
 }
 
 async function persists(id: number): Promise<boolean> {
@@ -110,14 +81,9 @@ async function getAll(): Promise<IUserPublic[]> {
       deleted_at: null, 
       is_activated: true 
     },
-    include: {
-      bank_account: true,
-    },
   });
-  console.log(rows)
-  return rows.map(row => userModel.toPublic(mapRowToUser(row)));
+  return rows.map(row => userModel.toPublic(toUser(row)));
 }
-
 
 async function getAllUnactivated(): Promise<IUserPublic[]> {
   const rows = await prisma.user.findMany({
@@ -126,7 +92,7 @@ async function getAllUnactivated(): Promise<IUserPublic[]> {
       is_activated: false 
     },
   });
-  return rows.map(row => userModel.toPublic(mapRowToUser(row)));
+  return rows.map(row => userModel.toPublic(toUser(row)));
 }
 
 async function search(query: string): Promise<IUser[]> {
@@ -142,7 +108,7 @@ async function search(query: string): Promise<IUser[]> {
       ],
     },
   });
-  return rows.map(row => mapRowToUser(row));
+  return rows.map(row => toUser(row));
 }
 
 async function add(user: IUserCreate): Promise<IUserPublic> {
@@ -158,7 +124,7 @@ async function add(user: IUserCreate): Promise<IUserPublic> {
       is_activated: user.isActivated
     },
   });
-  return userModel.toPublic(mapRowToUser(row));
+  return userModel.toPublic(toUser(row));
 }
 
 async function update(user: Partial<IUser>): Promise<IUserPublic> {
@@ -172,22 +138,7 @@ async function update(user: Partial<IUser>): Promise<IUserPublic> {
 
   let hashedPassword = existingUser.password;
   if (user.password && user.password.trim() !== "" && user.password !== existingUser.password) {
-    const SALT_ROUNDS = 12;
     hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
-  }
-
-  const bankUpdatePayload: any = {};
-  if (user.bankAccount) {
-    bankUpdatePayload.upsert = {
-      create: {
-        bank_name: user.bankAccount.bankName,
-        account_number: user.bankAccount.accountNumber,
-      },
-      update: {
-        bank_name: user.bankAccount.bankName,
-        account_number: user.bankAccount.accountNumber,
-      },
-    };
   }
 
   const row = await prisma.user.update({
@@ -202,14 +153,10 @@ async function update(user: Partial<IUser>): Promise<IUserPublic> {
       email: user.email ?? existingUser.email,
       is_activated: user.isActivated ?? existingUser.is_activated,
       updated_at: new Date(),
-      bank_account: user.bankAccount ? bankUpdatePayload : undefined,
-    },
-    include: {
-      bank_account: true,
     },
   });
 
-  return userModel.toPublic(mapRowToUser(row));
+  return userModel.toPublic(toUser(row));
 }
 
 async function delete_(id: number): Promise<void> {
@@ -440,7 +387,14 @@ export async function getEmployeeLocationStats(scope: SellerScope, month: string
   };
 }
 
-export async function getSellerOverviewStats(scope: SellerScope, month: string, year: string, province?: string, ward?: string, date?: string) {
+export async function getSellerOverviewStats(
+  scope: SellerScope, 
+  month: string, 
+  year: string, 
+  province?: string, 
+  ward?: string, 
+  date?: string
+) {
   const dateFilter = getDateFilter(month, year, date);
 
   const locationFilter: Record<string, string> = {};
@@ -463,8 +417,8 @@ export async function getSellerOverviewStats(scope: SellerScope, month: string, 
     }
   });
 
-  let totalActivities = sellerActivities.length;
-  let validOrdersCount = sellerActivities.filter(act => act.status !== 'draft').length;
+  const totalActivities = sellerActivities.length;
+  const validOrdersCount = sellerActivities.filter(act => act.status !== 'draft').length;
   
   let grossRevenue = 0;
   let collectedRevenue = 0;
@@ -488,6 +442,7 @@ export async function getSellerOverviewStats(scope: SellerScope, month: string, 
     },
     select: { current_balance: true }
   });
+  
   const currentBalance = customersInScope.reduce((sum, c) => sum + (Number(c.current_balance) || 0), 0);
 
   return {
@@ -776,6 +731,12 @@ export async function getShipperMonthlyStats(shipperId: number, inputMonth?: num
   };
 }
 
+interface IOccupiedAreaInfo {
+  employeeName: string;
+  activityContent: string;
+  customerName: string;
+}
+
 export async function getMapStatusByActivities(dateString: string) {
   const startOfDay = new Date(`${dateString}T00:00:00.000Z`);
   const endOfDay = new Date(`${dateString}T23:59:59.999Z`);
@@ -802,7 +763,7 @@ export async function getMapStatusByActivities(dateString: string) {
     },
   });
 
-  const occupiedProvinces: Record<string, any> = {};
+  const occupiedProvinces: Record<string, IOccupiedAreaInfo> = {};
 
   activitiesInDay.forEach((act) => {
     const areaKey = act.customer.location.ward; 

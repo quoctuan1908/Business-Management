@@ -106,7 +106,7 @@ async function buildExcel(
     const statusLabel = statusMap[activity.status] ?? activity.status;
     const paymentLabel =
       PaymentStatusLabels[
-        activity.payment_status as keyof typeof PaymentStatusLabels
+        activity.payment_status
       ] ?? activity.payment_status;
     const invoiceTotal = activity.invoice
       ? Number(activity.invoice.total_amount)

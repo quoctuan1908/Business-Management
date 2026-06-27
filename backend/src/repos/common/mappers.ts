@@ -168,7 +168,7 @@ export function toActivity(row: Activity): IActivity {
     customerId: row.customer_id,
     invoiceId: row.invoice_id,
     status: row.status,
-    paymentStatus: row.payment_status as PaymentStatusCode,
+    paymentStatus: row.payment_status,
     activityDate: row.activity_date,
     deliveryDate: row.delivery_date,
     content: row.content,

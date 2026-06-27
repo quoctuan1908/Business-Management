@@ -1,7 +1,8 @@
-import { PrismaClient } from "@prisma/client";
-import EnvVars from "@src/common/constants/env";
-import { PrismaPg } from "node_modules/@prisma/adapter-pg/dist";
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
+
+import EnvVars from '@src/common/constants/env';
 
 const pool = new Pool({ connectionString: EnvVars.DatabaseUrl });
 const adapter = new PrismaPg(pool);
