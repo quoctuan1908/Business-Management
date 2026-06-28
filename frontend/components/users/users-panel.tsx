@@ -51,7 +51,7 @@ export function UsersPanel() {
   const [searchQuery, setSearchQuery] = useState("");
   
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState<any>(emptyUser);
+  const [form, setForm] = useState<Partial<User>>(emptyUser);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
@@ -87,7 +87,15 @@ export function UsersPanel() {
     }
   }, []);
 
-  useEffect(() => { void loadUsers(); }, [loadUsers]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadUsers();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [loadUsers]);
 
   const filteredUsers = useMemo(
     () =>
@@ -493,7 +501,10 @@ export function UsersPanel() {
                       placeholder="Ví dụ: Vietcombank, MBBank"
                       onChange={e => setForm({
                         ...form, 
-                        bankAccount: { ...(form.bankAccount ?? {}), bankName: e.target.value }
+                        bankAccount: {
+                          bankName: e.target.value,
+                          accountNumber: form.bankAccount?.accountNumber ?? "",
+                        },
                       })} 
                     />
                   </div>
@@ -506,7 +517,10 @@ export function UsersPanel() {
                       placeholder="Nhập số tài khoản"
                       onChange={e => setForm({
                         ...form, 
-                        bankAccount: { ...(form.bankAccount ?? {}), accountNumber: e.target.value }
+                        bankAccount: {
+                          bankName: form.bankAccount?.bankName ?? "",
+                          accountNumber: e.target.value,
+                        },
                       })} 
                     />
                   </div>
