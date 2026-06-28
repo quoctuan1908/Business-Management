@@ -5,11 +5,11 @@
   "rewrites": [
     { 
       "source": "/(.*)", 
-      "destination": "/dist/main.js" 
+      "destination": "/dist/index.js" 
     }
   ],
   "functions": {
-    "dist/main.js": {
+    "dist/index.js": {
       "maxDuration": 60
     }
   }
