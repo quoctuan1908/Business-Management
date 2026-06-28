@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
+    "moduleResolution": "bundler",
     "lib": ["ES2020"],
     "strict": true,
     "esModuleInterop": true,
@@ -22,7 +23,8 @@
     "tests/**/*.ts",
     "scripts/**/*.ts",
     "eslint.config.ts",
-    "vitest.config.mts"
+    "vitest.config.mts",
+    "prisma.config.ts"
   ],
   "exclude": ["src/public/*"]
 }

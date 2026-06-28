@@ -265,7 +265,7 @@ export function UsersPanel() {
                   <TableHead className="font-bold">Tài khoản lương</TableHead>
                   <TableHead className={`font-bold ${listCol.role}`}>Vai trò</TableHead>
                   <TableHead className="font-bold">Phân vùng</TableHead>
-                  <TableHead className={`font-bold ${listCol.status}`}>Trạng thái</TableHead>
+                  {/* <TableHead className={`font-bold ${listCol.status}`}>Trạng thái</TableHead> */}
                   <TableHead className={`font-bold ${listCol.actions}`}>Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
@@ -322,11 +322,11 @@ export function UsersPanel() {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       <Badge className="bg-emerald-100 hover:bg-emerald-100 text-emerald-800 border-emerald-200 gap-1">
                         <UserCheck className="h-3 w-3" /> Đã duyệt
                       </Badge>
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell className={listCell.actions}>
                       <div className="flex justify-end gap-1">
                         {canAssignZones(u.role) && (
