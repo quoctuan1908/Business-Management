@@ -1,7 +1,5 @@
 import { isDate, isNonEmptyString, isString, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
-import tspo from 'tspo';
-
 import { PaymentStatuses, type PaymentStatusCode } from '@src/common/constants/payment-status';
 import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
@@ -11,7 +9,7 @@ function isNullableInvoiceId(val: unknown): val is number | null {
 }
 
 function isPaymentStatusCode(v: unknown): v is PaymentStatusCode {
-  return tspo.isValue(PaymentStatuses, v);
+  return Object.values(PaymentStatuses).includes(v as PaymentStatusCode);
 }
 
 function isNullableDeliveryDate(val: unknown): val is Date | null {

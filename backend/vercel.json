@@ -2,15 +2,16 @@
   "version": 2,
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "dist",
-  "rewrites": [
-    { 
-      "source": "/(.*)", 
-      "destination": "/dist/main.js" 
-    }
-  ],
   "functions": {
-    "dist/main.js": {
-      "maxDuration": 60
+    "dist/index.js": {
+      "maxDuration": 60,
+      "runtime": "nodejs20.x"
     }
-  }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "dist/index.js"
+    }
+  ]
 }
