@@ -1,4 +1,3 @@
-import jetPaths from 'jet-paths';
 
 const Paths = {
   _: '/api',
@@ -147,5 +146,4 @@ const Paths = {
   },
 } as const;
 
-export const JetPaths = jetPaths(Paths);
 export default Paths;
