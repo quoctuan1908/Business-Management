@@ -1,3 +1,1 @@
-require('module-alias/register');
-
-module.exports = require('../dist/server').default;
+module.exports = require('../dist/index.js');
