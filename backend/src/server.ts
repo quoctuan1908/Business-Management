@@ -5,37 +5,19 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import Paths from '@src/common/constants/Paths';
 import { RouteError } from '@src/common/utils/route-errors';
+import { getCorsOrigins } from '@src/common/utils/cors-origins';
 import BaseRouter from '@src/routes/apiRouter';
-import { Pool } from 'pg';
 import EnvVars, { NodeEnvs } from './common/constants/env';
 
 /******************************************************************************
                                 Setup
 ******************************************************************************/
 
-export const dbPool = new Pool({
-  host: EnvVars.PostgresHost,
-  port: EnvVars.PostgresPort,
-  user: EnvVars.PostgresUser,
-  password: EnvVars.PostgresPassword,
-  database: EnvVars.PostgresDb,
-  
-});
-
-dbPool.connect()
-  .then(() => logger.info('✅ Đã kết nối thành công với PostgreSQL!'))
-  .catch((err: Error) => logger.err('❌ Lỗi kết nối PostgreSQL: ' + err.message, true));
-
 const app = express();
 
 // **** Middleware **** //
 
-const corsOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:3001',
-];
+const corsOrigins = getCorsOrigins();
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;

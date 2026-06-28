@@ -3,55 +3,6 @@ import { parseObject, Schema, testObject } from 'jet-validators/utils';
 import { transformIsDate } from '@src/common/utils/validators';
 import { AutoCreatePayload, Entity } from './common/types';
 
-/******************************************************************************
-                                   Constants
-******************************************************************************/
-
-const GetDefaults = (): IUser => ({
-  id: 0,
-  username: '',
-  password: '',
-  role: 'employee',
-  fullName: '',
-  department: '',
-  phoneNumber: '',
-  email: '',
-  isActivated: false,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  deletedAt: null,
-});
-
-const schema: Schema<IUser> = {
-  id: isUnsignedInteger,
-  username: isString,
-  password: isString,
-  role: isString,
-  fullName: isString,
-  department: isString,
-  phoneNumber: isString,
-  email: isString,
-  isActivated: isBoolean,
-  createdAt: transformIsDate,
-  updatedAt: transformIsDate,
-  deletedAt: (val: unknown) => val === null || transformIsDate(val),
-};
-
-const userCreateSchema: Schema<IUserCreate> = {
-  username: isString,
-  password: isString,
-  role: isString,
-  fullName: isString,
-  department: isString,
-  phoneNumber: isString,
-  email: isString,
-  isActivated: isBoolean,
-};
-
-/******************************************************************************
-                                     Types
-******************************************************************************/
-
 /**
  * @entity users
  */
@@ -71,13 +22,54 @@ export type IUserPublic = Omit<IUser, 'password'>;
 
 export type IUserCreate = AutoCreatePayload<IUser>;
 
-const parseUserCreate = parseObject<IUserCreate>(userCreateSchema);
+function isNullableDeletedAt(val: unknown): val is Date | null {
+  if (val === null || val === undefined) return true;
+  return transformIsDate(val);
+}
 
-/******************************************************************************
-                                     Setup
-******************************************************************************/
+const GetDefaults = (): IUser => ({
+  id: 0,
+  username: '',
+  password: '',
+  role: 'employee',
+  fullName: '',
+  department: '',
+  phoneNumber: '',
+  email: '',
+  isActivated: false,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  deletedAt: null,
+});
 
-const parseUser = parseObject<IUser>(schema);
+const schema = {
+  id: isUnsignedInteger,
+  username: isString,
+  password: isString,
+  role: isString,
+  fullName: isString,
+  department: isString,
+  phoneNumber: isString,
+  email: isString,
+  isActivated: isBoolean,
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+  deletedAt: isNullableDeletedAt,
+} satisfies Schema<IUser>;
+
+const userCreateSchema = {
+  username: isString,
+  password: isString,
+  role: isString,
+  fullName: isString,
+  department: isString,
+  phoneNumber: isString,
+  email: isString,
+  isActivated: isBoolean,
+} satisfies Schema<IUserCreate>;
+
+const parseUserCreate = parseObject(userCreateSchema);
+const parseUser = parseObject(schema);
 
 const isCompleteUser = testObject<IUser>({
   ...schema,
@@ -85,12 +77,8 @@ const isCompleteUser = testObject<IUser>({
   password: isString,
   fullName: isString,
   email: isString,
-  isActivated: isBoolean
+  isActivated: isBoolean,
 });
-
-/******************************************************************************
-                                   Functions
-******************************************************************************/
 
 function newCreate(payload: unknown): IUserCreate {
   return parseUserCreate(payload, (errors) => {
@@ -109,9 +97,6 @@ function toPublic(user: IUser): IUserPublic {
   return publicUser;
 }
 
-/**
- * Map Prisma row (snake_case) to Model (camelCase)
- */
 function mapRowToUser(row: {
   user_id: number;
   username: string;
@@ -141,10 +126,6 @@ function mapRowToUser(row: {
     deletedAt: row.deleted_at,
   };
 }
-
-/******************************************************************************
-                                   Export default
-******************************************************************************/
 
 export default {
   new: new_,

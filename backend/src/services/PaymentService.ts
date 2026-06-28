@@ -47,7 +47,7 @@ async function getInvoiceTotal(
   return Number(activity.invoice.total_amount);
 }
 
-async function sumPayments(activityId: number, tx: Tx | typeof prisma = prisma) {
+export async function sumPayments(activityId: number, tx: Tx | typeof prisma = prisma) {
   const agg = await tx.payment.aggregate({
     where: { activity_id: activityId },
     _sum: { paid_amount: true },
@@ -55,7 +55,7 @@ async function sumPayments(activityId: number, tx: Tx | typeof prisma = prisma) 
   return Number(agg._sum.paid_amount ?? 0);
 }
 
-function resolvePaymentStatus(
+export function resolvePaymentStatus(
   paidTotal: number,
   invoiceTotal: number,
 ): PaymentStatusCode {
@@ -288,7 +288,7 @@ async function buildSummaryInTx(activityId: number, tx: Tx): Promise<IPaymentSum
 }
 
 /** Ghi toàn bộ thanh toán tạm khi hoàn thành đơn (chỉ gọi từ advance → completed). */
-async function settlePendingPaymentsInTx(
+export async function settlePendingPaymentsInTx(
   activityId: number,
   customerId: number,
   options: ISettlePaymentsOptions,
@@ -466,14 +466,6 @@ async function deleteOne(paymentId: number): Promise<void> {
     await syncActivityPaymentStatus(activityId, tx);
   });
 }
-
-export {
-  allocateCustomerPayment,
-  applyCustomerBalanceAcrossOrders,
-  sumPayments,
-  resolvePaymentStatus,
-  settlePendingPaymentsInTx,
-};
 
 export default {
   Errors,

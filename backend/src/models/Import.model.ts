@@ -4,22 +4,6 @@ import { transformIsDate } from '@src/common/utils/validators';
 
 import { Entity } from './common/types';
 
-const GetDefaults = (): IImport => ({
-  id: 0,
-  supplierId: 0,
-  importDate: new Date(),
-  content: '',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
-
-const schema: Schema<IImport> = {
-  id: isUnsignedInteger,
-  supplierId: isUnsignedInteger,
-  importDate: transformIsDate,
-  content: isNonEmptyString,
-};
-
 /**
  * @entity imports
  */
@@ -40,21 +24,35 @@ export interface IImportView extends IImport {
   lineCount?: number;
 }
 
-const parseImport = parseObject<IImport>(schema);
+const GetDefaults = (): IImport => ({
+  id: 0,
+  supplierId: 0,
+  importDate: new Date(),
+  content: '',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
 
-const isCompleteImport = testObject<IImport>({
+const schema = {
   id: isUnsignedInteger,
   supplierId: isUnsignedInteger,
   importDate: transformIsDate,
   content: isNonEmptyString,
-});
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+} satisfies Schema<IImport>;
 
-const writeSchema: Schema<IImportWrite> = {
+const writeSchema = {
   supplierId: isUnsignedInteger,
   content: isNonEmptyString,
-};
+} satisfies Schema<IImportWrite>;
 
-const parseImportWrite = parseObject<IImportWrite>(writeSchema);
+const parseImport = parseObject(schema);
+const parseImportWrite = parseObject(writeSchema);
+
+const isCompleteImport = testObject<IImport>({
+  ...schema,
+});
 
 const isCompleteImportWrite = testObject<IImportWrite>(writeSchema);
 

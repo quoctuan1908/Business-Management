@@ -11,7 +11,7 @@ import parseReq from './common/parseReq';
 import EnvVars from '@src/common/constants/env';
 import UserRepo from '@src/repos/UserRepo';
 import crypto from 'node:crypto';
-import redisClient from '@src/common/utils/redis';
+import { getRedisClient } from '@src/common/utils/redis';
 import UserService from '@src/services/UserService';
 import { Prisma } from '@prisma/client';
 
@@ -108,7 +108,8 @@ async function register(req: Req, res: Res) {
   };
 
   const redisKey = `pending_user:${token}`;
-  await redisClient.set(redisKey, JSON.stringify(pendingUserData), {
+  const redis = await getRedisClient();
+  await redis.set(redisKey, JSON.stringify(pendingUserData), {
     EX: 3600 
   });
 
@@ -118,7 +119,7 @@ async function register(req: Req, res: Res) {
     }
   } catch (mailError) {
     console.error('Failed to dispatch activation email:', mailError);
-    await redisClient.del(redisKey);
+    await redis.del(redisKey);
     throw new RouteError(HttpStatusCodes.INTERNAL_SERVER_ERROR, 'Mailer service error. Registration rolled back.');
   }
 
@@ -137,7 +138,8 @@ async function verifyEmail(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Verification token is required.');
   }
   const redisKey = `pending_user:${token}`;
-  const rawData = await redisClient.get(redisKey);
+  const redis = await getRedisClient();
+  const rawData = await redis.get(redisKey);
 
   if (!rawData) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'The activation link is invalid or has expired.');
@@ -178,7 +180,7 @@ async function verifyEmail(req: Req, res: Res) {
     throw error;
   }  
 
-  await redisClient.del(redisKey);
+  await redis.del(redisKey);
 
   return res.status(HttpStatusCodes.OK).json({
     message: 'Account successfully activated and registered! Please wait for administrator to activate your account'
@@ -199,8 +201,9 @@ async function forgotPassword(req: Req, res: Res) {
 
   const token = crypto.randomBytes(32).toString('hex');
   const redisKey = `password_reset:${token}`;
+  const redis = await getRedisClient();
 
-  await redisClient.set(redisKey, JSON.stringify({ userId: user.id }), {
+  await redis.set(redisKey, JSON.stringify({ userId: user.id }), {
     EX: 900
   });
 
@@ -208,7 +211,7 @@ async function forgotPassword(req: Req, res: Res) {
     await AuthService.sendForgotPasswordEmail(email, user.username, token);
   } catch (mailError) {
     console.error('Failed to dispatch forgot password email:', mailError);
-    await redisClient.del(redisKey);
+    await redis.del(redisKey);
     throw new RouteError(HttpStatusCodes.INTERNAL_SERVER_ERROR, 'Mailer service error. Request rolled back.');
   }
 
@@ -225,7 +228,8 @@ async function resetPassword(req: Req, res: Res) {
   const { token, password } = reqValidators.resetPassword(req.body);
 
   const redisKey = `password_reset:${token}`;
-  const rawData = await redisClient.get(redisKey);
+  const redis = await getRedisClient();
+  const rawData = await redis.get(redisKey);
 
   if (!rawData) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'The password reset link is invalid or has expired.');
@@ -239,7 +243,7 @@ async function resetPassword(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.INTERNAL_SERVER_ERROR, 'Internal server error. Failed to update password.');
   }
 
-  await redisClient.del(redisKey);
+  await redis.del(redisKey);
 
   return res.status(HttpStatusCodes.OK).json({
     message: 'Your password has been successfully updated.'

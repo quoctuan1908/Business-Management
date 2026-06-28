@@ -5,24 +5,6 @@ import type { PaymentStatusCode } from '@src/common/constants/payment-status';
 import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
 
-const GetDefaults = (): IPayment => ({
-  id: 0,
-  activityId: 0,
-  paidAmount: 0,
-  paymentDate: new Date(),
-  method: '',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
-
-const schema: Schema<IPayment> = {
-  id: isUnsignedInteger,
-  activityId: isUnsignedInteger,
-  paidAmount: isNumber,
-  paymentDate: transformIsDate,
-  method: isNonEmptyString,
-};
-
 /**
  * @entity payments
  */
@@ -58,7 +40,27 @@ export interface IPaymentSummary {
   payments: IPayment[];
 }
 
-const parsePayment = parseObject<IPayment>(schema);
+const GetDefaults = (): IPayment => ({
+  id: 0,
+  activityId: 0,
+  paidAmount: 0,
+  paymentDate: new Date(),
+  method: '',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+const schema = {
+  id: isUnsignedInteger,
+  activityId: isUnsignedInteger,
+  paidAmount: isNumber,
+  paymentDate: transformIsDate,
+  method: isNonEmptyString,
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+} satisfies Schema<IPayment>;
+
+const parsePayment = parseObject(schema);
 
 const isCompletePayment = testObject<IPayment>({
   ...schema,

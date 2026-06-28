@@ -5,27 +5,8 @@ import {
 } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 
+import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
-
-const GetDefaults = (): ISupplier => ({
-  id: 0,
-  supplierName: '',
-  businessType: '',
-  address: '',
-  phoneNumber: '',
-  email: '',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
-
-const schema: Schema<ISupplier> = {
-  id: isUnsignedInteger,
-  supplierName: isString,
-  businessType: isString,
-  address: isString,
-  phoneNumber: isString,
-  email: isString,
-};
 
 /**
  * @entity suppliers
@@ -38,7 +19,29 @@ export interface ISupplier extends Entity {
   email: string;
 }
 
-const parseSupplier = parseObject<ISupplier>(schema);
+const GetDefaults = (): ISupplier => ({
+  id: 0,
+  supplierName: '',
+  businessType: '',
+  address: '',
+  phoneNumber: '',
+  email: '',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+const schema = {
+  id: isUnsignedInteger,
+  supplierName: isString,
+  businessType: isString,
+  address: isString,
+  phoneNumber: isString,
+  email: isString,
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+} satisfies Schema<ISupplier>;
+
+const parseSupplier = parseObject(schema);
 
 const isCompleteSupplier = testObject<ISupplier>({
   ...schema,

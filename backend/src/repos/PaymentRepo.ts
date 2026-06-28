@@ -1,7 +1,11 @@
+import { Prisma } from '@prisma/client';
+
 import { IPayment } from '@src/models/Payment.model';
 
 import { paymentToPrismaData, toPayment } from './common/mappers';
 import prisma from './common/prisma';
+
+type DbClient = typeof prisma | Prisma.TransactionClient;
 
 async function getByActivity(activityId: number): Promise<IPayment[]> {
   const rows = await prisma.payment.findMany({
@@ -33,7 +37,7 @@ async function delete_(paymentId: number): Promise<void> {
 async function setActivityPaymentStatus(
   activityId: number,
   paymentStatus: 'unpaid' | 'partial' | 'paid',
-  client: typeof prisma = prisma,
+  client: DbClient = prisma,
 ): Promise<void> {
   await client.activity.update({
     where: { activity_id: activityId },

@@ -1,31 +1,8 @@
 import { isNonEmptyString, isString, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 
+import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
-
-/******************************************************************************
-                                 Constants
-******************************************************************************/
-
-const GetDefaults = (): ILocation => ({
-  id: 0,
-  province: '',
-  ward: '',
-  wardCode: 0,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
-
-const schema: Schema<ILocation> = {
-  id: isUnsignedInteger,
-  province: isString,
-  ward: isString,
-  wardCode: isUnsignedInteger,
-};
-
-/******************************************************************************
-                                  Types
-******************************************************************************/
 
 /**
  * @entity locations
@@ -37,11 +14,25 @@ export interface ILocation extends Entity {
   wardCode: number;
 }
 
-/******************************************************************************
-                                  Setup
-******************************************************************************/
+const GetDefaults = (): ILocation => ({
+  id: 0,
+  province: '',
+  ward: '',
+  wardCode: 0,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
 
-const parseLocation = parseObject<ILocation>(schema);
+const schema = {
+  id: isUnsignedInteger,
+  province: isString,
+  ward: isString,
+  wardCode: isUnsignedInteger,
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+} satisfies Schema<ILocation>;
+
+const parseLocation = parseObject(schema);
 
 const isCompleteLocation = testObject<ILocation>({
   ...schema,
@@ -50,10 +41,6 @@ const isCompleteLocation = testObject<ILocation>({
   wardCode: isUnsignedInteger,
 });
 
-/******************************************************************************
-                                 Functions
-******************************************************************************/
-
 function new_(location?: Partial<ILocation>): ILocation {
   return parseLocation({ ...GetDefaults(), ...location }, (errors) => {
     throw new Error(
@@ -61,10 +48,6 @@ function new_(location?: Partial<ILocation>): ILocation {
     );
   });
 }
-
-/******************************************************************************
-                                Export default
-******************************************************************************/
 
 export default {
   new: new_,

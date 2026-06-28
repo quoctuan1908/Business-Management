@@ -9,9 +9,11 @@ dotenv.config({
 });
 
 const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
+// Prisma 7: CLI (migrate) dùng direct connection; runtime dùng DATABASE_URL qua adapter pg.
+const migrationUrl = process.env.DIRECT_URL ?? databaseUrl;
+if (!migrationUrl) {
   throw new Error(
-    "DATABASE_URL is missing. Set DOTENV_CONFIG_PATH or use config/.env.development.",
+    "DATABASE_URL or DIRECT_URL is missing. Set DOTENV_CONFIG_PATH or use config/.env.development.",
   );
 }
 
@@ -22,6 +24,6 @@ export default defineConfig({
     seed: "node ./prisma/seed.js",
   },
   datasource: {
-    url: databaseUrl,
+    url: migrationUrl,
   },
 });
