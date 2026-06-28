@@ -2,8 +2,8 @@
   "name": "backend",
   "version": "0.0.0",
   "scripts": {
-    "build": "shx rm -rf dist && npm run lint && tsc --project tsconfig.prod.json && npm run build:copy-static && npm run build:make-db",
-    "vercel-build": "prisma generate && npm run build", 
+    "build": "shx rm -rf dist && npm run lint && tsc --project tsconfig.prod.json && tsc-alias && npm run build:copy-static && npm run build:make-db",
+    "vercel-build": "prisma generate && npm run build",
     "postinstall": "prisma generate",
     "build:copy-static": "shx mkdir -p dist/public dist/views && shx cp -r src/views/* dist/views",
     "build:make-db": "shx mkdir -p dist/repos/common && shx touch dist/repos/common/database.json && echo \"{}\" > dist/repos/common/database.json",
@@ -83,6 +83,7 @@
     "shx": "^0.4.0",
     "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.17",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.1",
