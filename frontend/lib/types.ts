@@ -307,4 +307,120 @@ export interface CustomerReceivePaymentResult {
   account: CustomerAccount;
 }
 
+export interface EmployeeOverviewStats {
+  totalActivities: number;
+  conversionRate: number;
+  grossRevenue: number;
+  collectedRevenue: number;
+  pendingRevenue: number;
+  averageOrderValue: number;
+}
+
+export interface EmployeeMonthlyStats {
+  period: string;
+  tasksReceived: number;
+  tasksProcessed: number;
+  monthlyGrossRevenue: number;
+  monthlyCollectedRevenue: number;
+  monthlyDebtCreated: number;
+}
+
+export interface LocationStatItem {
+  province: string;
+  ward: string;
+  activeCustomersCount: number;
+  revenueGenerated: number;
+  collectedAmount: number;
+  outstandingDebt: number;
+}
+
+export interface EmployeeLocationStats {
+  locations: LocationStatItem[];
+}
+
+export interface TopProductStat {
+  productName: string;
+  totalQty: number;
+  totalSales: number;
+}
+
+export interface TopProductsStats {
+  products: TopProductStat[];
+}
+
+export interface StatusBreakdownItem {
+  statusName: string;
+  count: number;
+}
+
+export interface StatusBreakdownStats {
+  breakdown: StatusBreakdownItem[];
+}
+
+export interface RecentSaleTimelineItem {
+  createdAt: string;
+  customerName: string;
+  productName: string;
+  amount: number;
+}
+
+export interface RecentSalesTimelineStats {
+  timeline: RecentSaleTimelineItem[];
+}
+
+export interface SellerOverviewStats {
+  totalActivities: number;
+  conversionRate: number;
+  grossRevenue: number;
+  collectedRevenue: number;
+  outstandingDebt: number;
+  currentBalance: number;
+  averageOrderValue: number;
+}
+
+export interface SellerMonthlyStatItem {
+  month: number;
+  period: string;
+  successfulDeliveries: number;
+  collectedCod: number;
+}
+
+export interface TopDebtorItem {
+  customerId: number;
+  customerName: string;
+  phoneNumber: string;
+  currentBalance: number;
+  outstandingDebt: number;
+  totalDebt: number;
+  totalOrders: number;
+}
+
+export interface TopDebtorsStats {
+  debtors: TopDebtorItem[];
+}
+
+export interface ShipperOverviewStats {
+  totalDeliveryTrips: number;
+  completedDeliveries: number;
+  deliverySuccessRate: number;
+  totalMoneyCollected: number;
+}
+
+export interface ShipperMonthlyStats {
+  period: string;
+  monthlyTrips: number;
+  monthlySuccess: number;
+  monthlyMoneyCollected: number;
+}
+
+export interface OccupiedAreaInfo {
+  employeeName: string;
+  activityContent: string;
+  customerName: string;
+}
+
+export interface MapStatusStats {
+  date: string;
+  occupiedProvinces: Record<string, OccupiedAreaInfo>;
+}
 

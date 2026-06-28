@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Map, Marker } from "leaflet";
 import { MapPin, RefreshCw, Loader2, Store, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,54 @@ interface OsmStore {
   phone: string;
 }
 
+interface OsmTags {
+  name?: string;
+  "name:vi"?: string;
+  brand?: string;
+  alt_name?: string;
+  shop?: string;
+  amenity?: string;
+  craft?: string;
+  phone?: string;
+  mobile?: string;
+  "contact:phone"?: string;
+  "contact:mobile"?: string;
+}
+
+interface OverpassElement {
+  id: number;
+  lat: number;
+  lon: number;
+  tags?: OsmTags;
+}
+
+function normalizeStoreData(tags: OsmTags, elId: number) {
+  const finalName =
+    tags["name:vi"] ||
+    tags.name ||
+    tags.brand ||
+    tags.alt_name ||
+    `Cửa hàng chưa đặt tên (#${elId})`;
+  const finalType = tags.shop || tags.amenity || tags.craft || "Đại lý";
+  let finalPhone =
+    tags.phone ||
+    tags.mobile ||
+    tags["contact:phone"] ||
+    tags["contact:mobile"] ||
+    "";
+
+  finalPhone = finalPhone.replace(/[\s\.\-\(\)]/g, "");
+  if (finalPhone.startsWith("+84")) {
+    finalPhone = "0" + finalPhone.substring(3);
+  }
+
+  return {
+    name: finalName,
+    type: finalType.toUpperCase(),
+    phone: finalPhone,
+  };
+}
+
 interface FieldScanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,9 +80,9 @@ interface FieldScanDialogProps {
 
 export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScanDialogProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markerRef = useRef<any>(null);
-  const storeMarkersRef = useRef<any[]>([]);
+  const mapInstanceRef = useRef<Map | null>(null);
+  const markerRef = useRef<Marker | null>(null);
+  const storeMarkersRef = useRef<Marker[]>([]);
   
   const isScanningRef = useRef<boolean>(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -41,24 +90,6 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
   const [scanStatus, setScanStatus] = useState<string>("Đang chuẩn bị...");
   const [loading, setLoading] = useState<boolean>(false);
   const [nearbyStores, setNearbyStores] = useState<OsmStore[]>([]);
-
-  // Hàm chuẩn hóa dữ liệu (Giữ nguyên gốc của bạn)
-  const normalizeStoreData = (tags: any, elId: number) => {
-    let finalName = tags["name:vi"] || tags["name"] || tags["brand"] || tags["alt_name"] || `Cửa hàng chưa đặt tên (#${elId})`;
-    let finalType = tags["shop"] || tags["amenity"] || tags["craft"] || "Đại lý";
-    let finalPhone = tags["phone"] || tags["mobile"] || tags["contact:phone"] || tags["contact:mobile"] || "";
-    
-    finalPhone = finalPhone.replace(/[\s\.\-\(\)]/g, "");
-    if (finalPhone.startsWith("+84")) {
-      finalPhone = "0" + finalPhone.substring(3);
-    }
-
-    return {
-      name: finalName,
-      type: finalType.toUpperCase(),
-      phone: finalPhone
-    };
-  };
 
   // Hàm quét chính - Đã đưa về dạng gọi callback trực tiếp chống chặn GPS
   const startFieldScan = () => {
@@ -101,15 +132,20 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
           storeMarkersRef.current = [];
 
           // Khởi tạo hoặc cập nhật Map Instance
-          let map = mapInstanceRef.current;
-          if (!map) {
-            map = L.map(mapContainerRef.current).setView([lat, lng], 18);
+          if (!mapInstanceRef.current) {
+            const createdMap = L.map(mapContainerRef.current).setView([lat, lng], 18);
             L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
               attribution: "© OpenStreetMap contributors",
-            }).addTo(map);
-            mapInstanceRef.current = map;
+            }).addTo(createdMap);
+            mapInstanceRef.current = createdMap;
           } else {
-            map.setView([lat, lng], 18);
+            mapInstanceRef.current.setView([lat, lng], 18);
+          }
+          const map = mapInstanceRef.current;
+          if (!map) {
+            isScanningRef.current = false;
+            setLoading(false);
+            return;
           }
 
           if (markerRef.current) {
@@ -137,7 +173,7 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
 
           if (overpassRes.ok) {
             const overpassData = await overpassRes.json();
-            const elements = overpassData.elements || [];
+            const elements = (overpassData.elements ?? []) as OverpassElement[];
             const storesFound: OsmStore[] = [];
 
             const storeIcon = L.icon({
@@ -149,8 +185,8 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
               shadowSize: [41, 41],
             });
 
-            elements.forEach((el: any) => {
-              const tags = el.tags || {};
+            elements.forEach((el) => {
+              const tags = el.tags ?? {};
               const cleanData = normalizeStoreData(tags, el.id);
 
               storesFound.push({
@@ -174,8 +210,13 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
           } else {
             setScanStatus("Không thể kết nối tới hệ thống dữ liệu Overpass.");
           }
-        } catch (err: any) {
-          if (err.name !== "AbortError") {
+        } catch (err: unknown) {
+          const isAbort =
+            typeof err === "object" &&
+            err !== null &&
+            "name" in err &&
+            (err as { name: unknown }).name === "AbortError";
+          if (!isAbort) {
             console.error(err);
             setScanStatus("Lỗi đồng bộ bản đồ vệ tinh.");
           }
@@ -204,38 +245,47 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
     );
   };
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setNearbyStores([]);
+      isScanningRef.current = false;
+      abortControllerRef.current?.abort();
+    }
+    onOpenChange(nextOpen);
+  };
+
   // Load trước bản đồ từ Cache lúc vừa mở Dialog (Nếu có cache) để tối ưu UX tốc độ
   useEffect(() => {
-    if (open) {
-      const cachedData = localStorage.getItem(CACHE_KEY);
-      if (cachedData && mapContainerRef.current && !mapInstanceRef.current) {
-        const cachedCoords = JSON.parse(cachedData);
-        import("leaflet").then((LModule) => {
-          const L = LModule.default;
-          import("leaflet/dist/leaflet.css").then(() => {
-            if (!mapInstanceRef.current && mapContainerRef.current) {
-              const map = L.map(mapContainerRef.current).setView([cachedCoords.lat, cachedCoords.lng], 18);
-              L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-                attribution: "© OpenStreetMap contributors",
-              }).addTo(map);
-              mapInstanceRef.current = map;
-              markerRef.current = L.marker([cachedCoords.lat, cachedCoords.lng]).addTo(map);
-              markerRef.current.bindPopup("<b>📍 Vị trí quét gần nhất</b>").openPopup();
-            }
-          });
+    if (!open) return;
+
+    const cachedData = localStorage.getItem(CACHE_KEY);
+    if (cachedData && mapContainerRef.current && !mapInstanceRef.current) {
+      const cachedCoords = JSON.parse(cachedData) as { lat: number; lng: number };
+      import("leaflet").then((LModule) => {
+        const L = LModule.default;
+        import("leaflet/dist/leaflet.css").then(() => {
+          if (!mapInstanceRef.current && mapContainerRef.current) {
+            const map = L.map(mapContainerRef.current).setView(
+              [cachedCoords.lat, cachedCoords.lng],
+              18,
+            );
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+              attribution: "© OpenStreetMap contributors",
+            }).addTo(map);
+            mapInstanceRef.current = map;
+            markerRef.current = L.marker([cachedCoords.lat, cachedCoords.lng]).addTo(map);
+            markerRef.current.bindPopup("<b>📍 Vị trí quét gần nhất</b>").openPopup();
+          }
         });
-      }
-      
-      // Kích hoạt quét thực tế bằng GPS trực tiếp
-      startFieldScan();
+      });
     }
 
+    const scanTimer = window.setTimeout(() => {
+      startFieldScan();
+    }, 0);
+
     return () => {
-      if (!open) {
-        setNearbyStores([]);
-        isScanningRef.current = false;
-        if (abortControllerRef.current) abortControllerRef.current.abort();
-      }
+      window.clearTimeout(scanTimer);
     };
   }, [open]);
 
@@ -264,7 +314,7 @@ export function FieldScanDialog({ open, onOpenChange, onSelectStore }: FieldScan
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex flex-row items-center justify-between border-b pb-3 space-y-0 shrink-0">
           <DialogTitle className="text-md font-bold flex items-center gap-2">

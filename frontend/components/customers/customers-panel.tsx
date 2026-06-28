@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import type { LeafletMouseEvent, Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
 import { Eye, Pencil, Plus, RefreshCw, Trash2, Check, Map, MapPin } from "lucide-react";
 
 import { CustomerDetailDialog } from "@/components/customers/customer-detail-dialog";
@@ -82,8 +83,8 @@ export function CustomersPanel() {
   const [innerMapOpen, setInnerMapOpen] = useState(false);
   const [pickedCoords, setPickedCoords] = useState(CAN_THO_COORDS);
   const innerMapContainerRef = useRef<HTMLDivElement>(null);
-  const innerMapInstanceRef = useRef<any>(null);
-  const innerMarkerRef = useRef<any>(null);
+  const innerMapInstanceRef = useRef<LeafletMap | null>(null);
+  const innerMarkerRef = useRef<LeafletMarker | null>(null);
 
   const locationMap = useMemo(
     () =>
@@ -147,7 +148,13 @@ export function CustomersPanel() {
   }, [isAdmin]);
 
   useEffect(() => {
-    void load();
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [load]);
 
   // Khởi tạo bản đồ nhỏ và định vị GPS bản thân
@@ -160,7 +167,7 @@ export function CustomersPanel() {
         await import("leaflet/dist/leaflet.css");
 
         // KHẮC PHỤC LỖI ICON: Định nghĩa lại Marker Icon mặc định của Leaflet bằng CDN chuẩn
-        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
         L.Icon.Default.mergeOptions({
           iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
           iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
@@ -175,8 +182,8 @@ export function CustomersPanel() {
           innerMarkerRef.current = null;
         }
 
-        let initLat = form.lat ? Number(form.lat) : null;
-        let initLng = form.lng ? Number(form.lng) : null;
+        const initLat = form.lat ? Number(form.lat) : null;
+        const initLng = form.lng ? Number(form.lng) : null;
 
         const setupLeaflet = (lat: number, lng: number) => {
           setPickedCoords({ lat, lng });
@@ -190,7 +197,7 @@ export function CustomersPanel() {
           innerMapInstanceRef.current = map;
           innerMarkerRef.current = L.marker([lat, lng]).addTo(map);
 
-          map.on("click", (e: any) => {
+          map.on("click", (e: LeafletMouseEvent) => {
             const { lat: clickLat, lng: clickLng } = e.latlng;
             setPickedCoords({ lat: clickLat, lng: clickLng });
             if (innerMarkerRef.current) {
@@ -684,20 +691,23 @@ export function CustomersPanel() {
             </div>
 
             {isAdmin && form.id !== 0 && (
-              <div className="flex items-center gap-2 py-2">
+              <Label
+                htmlFor="isApproved"
+                className="flex cursor-pointer select-none items-center gap-2 py-2"
+              >
                 <input
                   id="isApproved"
                   type="checkbox"
+                  title="Kích hoạt trạng thái Đã duyệt"
+                  aria-label="Kích hoạt trạng thái Đã duyệt"
                   className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                   checked={form.isApproved}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, isApproved: e.target.checked }))
                   }
                 />
-                <Label htmlFor="isApproved" className="cursor-pointer select-none">
-                  Kích hoạt trạng thái Đã duyệt
-                </Label>
-              </div>
+                Kích hoạt trạng thái Đã duyệt
+              </Label>
             )}
             <Button type="submit" disabled={saving || !form.locationId}>
               {saving ? "Đang lưu..." : "Gửi yêu cầu lưu khách hàng"}

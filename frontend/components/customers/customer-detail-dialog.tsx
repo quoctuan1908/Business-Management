@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Banknote, Loader2, MapPin } from "lucide-react"; // Thêm icon MapPin
 
 import { customersApi, locationsApi, orderStatusesApi } from "@/lib/api";
@@ -76,40 +76,51 @@ export function CustomerDetailDialog({
   const [payMethod, setPayMethod] = useState("Tien mat");
   const [paying, setPaying] = useState(false);
 
-  const loadAccount = useCallback(async () => {
-    if (!customerId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const locs = await locationsApi.getAll();
-      setLocations(locs);
-
-      const [acc, statuses] = await Promise.all([
-        customersApi.getAccount(customerId),
-        orderStatusesApi.getAll(),
-      ]);
-      setAccount(acc);
-      setStatusMap(
-        Object.fromEntries(statuses.map((s) => [s.statusCode, s.statusName])),
-      );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
-      setAccount(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [customerId]);
-
-  useEffect(() => {
-    if (open && customerId) {
-      void loadAccount();
-    } else if (!open) {
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
       setAccount(null);
       setError(null);
       setPayDialogOpen(false);
       setPayAmount("");
     }
-  }, [open, customerId, loadAccount]);
+    onOpenChange(nextOpen);
+  };
+
+  useEffect(() => {
+    if (!open || !customerId) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const locs = await locationsApi.getAll();
+        if (cancelled) return;
+        setLocations(locs);
+
+        const [acc, statuses] = await Promise.all([
+          customersApi.getAccount(customerId),
+          orderStatusesApi.getAll(),
+        ]);
+        if (cancelled) return;
+        setAccount(acc);
+        setStatusMap(
+          Object.fromEntries(statuses.map((s) => [s.statusCode, s.statusName])),
+        );
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
+        setAccount(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, customerId]);
 
   async function handleReceivePayment(e: React.FormEvent) {
     e.preventDefault();
@@ -150,7 +161,7 @@ export function CustomerDetailDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
