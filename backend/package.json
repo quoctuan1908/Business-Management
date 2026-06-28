@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "build": "shx rm -rf dist && npm run lint && tsc --project tsconfig.prod.json && npm run build:copy-static && npm run build:make-db",
-    "vercel-build": "prisma generate && npm run build",
+    "vercel-build": "prisma generate && npm run build", 
     "postinstall": "prisma generate",
     "build:copy-static": "shx mkdir -p dist/public dist/views && shx cp -r src/views/* dist/views",
     "build:make-db": "shx mkdir -p dist/repos/common && shx touch dist/repos/common/database.json && echo \"{}\" > dist/repos/common/database.json",
