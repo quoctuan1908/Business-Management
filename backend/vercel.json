@@ -1,8 +1,13 @@
 {
   "version": 2,
-  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
+  "rewrites": [
+    { 
+      "source": "/(.*)", 
+      "destination": "/dist/main.js" 
+    }
+  ],
   "functions": {
-    "api/index.js": {
+    "dist/main.js": {
       "maxDuration": 60
     }
   }
