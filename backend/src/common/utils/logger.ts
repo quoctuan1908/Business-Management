@@ -1,15 +1,15 @@
 import fs from "fs";
 import path from "path";
 
-const LOG_DIR = path.join(process.cwd(), "logs");
+const isProduction = process.env.NODE_ENV === "production";
 
-if (!fs.existsSync(LOG_DIR)) {
+const LOG_DIR = path.join(process.cwd(), "logs");
+if (!isProduction && !fs.existsSync(LOG_DIR)) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
 }
 
 function getVietnamTime() {
   const now = new Date();
-  
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Ho_Chi_Minh",
     year: "numeric",
@@ -23,11 +23,8 @@ function getVietnamTime() {
 
   const parts = formatter.formatToParts(now);
   const hash: Record<string, string> = {};
-  parts.forEach((p) => {
-    hash[p.type] = p.value;
-  });
+  parts.forEach((p) => { hash[p.type] = p.value; });
 
-  // Trả về chuỗi ngày giờ đầy đủ và chuỗi ngày riêng biệt
   const fullDateTime = `${hash.year}-${hash.month}-${hash.day} ${hash.hour}:${hash.minute}:${hash.second}`;
   const dateOnly = `${hash.year}-${hash.month}-${hash.day}`;
 
@@ -36,38 +33,23 @@ function getVietnamTime() {
 
 function writeLog(level: "INFO" | "WARN" | "ERROR", actor: string, message: string) {
   const { fullDateTime, dateOnly } = getVietnamTime();
+  const logLine = `[${fullDateTime}] [${level}] [${actor}] ${message}`;
 
-  const fileName = `logs-${dateOnly}.txt`;
-  const filePath = path.join(LOG_DIR, fileName);
-
-  const logLine = `[${fullDateTime}] [${level}] [${actor}] ${message}\n`;
-
-  fs.appendFile(filePath, logLine, "utf8", (err) => {
-    if (err) {
-      console.error("❌ Không thể ghi file log hành động:", err);
-    }
-  });
-
-  if (process.env.NODE_ENV !== "production") {
-    console.log(logLine.trim());
+  if (isProduction) {
+    if (level === "ERROR") console.error(logLine);
+    else console.log(logLine);
+    return;
   }
+
+  const filePath = path.join(LOG_DIR, `logs-${dateOnly}.txt`);
+  fs.appendFile(filePath, logLine + "\n", "utf8", (err) => {
+    if (err) console.error("❌ Không thể ghi file log:", err);
+  });
+  console.log(logLine);
 }
 
 export const logger = {
-  /**
-   * Ghi nhận các hoạt động bình thường thành công (Đăng nhập, đăng ký tuyến...)
-   * @param actor Mã nhân viên hoặc tên hệ thống (Ví dụ: 'NV-001', 'SYSTEM')
-   * @param message Nội dung chi tiết
-   */
   info: (actor: string, message: string) => writeLog("INFO", actor, message),
-
-  /**
-   * Ghi nhận các cảnh báo hoặc hành động bị từ chối (Trùng địa bàn, sai mật khẩu...)
-   */
   warn: (actor: string, message: string) => writeLog("WARN", actor, message),
-
-  /**
-   * Ghi nhận lỗi hệ thống nghiêm trọng (Sập API bên thứ 3, lỗi query DB...)
-   */
   error: (actor: string, message: string) => writeLog("ERROR", actor, message),
 };
