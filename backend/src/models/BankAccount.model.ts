@@ -3,38 +3,6 @@ import { parseObject, Schema, testObject } from 'jet-validators/utils';
 import { transformIsDate } from '@src/common/utils/validators';
 import { AutoCreatePayload, Entity } from './common/types';
 
-/******************************************************************************
-                                   Constants
-******************************************************************************/
-
-const GetDefaults = (): IBankAccount => ({
-  id: 0,
-  userId: 0,
-  bankName: '',
-  accountNumber: '',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
-
-const schema: Schema<IBankAccount> = {
-  id: isUnsignedInteger,
-  userId: isUnsignedInteger,
-  bankName: isString,
-  accountNumber: isString,
-  createdAt: transformIsDate,
-  updatedAt: transformIsDate,
-};
-
-const bankAccountCreateSchema: Schema<IBankAccountCreate> = {
-  userId: isUnsignedInteger,
-  bankName: isString,
-  accountNumber: isString,
-};
-
-/******************************************************************************
-                                     Types
-******************************************************************************/
-
 /**
  * @entity bank_accounts
  */
@@ -46,13 +14,32 @@ export interface IBankAccount extends Entity {
 
 export type IBankAccountCreate = AutoCreatePayload<IBankAccount>;
 
-const parseBankAccountCreate = parseObject<IBankAccountCreate>(bankAccountCreateSchema);
+const GetDefaults = (): IBankAccount => ({
+  id: 0,
+  userId: 0,
+  bankName: '',
+  accountNumber: '',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
 
-/******************************************************************************
-                                     Setup
-******************************************************************************/
+const schema = {
+  id: isUnsignedInteger,
+  userId: isUnsignedInteger,
+  bankName: isString,
+  accountNumber: isString,
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+} satisfies Schema<IBankAccount>;
 
-const parseBankAccount = parseObject<IBankAccount>(schema);
+const bankAccountCreateSchema = {
+  userId: isUnsignedInteger,
+  bankName: isString,
+  accountNumber: isString,
+} satisfies Schema<IBankAccountCreate>;
+
+const parseBankAccountCreate = parseObject(bankAccountCreateSchema);
+const parseBankAccount = parseObject(schema);
 
 const isCompleteBankAccount = testObject<IBankAccount>({
   ...schema,
@@ -60,10 +47,6 @@ const isCompleteBankAccount = testObject<IBankAccount>({
   bankName: isString,
   accountNumber: isString,
 });
-
-/******************************************************************************
-                                   Functions
-******************************************************************************/
 
 function newCreate(payload: unknown): IBankAccountCreate {
   return parseBankAccountCreate(payload, (errors) => {
@@ -77,9 +60,6 @@ function new_(bankAccount?: Partial<IBankAccount>): IBankAccount {
   });
 }
 
-/**
- * Map Prisma row (snake_case) to Model (camelCase)
- */
 function mapRowToBankAccount(row: {
   bank_account_id: number;
   user_id: number;
@@ -97,10 +77,6 @@ function mapRowToBankAccount(row: {
     updatedAt: row.updated_at,
   };
 }
-
-/******************************************************************************
-                                   Export default
-******************************************************************************/
 
 export default {
   new: new_,

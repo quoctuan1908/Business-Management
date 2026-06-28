@@ -1,5 +1,4 @@
-import { parseObject, Schema } from 'jet-validators/utils';
-
+import EnvVars, { NodeEnvs } from '@src/common/constants/env';
 export interface Entity {
   id: number; // @PK
   createdAt: Date;
@@ -14,11 +13,13 @@ export interface ISessionUser {
 
 export { AuthErrors as Errors } from '@src/common/constants/service-errors';
 
+const isProduction = EnvVars.NodeEnv === NodeEnvs.PRODUCTION;
+
 export const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: true,
-  sameSite: 'strict' as const,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax',
   path: '/',
-};
+} as const;
 
 export type AutoCreatePayload<T> = Omit<T, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>;

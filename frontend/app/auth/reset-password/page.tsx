@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, CheckCircle2, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react";
-import { authApi } from "@/lib/api"; // Bạn nhớ thêm method resetPassword vào authApi ở client nhé
+import { authApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 
 type ResetState = "FORM" | "SUCCESS";
 
-export default function ResetPassword() {
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
@@ -19,14 +19,14 @@ export default function ResetPassword() {
   const [status, setStatus] = useState<ResetState>("FORM");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   async function handleResetSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    
+
     if (!token) {
       setError("Mã xác thực khôi phục mật khẩu không tồn tại hoặc đã hết hạn.");
       return;
@@ -43,12 +43,12 @@ export default function ResetPassword() {
     try {
       await authApi.resetPassword({ token, password });
       setStatus("SUCCESS");
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.message || 
-        err?.message || 
-        "Đã có lỗi xảy ra. Vui lòng yêu cầu lại liên kết khôi phục mật khẩu mới."
-      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Đã có lỗi xảy ra. Vui lòng yêu cầu lại liên kết khôi phục mật khẩu mới.";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,6 @@ export default function ResetPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <Card className="w-full max-w-md shadow-xl border-none p-2 transition-all duration-300">
-        
         {status === "FORM" && (
           <form onSubmit={handleResetSubmit}>
             <CardHeader className="space-y-1 text-center">
@@ -147,8 +146,8 @@ export default function ResetPassword() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0 px-6">
-              <Button 
-                onClick={() => router.push("/auth")} 
+              <Button
+                onClick={() => router.push("/auth")}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-xl flex items-center justify-center gap-2"
               >
                 Đi tới Đăng nhập <ArrowRight className="h-4 w-4" />
@@ -156,8 +155,23 @@ export default function ResetPassword() {
             </CardContent>
           </div>
         )}
-
       </Card>
     </div>
   );
 }
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}
+
+

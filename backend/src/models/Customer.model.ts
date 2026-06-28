@@ -1,13 +1,47 @@
 import {
+  isBoolean,
+  isDate,
   isNonEmptyString,
   isNumber,
   isString,
   isUnsignedInteger,
-  isBoolean, 
 } from 'jet-validators';
-import { parseObject, Schema, testObject } from 'jet-validators/utils';
+import { makeNullable, parseObject, Schema, testObject } from 'jet-validators/utils';
 
+import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
+
+const isNullableNumber = makeNullable(isNumber);
+
+function isNullableApprovedAt(val: unknown): val is Date | null {
+  if (val === null || val === undefined) return true;
+  if (isDate(val)) return true;
+  if (typeof val === 'string' || typeof val === 'number') {
+    return !Number.isNaN(new Date(val).getTime());
+  }
+  return false;
+}
+
+/******************************************************************************
+                                  Types
+******************************************************************************/
+
+/**
+ * @entity customers
+ */
+export interface ICustomer extends Entity {
+  locationId: number;
+  companyName: string;
+  businessType: string;
+  representativeName: string;
+  position: string;
+  phoneNumber: string;
+  currentBalance: number;
+  lat: number | null;
+  lng: number | null;
+  isApproved: boolean;
+  approvedAt: Date | null;
+}
 
 /******************************************************************************
                                  Constants
@@ -30,7 +64,7 @@ const GetDefaults = (): ICustomer => ({
   updatedAt: new Date(),
 });
 
-const schema: Schema<ICustomer> = {
+const schema = {
   id: isUnsignedInteger,
   locationId: isUnsignedInteger,
   companyName: isString,
@@ -39,38 +73,19 @@ const schema: Schema<ICustomer> = {
   position: isString,
   phoneNumber: isString,
   currentBalance: isNumber,
-  lat: (val: unknown) => val === null || isNumber(val),
-  lng: (val: unknown) => val === null || isNumber(val),
+  lat: isNullableNumber,
+  lng: isNullableNumber,
   isApproved: isBoolean,
-};
-
-/******************************************************************************
-                                  Types
-******************************************************************************/
-
-/**
- * @entity customers
- */
-export interface ICustomer extends Entity {
-  locationId: number;
-  companyName: string;
-  businessType: string;
-  representativeName: string;
-  position: string;
-  phoneNumber: string;
-  currentBalance: number;
-  
-  lat: number | null;
-  lng: number | null;
-  isApproved: boolean;
-  approvedAt: Date | string | null;
-}
+  approvedAt: isNullableApprovedAt,
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+} satisfies Schema<ICustomer>;
 
 /******************************************************************************
                                   Setup
 ******************************************************************************/
 
-const parseCustomer = parseObject<ICustomer>(schema);
+const parseCustomer = parseObject(schema);
 
 const isCompleteCustomer = testObject<ICustomer>({
   ...schema,

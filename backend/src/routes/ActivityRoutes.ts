@@ -129,6 +129,14 @@ async function confirm(req: Req, res: Res) {
   res.status(HttpStatusCodes.OK).json(result);
 }
 
+function parseOptionalBoolean(value: unknown): boolean | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
+}
+
 async function advanceStatus(req: Req, res: Res) {
   const { id } = reqValidators.advance(req.params);
   const sessionUser = res.locals.sessionUser as ISessionUser;
@@ -139,7 +147,7 @@ async function advanceStatus(req: Req, res: Res) {
     : undefined;
   const result = await ActivityService.advanceStatus(id, scope, {
     pendingPayments,
-    applyCustomerBalance: body.applyCustomerBalance,
+    applyCustomerBalance: parseOptionalBoolean(body.applyCustomerBalance),
   });
   res.status(HttpStatusCodes.OK).json(result);
 }

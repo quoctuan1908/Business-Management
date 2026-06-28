@@ -1,31 +1,8 @@
 import { isNonEmptyString, isNumber, isString, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 
+import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
-
-/******************************************************************************
-                                 Constants
-******************************************************************************/
-
-const GetDefaults = (): IProduct => ({
-  id: 0,
-  productName: '',
-  unitPrice: 0,
-  stockQuantity: 0,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
-
-const schema: Schema<IProduct> = {
-  id: isUnsignedInteger,
-  productName: isString,
-  unitPrice: isNumber,
-  stockQuantity: isUnsignedInteger,
-};
-
-/******************************************************************************
-                                  Types
-******************************************************************************/
 
 /**
  * @entity products
@@ -36,11 +13,25 @@ export interface IProduct extends Entity {
   stockQuantity: number;
 }
 
-/******************************************************************************
-                                  Setup
-******************************************************************************/
+const GetDefaults = (): IProduct => ({
+  id: 0,
+  productName: '',
+  unitPrice: 0,
+  stockQuantity: 0,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
 
-const parseProduct = parseObject<IProduct>(schema);
+const schema = {
+  id: isUnsignedInteger,
+  productName: isString,
+  unitPrice: isNumber,
+  stockQuantity: isUnsignedInteger,
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+} satisfies Schema<IProduct>;
+
+const parseProduct = parseObject(schema);
 
 const isCompleteProduct = testObject<IProduct>({
   ...schema,
@@ -49,10 +40,6 @@ const isCompleteProduct = testObject<IProduct>({
   stockQuantity: isUnsignedInteger,
 });
 
-/******************************************************************************
-                                 Functions
-******************************************************************************/
-
 function new_(product?: Partial<IProduct>): IProduct {
   return parseProduct({ ...GetDefaults(), ...product }, (errors) => {
     throw new Error(
@@ -60,10 +47,6 @@ function new_(product?: Partial<IProduct>): IProduct {
     );
   });
 }
-
-/******************************************************************************
-                                Export default
-******************************************************************************/
 
 export default {
   new: new_,

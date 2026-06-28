@@ -1,20 +1,6 @@
 import { isNumber, isUnsignedInteger } from 'jet-validators';
 import { parseObject, Schema, testObject } from 'jet-validators/utils';
 
-const GetDefaults = (): IImportDetail => ({
-  importId: 0,
-  productId: 0,
-  quantity: 1,
-  importPrice: 0,
-});
-
-const schema: Schema<IImportDetail> = {
-  importId: isUnsignedInteger,
-  productId: isUnsignedInteger,
-  quantity: isUnsignedInteger,
-  importPrice: isNumber,
-};
-
 /**
  * @entity import_details
  */
@@ -31,7 +17,21 @@ export interface IImportDetailView extends IImportDetail {
   lineTotal: number;
 }
 
-const parseImportDetail = parseObject<IImportDetail>(schema);
+const GetDefaults = (): IImportDetail => ({
+  importId: 0,
+  productId: 0,
+  quantity: 1,
+  importPrice: 0,
+});
+
+const schema = {
+  importId: isUnsignedInteger,
+  productId: isUnsignedInteger,
+  quantity: isUnsignedInteger,
+  importPrice: isNumber,
+} satisfies Schema<IImportDetail>;
+
+const parseImportDetail = parseObject(schema);
 
 const isCompleteImportDetail = testObject<IImportDetail>({
   importId: isUnsignedInteger,

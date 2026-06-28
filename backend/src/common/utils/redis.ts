@@ -1,22 +1,42 @@
-import { createClient } from 'redis';
+import { createClient, type RedisClientType } from 'redis';
 
-const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-  socket: {
-    connectTimeout: 5000,
-    reconnectStrategy: (retries) => {
-      if (retries > 5) return false; 
-      return 5000;
-    }
+const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
+
+let client: RedisClientType | null = null;
+let connectPromise: Promise<unknown> | null = null;
+
+function createRedisClient(): RedisClientType {
+  const redis = createClient({
+    url: REDIS_URL,
+    socket: {
+      connectTimeout: 5000,
+      reconnectStrategy: (retries) => {
+        if (retries > 5) return false;
+        return 5000;
+      },
+    },
+  });
+
+  redis.on('error', (err: Error) => {
+    console.error('Redis connection error:', err.message);
+  });
+
+  return redis;
+}
+
+export async function getRedisClient(): Promise<RedisClientType> {
+  if (!client) {
+    client = createRedisClient();
   }
-});
 
-redisClient.on('error', (err : Error) => {
-  console.error('Redis Connection Error:', err.message);
-});
+  if (!client.isOpen) {
+    if (!connectPromise) {
+      connectPromise = client.connect().finally(() => {
+        connectPromise = null;
+      });
+    }
+    await connectPromise;
+  }
 
-redisClient.connect().catch((err : Error) => {
-  console.error('Could not connect to Redis:', err.message);
-});
-
-export default redisClient;
+  return client;
+}

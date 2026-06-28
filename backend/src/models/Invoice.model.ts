@@ -4,20 +4,6 @@ import { parseObject, Schema, testObject } from 'jet-validators/utils';
 import { transformIsDate } from '@src/common/utils/validators';
 import { Entity } from './common/types';
 
-const GetDefaults = (): IInvoice => ({
-  id: 0,
-  totalAmount: 0,
-  date: new Date(),
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
-
-const schema: Schema<IInvoice> = {
-  id: isUnsignedInteger,
-  totalAmount: isNumber,
-  date: transformIsDate,
-};
-
 /**
  * @entity invoices
  */
@@ -26,7 +12,23 @@ export interface IInvoice extends Entity {
   date: Date;
 }
 
-const parseInvoice = parseObject<IInvoice>(schema);
+const GetDefaults = (): IInvoice => ({
+  id: 0,
+  totalAmount: 0,
+  date: new Date(),
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+const schema = {
+  id: isUnsignedInteger,
+  totalAmount: isNumber,
+  date: transformIsDate,
+  createdAt: transformIsDate,
+  updatedAt: transformIsDate,
+} satisfies Schema<IInvoice>;
+
+const parseInvoice = parseObject(schema);
 
 const isCompleteInvoice = testObject<IInvoice>({
   ...schema,
