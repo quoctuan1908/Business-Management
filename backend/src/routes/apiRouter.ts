@@ -20,6 +20,7 @@ import ImportRoutes from './ImportRoutes';
 import ImportDetailRoutes from './ImportDetailRoutes';
 import EmployeeLocationRoutes from './EmployeeLocationRoutes';
 import rateLimiters from '@src/middlewares/rateLimitMiddleware';
+import BankAccountRoutes from './BankAccountRoutes';
 
 /******************************************************************************
                                 Setup
@@ -172,6 +173,44 @@ authRouter.get(Paths.Auth.VerifyEmail, rateLimiters.default, AuthRoutes.verifyEm
 authRouter.post(Paths.Auth.ForgotPassword, rateLimiters.auth, AuthRoutes.forgotPassword);
 authRouter.post(Paths.Auth.ResetPassword, rateLimiters.auth, AuthRoutes.resetPassword);
 apiRouter.use(Paths.Auth._, authRouter);
+
+
+const bankAccountRouter = Router();
+
+bankAccountRouter.get(
+  Paths.BankAccount.GetAll, 
+  rateLimiters.default, 
+  BankAccountRoutes.getAll,
+);
+
+
+bankAccountRouter.get(
+  Paths.BankAccount.GetByUserId, 
+  rateLimiters.default, 
+  BankAccountRoutes.getByUserId,
+);
+
+
+bankAccountRouter.post(
+  Paths.BankAccount.Add, 
+  rateLimiters.default, 
+  BankAccountRoutes.add,
+);
+
+
+bankAccountRouter.put(
+  Paths.BankAccount.Upsert, 
+  rateLimiters.default, 
+  BankAccountRoutes.upsert,
+);
+
+bankAccountRouter.delete(
+  Paths.BankAccount.Delete, 
+  rateLimiters.default, 
+  BankAccountRoutes.delete,
+);
+
+apiRouter.use(Paths.BankAccount._, bankAccountRouter);
 
 /******************************************************************************
                                 Export
