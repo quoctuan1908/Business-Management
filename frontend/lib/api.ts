@@ -39,7 +39,7 @@ import type {
 } from "@/lib/types";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "https://business-management-omega.vercel.app/api";
+  process.env.NEXT_PUBLIC_API_URL ?? "https://business-management-lyart.vercel.app/api";
 
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
