@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import userModel, { IUser, IUserCreate, IUserPublic } from '@src/models/User.model';
 import prisma from './prisma';
 import { buildActivityDateFilter } from '@src/common/utils/stats-period';

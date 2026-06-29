@@ -174,22 +174,33 @@ export interface ImportDetail {
 }
 
 export interface IBankAccount {
+  bankAccountId: number;
+  userId: number;
+  bankName: string;
+  accountNumber: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IBankAccountCreate {
+  userId: number;
   bankName: string;
   accountNumber: string;
 }
+
+export type IBankAccountUpdate = Partial<Omit<IBankAccountCreate, 'userId'>>;
 
 export interface User {
   id: number;
   username: string;
   password?: string;
   role: string;
-  fullName: string; 
+  fullName: string;
   department: string;
   phoneNumber: string;
   email: string;
   isActivated: boolean;
-  bankAccount: IBankAccount | null; 
-  createdAt: string; 
+  createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
 }
@@ -198,7 +209,7 @@ export interface UserCreate {
   username: string;
   password?: string;
   role: string;
-  fullName: string; 
+  fullName: string;
   department: string;
   phoneNumber: string;
   email: string;

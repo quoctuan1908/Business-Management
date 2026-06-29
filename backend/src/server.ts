@@ -1,6 +1,6 @@
 import express, { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
-import logger from 'jet-logger';
+// import logger from 'jet-logger';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import Paths from '@src/common/constants/Paths';
@@ -14,6 +14,8 @@ import EnvVars, { NodeEnvs } from './common/constants/env';
 ******************************************************************************/
 
 const app = express();
+
+app.set('trust proxy', 1); 
 
 // **** Middleware **** //
 
@@ -55,13 +57,13 @@ if (EnvVars.NodeEnv === NodeEnvs.PRODUCTION) {
   app.use(helmet());
 }
 
-// Add APIs, must be after middleware
+
 app.use(Paths._, BaseRouter);
 
-// Add error handler
+
 app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
   if (EnvVars.NodeEnv !== NodeEnvs.TEST.valueOf()) {
-    logger.err(err, true);
+    console.error(err);
   }
   if (err instanceof RouteError) {
     res.status(err.status).json({ error: err.message });

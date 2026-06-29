@@ -1,4 +1,3 @@
-import jetPaths from 'jet-paths';
 
 const Paths = {
   _: '/api',
@@ -137,7 +136,14 @@ const Paths = {
     DetailsUpdate: '/details/update',
     DetailsDelete: '/details/delete/:importId/:productId',
   },
+  BankAccount: {
+    _: '/bank-accounts',
+    GetAll: '/all',
+    GetByUserId: '/user/:userId',
+    Add: '/add',
+    Upsert: '/upsert/:userId',
+    Delete: '/delete/:userId',
+  },
 } as const;
 
-export const JetPaths = jetPaths(Paths);
 export default Paths;

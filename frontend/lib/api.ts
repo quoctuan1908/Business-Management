@@ -33,10 +33,13 @@ import type {
   ShipperOverviewStats,
   ShipperMonthlyStats,
   MapStatusStats,
+  IBankAccount,
+  IBankAccountCreate,
+  IBankAccountUpdate,
 } from "@/lib/types";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api";
+  process.env.NEXT_PUBLIC_API_URL ?? "https://business-management-lyart.vercel.app/api";
 
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
@@ -584,6 +587,29 @@ export const usersApi = {
     const queryString = params.toString() ? `?${params.toString()}` : "";
     return request<MapStatusStats>(`/users/stats/map${queryString}`);
   },
+};
+
+export const bankAccountsApi = {
+  getAll: () =>
+    request<{ bankAccounts: IBankAccount[] }>("/bank-accounts/all").then(
+      (d) => d.bankAccounts,
+    ),
+  getByUserId: (userId: number) =>
+    request<{ bankAccount: IBankAccount }>(`/bank-accounts/user/${userId}`).then(
+      (d) => d.bankAccount,
+    ),
+  add: (bankAccount: IBankAccountCreate) =>
+    request<{ bankAccount: IBankAccount }>("/bank-accounts/add", {
+      method: "POST",
+      body: JSON.stringify({ bankAccount }),
+    }).then((d) => d.bankAccount),
+  upsert: (userId: number, data: IBankAccountUpdate) =>
+    request<{ bankAccount: IBankAccount }>(`/bank-accounts/upsert/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }).then((d) => d.bankAccount),
+  deleteByUserId: (userId: number) =>
+    request<void>(`/bank-accounts/delete/${userId}`, { method: "DELETE" }),
 };
 
 export const suppliersApi = {

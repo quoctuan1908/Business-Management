@@ -5,7 +5,7 @@ import AuthService from '@src/services/AuthService';
 import JwtUtils from '@src/common/utils/session-authenticate';
 import { RouteError } from '@src/common/utils/route-errors';
 import { isNonEmptyString, isString } from 'jet-validators';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
 import EnvVars from '@src/common/constants/env';
