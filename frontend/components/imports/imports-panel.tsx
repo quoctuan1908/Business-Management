@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { Eye, FileDown, Plus, RefreshCw, Trash2, X } from "lucide-react";
 
 import { ImportDetailDialog } from "@/components/imports/import-detail-dialog";
 import { importsApi, lookupApi } from "@/lib/api";
@@ -48,6 +48,16 @@ function matchesDateFilter(importDate: string, from: string, to: string) {
   return true;
 }
 
+function defaultFromDate() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-01`;
+}
+
+function defaultToDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function ImportsPanel() {
   const { isAdmin } = useAuth();
   const [imports, setImports] = useState<ImportView[]>([]);
@@ -60,6 +70,9 @@ export function ImportsPanel() {
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [exportFrom, setExportFrom] = useState(defaultFromDate);
+  const [exportTo, setExportTo] = useState(defaultToDate);
+  const [exporting, setExporting] = useState(false);
 
   const filteredImports = useMemo(
     () =>
@@ -153,6 +166,26 @@ export function ImportsPanel() {
     }
   }
 
+  async function handleExport() {
+    if (!exportFrom || !exportTo) {
+      setError("Vui lòng chọn khoảng ngày xuất");
+      return;
+    }
+    if (exportTo < exportFrom) {
+      setError("Ngày kết thúc không được trước ngày bắt đầu");
+      return;
+    }
+    setExporting(true);
+    setError(null);
+    try {
+      await importsApi.exportExcel(exportFrom, exportTo);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xuất Excel thất bại");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="space-y-3 pb-4">
@@ -210,6 +243,36 @@ export function ImportsPanel() {
               <X className="h-4 w-4" />
             </Button>
           )}
+
+          <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
+
+          <Input
+            id="import-export-from"
+            type="date"
+            title="Xuất từ ngày"
+            value={exportFrom}
+            onChange={(e) => setExportFrom(e.target.value)}
+            className="h-8 w-[140px] bg-background text-xs"
+          />
+          <Input
+            id="import-export-to"
+            type="date"
+            title="Xuất đến ngày"
+            value={exportTo}
+            min={exportFrom}
+            onChange={(e) => setExportTo(e.target.value)}
+            className="h-8 w-[140px] bg-background text-xs"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-8"
+            disabled={exporting}
+            onClick={() => void handleExport()}
+          >
+            <FileDown className="h-4 w-4" />
+            {exporting ? "Đang xuất..." : "Xuất Excel"}
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="pt-0">

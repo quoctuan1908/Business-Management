@@ -79,6 +79,7 @@ apiRouter.use(Paths.Suppliers._, supplierRouter);
 const importRouter = Router();
 importRouter.use(rateLimiters.default);
 importRouter.get(Paths.Imports.Get, auth, ImportRoutes.getAll);
+importRouter.get(Paths.Imports.Export, auth, ImportRoutes.exportExcel);
 importRouter.get(Paths.Imports.GetOne, auth, ImportRoutes.getOne);
 importRouter.post(Paths.Imports.Add, ...adminOnly, ImportRoutes.add);
 importRouter.put(Paths.Imports.Update, ...adminOnly, ImportRoutes.update);

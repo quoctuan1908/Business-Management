@@ -59,6 +59,24 @@ async function delete_(id: number): Promise<void> {
   await prisma.import.delete({ where: { import_id: id } });
 }
 
+async function getForExport(from: Date, toExclusive: Date) {
+  return prisma.import.findMany({
+    where: {
+      import_date: { gte: from, lt: toExclusive },
+    },
+    include: {
+      supplier: { select: { supplier_name: true } },
+      details: {
+        include: {
+          product: { select: { product_name: true, unit_price: true } },
+        },
+        orderBy: { product_id: 'asc' },
+      },
+    },
+    orderBy: [{ import_date: 'asc' }, { import_id: 'asc' }],
+  });
+}
+
 export default {
   getOne,
   persists,
@@ -66,4 +84,5 @@ export default {
   add,
   update,
   delete: delete_,
+  getForExport,
 } as const;

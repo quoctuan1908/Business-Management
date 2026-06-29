@@ -652,6 +652,11 @@ export const importsApi = {
     }).then((d) => d.import),
   delete: (id: number) =>
     request<void>(`/imports/delete/${id}`, { method: "DELETE" }),
+  exportExcel: (fromDate: string, toDate: string) =>
+    downloadBlob(
+      `/imports/export?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}`,
+      `nhap-hang_${fromDate}_${toDate}.xlsx`,
+    ),
 };
 
 export const importDetailsApi = {

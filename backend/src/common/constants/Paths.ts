@@ -127,6 +127,7 @@ const Paths = {
   Imports: {
     _: '/imports',
     Get: '/all',
+    Export: '/export',
     GetOne: '/:id',
     Add: '/add',
     Update: '/update/:id',
