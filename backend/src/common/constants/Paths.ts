@@ -11,6 +11,7 @@ const Paths = {
     StatsRecentSales: '/stats/recent-sales/:userId',
     StatsSellerOverview: '/stats/seller/overview/:userId',
     StatsSellerMonthly: '/stats/seller/monthly/:userId',
+    StatsSellerRevenueSeries: '/stats/seller/revenue-series/:userId',
     StatsSellerTopDebtors: '/stats/seller/top-debtors/:userId',
     StatsShipperOverview: '/stats/shipper/overview/:userId',
     StatsShipperMonthly: '/stats/shipper/monthly/:userId',

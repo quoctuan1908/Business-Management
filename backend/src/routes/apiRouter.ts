@@ -49,6 +49,7 @@ userRouter.get(Paths.Users.StatsTopProducts, rateLimiters.default, auth, UserRou
 userRouter.get(Paths.Users.StatsStatusBreakdown, rateLimiters.default, auth, UserRoutes.getStatusBreakdown);
 userRouter.get(Paths.Users.StatsRecentSales, rateLimiters.default, auth, UserRoutes.getRecentSalesTimeline);
 userRouter.get(Paths.Users.StatsSellerOverview, rateLimiters.default, auth, UserRoutes.getSellerOverviewStats);
+userRouter.get(Paths.Users.StatsSellerRevenueSeries, rateLimiters.default, auth, UserRoutes.getSellerRevenueSeries);
 userRouter.get(Paths.Users.StatsSellerMonthly, rateLimiters.default, auth, UserRoutes.getSellerMonthlyStats);
 userRouter.get(Paths.Users.StatsSellerTopDebtors, rateLimiters.default, auth, UserRoutes.getEmployeeTopDebtors);
 userRouter.get(Paths.Users.StatsShipperOverview, rateLimiters.default, auth, UserRoutes.getShipperOverviewStats);

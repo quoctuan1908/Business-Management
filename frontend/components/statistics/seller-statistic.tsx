@@ -12,6 +12,7 @@ import {
 } from "recharts";
 
 import { usersApi } from "@/lib/api";
+import type { SellerRevenueSeries } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -71,6 +72,7 @@ const formatYAxis = (val: number) => {
 
 export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
   const [overview, setOverview] = useState<any>(null);
+  const [revenueSeries, setRevenueSeries] = useState<SellerRevenueSeries | null>(null);
   const [locations, setLocations] = useState<any[]>([]);
   const [statusBreakdown, setStatusBreakdown] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
@@ -111,6 +113,11 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
   }, [userId, timeFilter.year]);
 
   const dateQuery = useMemo(() => dashboardTimeFilterToQuery(timeFilter), [timeFilter]);
+  const showRevenueChart = timeFilter.mode === "month";
+  const revenueChartTitle =
+    timeFilter.month === "all"
+      ? "Doanh số mang về theo tháng"
+      : "Doanh số mang về theo ngày";
 
   useEffect(() => {
     if (masterLocations.length > 0) {
@@ -143,26 +150,52 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
         ward: selectedWard,
       };
 
-      const [overviewData, locationsData, statusData, salesData, debtorsData] = await Promise.all([
+      const requests: Promise<unknown>[] = [
         usersApi.getSellerOverviewStats(safeId, params),
         usersApi.getLocationStats(safeId, params),
         usersApi.getStatusBreakdown(safeId, params),
         usersApi.getRecentSalesTimeline(safeId, params),
-        usersApi.getTopDebtors(safeId, { province: selectedProvince, ward: selectedWard })
-      ]);
+        usersApi.getTopDebtors(safeId, { province: selectedProvince, ward: selectedWard }),
+      ];
+
+      if (timeFilter.mode === "month") {
+        requests.push(
+          usersApi.getSellerRevenueSeries(safeId, {
+            month: timeFilter.month,
+            year: timeFilter.year,
+            province: selectedProvince,
+            ward: selectedWard,
+          }),
+        );
+      }
+
+      const results = await Promise.all(requests);
+      const [
+        overviewData,
+        locationsData,
+        statusData,
+        salesData,
+        debtorsData,
+        revenueSeriesData,
+      ] = results;
 
       setOverview(overviewData);
       setLocations(extractArray(locationsData, 'locations'));
       setStatusBreakdown(extractArray(statusData, 'breakdown'));
       setRecentSales(extractArray(salesData, 'timeline'));
       setDebtors(extractArray(debtorsData, 'debtors'));
+      setRevenueSeries(
+        timeFilter.mode === "month"
+          ? (revenueSeriesData as SellerRevenueSeries)
+          : null,
+      );
 
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không thể tải dữ liệu báo cáo");
     } finally {
       setLoading(false);
     }
-  }, [userId, dateQuery, selectedProvince, selectedWard]);
+  }, [userId, dateQuery, selectedProvince, selectedWard, timeFilter.mode, timeFilter.month, timeFilter.year]);
 
   useEffect(() => {
     void loadStats();
@@ -317,17 +350,68 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6 flex items-center justify-between space-y-0">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Doanh số mang về</p>
-                <div className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(overview.grossRevenue || 0)}
+          {showRevenueChart ? (
+            <Card className="md:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  {revenueChartTitle}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Tổng doanh thu kỳ: {formatCurrency(overview.grossRevenue || 0)}
+                </p>
+              </CardHeader>
+              <CardContent>
+                {!revenueSeries?.series.length ? (
+                  <p className="text-center py-10 text-sm text-muted-foreground">
+                    Chưa có dữ liệu doanh số trong kỳ.
+                  </p>
+                ) : (
+                  <div className="h-[220px] w-full">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={revenueSeries.series} barCategoryGap="20%">
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="label" fontSize={10} tickLine={false} />
+                        <YAxis
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={formatYAxis}
+                        />
+                        <Tooltip content={<CustomChartTooltip />} />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: "11px" }} />
+                        <Bar
+                          dataKey="cost"
+                          name="Chi phí"
+                          stackId="revenue"
+                          fill="#f97316"
+                        />
+                        <Bar
+                          dataKey="profit"
+                          name="Lợi nhuận"
+                          stackId="revenue"
+                          fill="#10b981"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-6 flex items-center justify-between space-y-0">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Doanh số mang về</p>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {formatCurrency(overview.grossRevenue || 0)}
+                  </div>
                 </div>
-              </div>
-              <TrendingUp className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg" />
-            </CardContent>
-          </Card>
+                <TrendingUp className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg" />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardContent className="p-6 flex items-center justify-between space-y-0">

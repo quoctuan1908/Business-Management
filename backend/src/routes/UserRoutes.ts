@@ -311,6 +311,26 @@ async function getSellerOverviewStats(req: Req, res: Res) {
 }
 
 /**
+ * [SELLER] Revenue series by day (month filter) or by month (year filter) for stacked charts.
+ * @route GET /api/users/stats/seller/revenue-series/:userId
+ */
+async function getSellerRevenueSeries(req: Req, res: Res) {
+  const scope = resolveSellerScope(req, res);
+  const { month, year, province, ward } = readSellerStatsQuery(req);
+  if (!year) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Thiếu tham số year');
+  }
+  const stats = await UserService.getSellerRevenueSeries(
+    scope,
+    year,
+    month ?? 'all',
+    province,
+    ward,
+  );
+  sendStatsJson(res, stats);
+}
+
+/**
  * [SELLER] Get monthly contract volume and pending revenue growth analytics.
  * @route GET /api/users/stats/seller/monthly/:userId
  */
@@ -400,6 +420,7 @@ export default {
   getStatusBreakdown,
   getRecentSalesTimeline,
   getSellerOverviewStats,
+  getSellerRevenueSeries,
   getSellerMonthlyStats,
   getEmployeeTopDebtors,
   getShipperOverviewStats,

@@ -389,6 +389,19 @@ export interface SellerOverviewStats {
   averageOrderValue: number;
 }
 
+export interface SellerRevenueSeriesPoint {
+  key: string;
+  label: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+}
+
+export interface SellerRevenueSeries {
+  granularity: "day" | "month";
+  series: SellerRevenueSeriesPoint[];
+}
+
 export interface SellerMonthlyStatItem {
   month: number;
   period: string;

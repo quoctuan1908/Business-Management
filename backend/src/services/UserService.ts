@@ -150,6 +150,16 @@ async function getSellerOverviewStats(scope: SellerScope, month: string, year: s
   return UserRepo.getSellerOverviewStats(scope, month, year, province, ward, date);
 }
 
+async function getSellerRevenueSeries(
+  scope: SellerScope,
+  year: string,
+  month: string,
+  province?: string,
+  ward?: string,
+) {
+  return UserRepo.getSellerRevenueSeries(scope, year, month, province, ward);
+}
+
 async function getSellerMonthlyStats(sellerId: number, month?: number, year?: number) {
   const exists = await UserRepo.persists(sellerId);
   if (!exists) {
@@ -211,6 +221,7 @@ export default {
   getEmployeeStatusBreakdown,
   getEmployeeRecentSalesTimeline,
   getSellerOverviewStats,
+  getSellerRevenueSeries,
   getSellerMonthlyStats,
   getEmployeeTopDebtors,
   getShipperOverviewStats,

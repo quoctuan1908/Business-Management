@@ -28,6 +28,7 @@ import type {
   StatusBreakdownStats,
   RecentSalesTimelineStats,
   SellerOverviewStats,
+  SellerRevenueSeries,
   SellerMonthlyStatItem,
   TopDebtorsStats,
   ShipperOverviewStats,
@@ -550,6 +551,9 @@ export const usersApi = {
 
   getSellerOverviewStats: (userId: number | string, options?: StatsPeriodOptions) =>
     statsRequest<SellerOverviewStats>(`/users/stats/seller/overview/${userId}${buildStatsQueryString(options)}`),
+
+  getSellerRevenueSeries: (userId: number | string, options?: StatsPeriodOptions) =>
+    statsRequest<SellerRevenueSeries>(`/users/stats/seller/revenue-series/${userId}${buildStatsQueryString(options)}`),
 
   getSellerMonthlyStats: (userId: number | string, month?: number, year?: number) => {
     const params = new URLSearchParams();
