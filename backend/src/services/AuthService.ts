@@ -78,7 +78,7 @@ function getMailTransporter() {
 async function sendVerificationLinkEmail(email: string, username: string, token: string): Promise<void> {
   try {
     const transporter = getMailTransporter();
-    const verificationLink = `${EnvVars.FrontendUrl}auth/verify-email?token=${token}`;
+    const verificationLink = `${EnvVars.FrontendUrl}/auth/verify-email?token=${token}`;
 
     const mailOptions = {
       from: `"Management System" <${EnvVars.MailUser}>`,
@@ -131,7 +131,7 @@ async function sendVerificationLinkEmail(email: string, username: string, token:
 async function sendForgotPasswordEmail(email: string, username: string, token: string): Promise<void> {
   try {
     const transporter = getMailTransporter();
-    const resetLink = `${EnvVars.FrontendUrl}auth/reset-password?token=${token}`;
+    const resetLink = `${EnvVars.FrontendUrl}/auth/reset-password?token=${token}`;
 
     const mailOptions = {
       from: `"Management System" <${EnvVars.MailUser}>`,
@@ -180,7 +180,7 @@ async function sendForgotPasswordEmail(email: string, username: string, token: s
 async function sendActivationSuccessEmail(email: string, username: string): Promise<void> {
   try {
     const transporter = getMailTransporter();
-    const loginLink = `${EnvVars.FrontendUrl}auth`;
+    const loginLink = `${EnvVars.FrontendUrl}/auth`;
 
     const mailOptions = {
       from: `"Management System" <${EnvVars.MailUser}>`,

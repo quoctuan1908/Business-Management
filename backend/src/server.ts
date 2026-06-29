@@ -15,6 +15,8 @@ import EnvVars, { NodeEnvs } from './common/constants/env';
 
 const app = express();
 
+app.set('trust proxy', 1); 
+
 // **** Middleware **** //
 
 const corsOrigins = getCorsOrigins();
