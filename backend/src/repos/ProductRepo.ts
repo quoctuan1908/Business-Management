@@ -1,4 +1,4 @@
-import { IProduct } from '@src/models/Product.model';
+import { IProduct, IProductUpdate, IProductWrite } from '@src/models/Product.model';
 
 import { productToPrismaData, toProduct } from './common/mappers';
 import prisma from './common/prisma';
@@ -22,14 +22,14 @@ async function getAll(): Promise<IProduct[]> {
   return rows.map(toProduct);
 }
 
-async function add(product: IProduct): Promise<IProduct> {
+async function add(product: IProductWrite): Promise<IProduct> {
   const row = await prisma.product.create({
     data: productToPrismaData(product),
   });
   return toProduct(row);
 }
 
-async function update(product: IProduct): Promise<IProduct> {
+async function update(product: IProductUpdate): Promise<IProduct> {
   const row = await prisma.product.update({
     where: { product_id: product.id },
     data: productToPrismaData(product),

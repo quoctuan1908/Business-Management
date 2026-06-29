@@ -9,8 +9,8 @@ import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
 
 const reqValidators = {
-  add: parseReq({ supplier: Supplier.isComplete }),
-  update: parseReq({ supplier: Supplier.isComplete }),
+  add: parseReq({ supplier: Supplier.isCompleteWrite }),
+  update: parseReq({ supplier: Supplier.isCompleteUpdate }),
   getOne: parseReq({ id: transform(Number, isNumber) }),
   delete: parseReq({ id: transform(Number, isNumber) }),
 } as const;

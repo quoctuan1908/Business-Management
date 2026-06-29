@@ -1,4 +1,4 @@
-import { ICustomer } from '@src/models/Customer.model';
+import { ICustomer, ICustomerUpdate, ICustomerWrite } from '@src/models/Customer.model';
 
 import { customerToPrismaData, toCustomer } from './common/mappers';
 import prisma from './common/prisma';
@@ -56,14 +56,14 @@ async function getPendingApproval(): Promise<ICustomer[]> {
   return rows.map(toCustomer);
 }
 
-async function add(customer: ICustomer): Promise<ICustomer> {
+async function add(customer: ICustomerWrite): Promise<ICustomer> {
   const row = await prisma.customer.create({
     data: customerToPrismaData(customer),
   });
   return toCustomer(row);
 }
 
-async function update(customer: ICustomer): Promise<ICustomer> {
+async function update(customer: ICustomerUpdate | ICustomer): Promise<ICustomer> {
   const row = await prisma.customer.update({
     where: { customer_id: customer.id },
     data: customerToPrismaData(customer),

@@ -16,8 +16,8 @@ import parseReq from './common/parseReq';
 ******************************************************************************/
 
 const reqValidators = {
-  add: parseReq({ customer: Customer.isComplete }),
-  update: parseReq({ customer: Customer.isComplete }),
+  add: parseReq({ customer: Customer.isCompleteWrite }),
+  update: parseReq({ customer: Customer.isCompleteUpdate }),
   getOne: parseReq({ id: transform(Number, isNumber) }),
   delete: parseReq({ id: transform(Number, isNumber) }),
   customerId: parseReq({ id: transform(Number, isNumber) }),

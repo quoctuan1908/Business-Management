@@ -13,7 +13,7 @@ import type {
   ICustomerReceivePaymentInput,
   ICustomerReceivePaymentResult,
 } from '@src/models/CustomerAccount.model';
-import { ICustomer } from '@src/models/Customer.model';
+import { ICustomer, ICustomerUpdate, ICustomerWrite } from '@src/models/Customer.model';
 import ActivityRepo from '@src/repos/ActivityRepo';
 import CustomerRepo from '@src/repos/CustomerRepo';
 import LocationRepo from '@src/repos/LocationRepo';
@@ -66,13 +66,13 @@ async function getOne(id: number, scope: EmployeeDataScope) {
   return customer;
 }
 
-async function addOne(customer: ICustomer, scope: EmployeeDataScope) {
+async function addOne(customer: ICustomerWrite, scope: EmployeeDataScope) {
   await assertLocationExists(customer.locationId);
   assertCustomerInScope(scope, customer.locationId);
   return CustomerRepo.add(customer);
 }
 
-async function updateOne(customer: ICustomer, scope: EmployeeDataScope) {
+async function updateOne(customer: ICustomerUpdate, scope: EmployeeDataScope) {
   await getOne(customer.id, scope);
   await assertLocationExists(customer.locationId);
   assertCustomerInScope(scope, customer.locationId);

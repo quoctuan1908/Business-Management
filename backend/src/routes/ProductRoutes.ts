@@ -13,8 +13,8 @@ import parseReq from './common/parseReq';
 ******************************************************************************/
 
 const reqValidators = {
-  add: parseReq({ product: Product.isComplete }),
-  update: parseReq({ product: Product.isComplete }),
+  add: parseReq({ product: Product.isCompleteWrite }),
+  update: parseReq({ product: Product.isCompleteUpdate }),
   getOne: parseReq({ id: transform(Number, isNumber) }),
   delete: parseReq({ id: transform(Number, isNumber) }),
 } as const;

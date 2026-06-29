@@ -1,4 +1,4 @@
-import { ISupplier } from '@src/models/Supplier.model';
+import { ISupplier, ISupplierUpdate, ISupplierWrite } from '@src/models/Supplier.model';
 
 import { supplierToPrismaData, toSupplier } from './common/mappers';
 import prisma from './common/prisma';
@@ -18,14 +18,14 @@ async function getAll(): Promise<ISupplier[]> {
   return rows.map(toSupplier);
 }
 
-async function add(supplier: ISupplier): Promise<ISupplier> {
+async function add(supplier: ISupplierWrite): Promise<ISupplier> {
   const row = await prisma.supplier.create({
     data: supplierToPrismaData(supplier),
   });
   return toSupplier(row);
 }
 
-async function update(supplier: ISupplier): Promise<ISupplier> {
+async function update(supplier: ISupplierUpdate): Promise<ISupplier> {
   const row = await prisma.supplier.update({
     where: { supplier_id: supplier.id },
     data: supplierToPrismaData(supplier),
