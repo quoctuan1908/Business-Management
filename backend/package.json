@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "build": "shx rm -rf dist && esbuild src/main.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:@prisma/client --external:prisma --external:express",
-    "vercel-build": "prisma generate && prisma migrate deploy && prisma db seed && npm run build",
+    "vercel-build": "prisma generate && prisma migrate deploy && (prisma db seed || true) && npm run build",
     "deploy-db": "prisma migrate deploy && prisma db seed",
     "postinstall": "prisma generate",
     "build:copy-static": "shx mkdir -p dist/public dist/views && shx cp -r src/views/* dist/views",
