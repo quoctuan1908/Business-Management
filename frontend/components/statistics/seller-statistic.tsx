@@ -337,31 +337,89 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
         </div>
       </div>
 
-      {/* 4 Thẻ Thống Kê Tổng Quan */}
+      {/* Thẻ thống kê tổng quan */}
       {overview && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardContent className="p-6 flex items-center justify-between space-y-0">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Tổng số hợp đồng</p>
-                <div className="text-2xl font-bold">{overview.totalActivities || 0}</div>
-              </div>
-              <Activity className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg" />
-            </CardContent>
-          </Card>
+        <div className="space-y-4">
+          <div
+            className={
+              showRevenueChart
+                ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                : "grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+            }
+          >
+            <Card>
+              <CardContent className="p-6 flex items-center justify-between space-y-0">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Tổng số hợp đồng</p>
+                  <div className="text-2xl font-bold">{overview.totalActivities || 0}</div>
+                </div>
+                <Activity className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg shrink-0" />
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="p-6 flex items-center justify-between space-y-0">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Tỷ lệ chốt thành công</p>
-                <div className="text-2xl font-bold">{overview.conversionRate || 0}%</div>
-              </div>
-              <Percent className="h-8 w-8 text-purple-500 bg-purple-50 p-1.5 rounded-lg" />
-            </CardContent>
-          </Card>
+            <Card>
+              <CardContent className="p-6 flex items-center justify-between space-y-0">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Tỷ lệ chốt thành công</p>
+                  <div className="text-2xl font-bold">{overview.conversionRate || 0}%</div>
+                </div>
+                <Percent className="h-8 w-8 text-purple-500 bg-purple-50 p-1.5 rounded-lg shrink-0" />
+              </CardContent>
+            </Card>
 
-          {showRevenueChart ? (
-            <Card className="md:col-span-2">
+            {!showRevenueChart && (
+              <Card>
+                <CardContent className="p-6 flex items-center justify-between space-y-0">
+                  <div className="space-y-1 w-full">
+                    <p className="text-sm font-medium text-muted-foreground">Doanh số mang về</p>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {formatCurrency(overview.grossRevenue || 0)}
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-[11px]">
+                      <span>
+                        <span className="text-muted-foreground">Chi phí: </span>
+                        <span className="font-semibold text-orange-600">
+                          {formatCurrency(overview.totalCost || 0)}
+                        </span>
+                      </span>
+                      <span>
+                        <span className="text-muted-foreground">Lợi nhuận: </span>
+                        <span className="font-semibold text-emerald-600">
+                          {formatCurrency(overview.totalProfit || 0)}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg shrink-0" />
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardContent className="p-6 flex items-center justify-between space-y-0">
+                <div className="space-y-1 w-full">
+                  <p className="text-sm font-medium text-muted-foreground">Tài chính kỳ bộ lọc</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[11px] text-muted-foreground font-medium">Nợ phát sinh:</span>
+                    <span className="text-xl font-bold text-red-600">
+                      {formatCurrency(overview.outstandingDebt || 0)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline gap-1.5 border-t pt-1 mt-1 border-dashed">
+                    <span className="text-[10px] text-muted-foreground">Ví dư hiện tại:</span>
+                    <span className="text-xs font-semibold text-emerald-600">
+                      {formatCurrency(overview.currentBalance || 0)}
+                    </span>
+                  </div>
+                </div>
+                <AlertCircle className="h-8 w-8 text-amber-600 bg-amber-50 p-1.5 rounded-lg shrink-0" />
+              </CardContent>
+            </Card>
+          </div>
+
+          {showRevenueChart && (
+            <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold">
                   <TrendingUp className="h-5 w-5 text-blue-600" />
@@ -391,8 +449,8 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
                     Chưa có dữ liệu doanh số trong kỳ.
                   </p>
                 ) : (
-                  <div className="h-[220px] w-full">
-                    <ResponsiveContainer width="100%" height={220}>
+                  <div className="h-[260px] w-full">
+                    <ResponsiveContainer width="100%" height={260}>
                       <BarChart data={revenueSeries.series} barCategoryGap="20%">
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="label" fontSize={10} tickLine={false} />
@@ -423,55 +481,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
                 )}
               </CardContent>
             </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-6 flex items-center justify-between space-y-0">
-                <div className="space-y-1 w-full">
-                  <p className="text-sm font-medium text-muted-foreground">Doanh số mang về</p>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {formatCurrency(overview.grossRevenue || 0)}
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-[11px]">
-                    <span>
-                      <span className="text-muted-foreground">Chi phí: </span>
-                      <span className="font-semibold text-orange-600">
-                        {formatCurrency(overview.totalCost || 0)}
-                      </span>
-                    </span>
-                    <span>
-                      <span className="text-muted-foreground">Lợi nhuận: </span>
-                      <span className="font-semibold text-emerald-600">
-                        {formatCurrency(overview.totalProfit || 0)}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-                <TrendingUp className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg shrink-0" />
-              </CardContent>
-            </Card>
           )}
-
-          <Card>
-            <CardContent className="p-6 flex items-center justify-between space-y-0">
-              <div className="space-y-1 w-full">
-                <p className="text-sm font-medium text-muted-foreground">Tài chính kỳ bộ lọc</p>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-[11px] text-muted-foreground font-medium">Nợ phát sinh:</span>
-                  <span className="text-xl font-bold text-red-600">
-                    {formatCurrency(overview.outstandingDebt || 0)}
-                  </span>
-                </div>
-
-                <div className="flex items-baseline gap-1.5 border-t pt-1 mt-1 border-dashed">
-                  <span className="text-[10px] text-muted-foreground">Ví dư hiện tại:</span>
-                  <span className="text-xs font-semibold text-emerald-600">
-                    {formatCurrency(overview.currentBalance || 0)}
-                  </span>
-                </div>
-              </div>
-              <AlertCircle className="h-8 w-8 text-amber-600 bg-amber-50 p-1.5 rounded-lg shrink-0" />
-            </CardContent>
-          </Card>
         </div>
       )}
 
