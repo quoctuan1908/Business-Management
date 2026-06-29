@@ -383,6 +383,8 @@ export interface SellerOverviewStats {
   totalActivities: number;
   conversionRate: number;
   grossRevenue: number;
+  totalCost: number;
+  totalProfit: number;
   collectedRevenue: number;
   outstandingDebt: number;
   currentBalance: number;

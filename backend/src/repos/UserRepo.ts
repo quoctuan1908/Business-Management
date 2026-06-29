@@ -412,10 +412,12 @@ export async function getSellerOverviewStats(
       activity_id: true,
       status: true,
       invoice: { select: { total_amount: true } },
-      details: { select: { quantity: true, sale_price: true } },
+      details: { select: { quantity: true, sale_price: true, product_id: true } },
       payments: { select: { paid_amount: true } }
     }
   });
+
+  const importPriceByProduct = await getAverageImportPriceByProduct();
 
   const totalActivities = sellerActivities.length;
   const validOrdersCount = sellerActivities.filter(act => act.status !== 'draft').length;
@@ -423,11 +425,17 @@ export async function getSellerOverviewStats(
   let grossRevenue = 0;
   let collectedRevenue = 0;
   let outstandingDebt = 0;
+  let totalCost = 0;
+  let totalProfit = 0;
 
   sellerActivities.forEach(act => {
     const orderTotal = getGrossOrderTotal(act);
 
     grossRevenue += orderTotal;
+
+    const cost = getActivityCost(act, importPriceByProduct);
+    totalCost += cost;
+    totalProfit += Math.max(0, orderTotal - cost);
 
     const orderPaid = act.payments?.reduce((sum, p) => sum + Number(p.paid_amount), 0) || 0;
     collectedRevenue += orderPaid;
@@ -449,6 +457,8 @@ export async function getSellerOverviewStats(
     totalActivities, 
     conversionRate: totalActivities > 0 ? Number(((validOrdersCount / totalActivities) * 100).toFixed(2)) : 0, 
     grossRevenue, 
+    totalCost: Number(totalCost.toFixed(0)),
+    totalProfit: Number(totalProfit.toFixed(0)),
     collectedRevenue,
     outstandingDebt, 
     currentBalance,  
@@ -789,10 +799,13 @@ type RevenueSeriesDetailRow = {
   product_id: number;
 };
 
-type RevenueSeriesActivityRow = {
+type ActivityCostRow = {
+  details: RevenueSeriesDetailRow[];
+};
+
+type RevenueSeriesActivityRow = ActivityCostRow & {
   activity_date: Date;
   invoice?: { total_amount: unknown } | null;
-  details: RevenueSeriesDetailRow[];
   payments?: { paid_amount: unknown }[];
 };
 
@@ -807,7 +820,7 @@ async function getAverageImportPriceByProduct(): Promise<Map<number, number>> {
 }
 
 function getActivityCost(
-  activity: RevenueSeriesActivityRow,
+  activity: ActivityCostRow,
   importPriceByProduct: Map<number, number>,
 ): number {
   if (!activity.details.length) return 0;
