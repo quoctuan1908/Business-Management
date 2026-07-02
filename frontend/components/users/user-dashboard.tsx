@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShipperStatistic } from "../statistics/shipper-statistic";
 import { SellerStatistic } from "../statistics/seller-statistic";
-import { AssignmentMap } from "../statistics/assignment-map-statistic";
 
 export function UserDashboard() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -22,12 +21,10 @@ export function UserDashboard() {
       try {
         setLoading(true);
         
-        // 1. Lấy thông tin cá nhân của người đang đăng nhập trước
         const profileData = await usersApi.getProfile();
         const user = profileData.user;
         setCurrentUser(user);
 
-        // 2. Sử dụng ID của chính user đó để gọi API lấy phân vùng tương ứng
         if (user?.id) {
           const userZones = await employeeLocationsApi.getByUser(user.id);
           setMyZones(userZones || []);
@@ -62,7 +59,6 @@ export function UserDashboard() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 mb-12">
-      {/* PROFILE BANNER */}
       <Card className="bg-gradient-to-r from-slate-50 via-white to-slate-50 border-slate-200/80 shadow-sm">
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -78,7 +74,6 @@ export function UserDashboard() {
                   <p className="text-xs sm:text-sm text-muted-foreground">Phân hệ đồng bộ hóa và quản lý thực địa tuyến đường.</p>
                 </div>
                 
-                {/* HIỂN THỊ PHÂN VÙNG HOẠT ĐỘNG CỦA NHÂN VIÊN */}
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 pt-1">
                   <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 mr-1">
                     <MapPin className="h-3.5 w-3.5 text-indigo-500" /> Địa bàn phụ trách:
@@ -86,7 +81,7 @@ export function UserDashboard() {
                   {myZones.length > 0 ? (
                     myZones.map((zone) => (
                       <Badge 
-                        key={`${zone.userId}-${zone.locationId}`} // Khóa phức hợp duy nhất cho từng phân vùng của user
+                        key={`${zone.userId}-${zone.locationId}`}
                         variant="secondary" 
                         className="bg-indigo-50 text-indigo-700 border border-indigo-100/80 text-xs px-2 py-0.5"
                       >
@@ -104,13 +99,11 @@ export function UserDashboard() {
             
             <div className="flex flex-wrap items-center justify-center lg:justify-end gap-2.5">
               <Badge variant="outline" className="bg-white px-3 py-1">Quyền: {currentUser.role}</Badge>
-              <AssignmentMap />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* STATISTICS CONTENT */}
       <Card className="shadow-sm border-slate-200 overflow-hidden">
         <CardContent className="p-4 sm:p-6">
           {userRole === "shipper" ? (
