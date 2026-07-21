@@ -703,6 +703,74 @@ export const chatApi = {
     }).then((d) => d.answer),
 };
 
+function filenameFromDisposition(
+  header: string | null,
+  fallback: string,
+): string {
+  if (!header) return fallback;
+  const match = /filename="([^"]+)"/.exec(header);
+  return match?.[1] ?? fallback;
+}
+
+export const backupApi = {
+  download: async () => {
+    const url = `${API_BASE}/backup/export`;
+    const options: RequestInit = { credentials: "include" };
+
+    let res = await fetch(url, options);
+
+    if (shouldAttemptTokenRefresh("/backup/export", res.status)) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = (async () => {
+          try {
+            const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+              method: "POST",
+              credentials: "include",
+            });
+            if (!refreshRes.ok) throw new Error("Refresh token expired");
+          } catch (error) {
+            redirectToLoginIfNeeded();
+            throw error;
+          } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+          }
+        })();
+      }
+      await refreshPromise;
+      res = await fetch(url, options);
+    }
+
+    if (!res.ok) {
+      let message = res.statusText;
+      try {
+        const body = await res.json();
+        message = body.error ?? message;
+      } catch { }
+      throw new Error(message);
+    }
+
+    const fallback = `backup_seller_system_${new Date().toISOString().slice(0, 10).replace(/-/g, "_")}.json`;
+    const filename = filenameFromDisposition(
+      res.headers.get("Content-Disposition"),
+      fallback,
+    );
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = blobUrl;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(blobUrl);
+  },
+  restore: (backup: unknown) =>
+    request<{ message: string; restoredAt: string }>("/backup/restore", {
+      method: "POST",
+      body: JSON.stringify({ backup }),
+    }),
+};
+
 export const lookupApi = {
   users: () => usersApi.getAll(),
   customers: () => customersApi.getAll(),
