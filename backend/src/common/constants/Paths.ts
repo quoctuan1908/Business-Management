@@ -144,6 +144,10 @@ const Paths = {
     Upsert: '/upsert/:userId',
     Delete: '/delete/:userId',
   },
+  ChatBot: {
+    _: '/chat',
+    Complete: '/complete'
+  }
 } as const;
 
 export default Paths;

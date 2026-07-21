@@ -21,6 +21,7 @@ import ImportDetailRoutes from './ImportDetailRoutes';
 import EmployeeLocationRoutes from './EmployeeLocationRoutes';
 import rateLimiters from '@src/middlewares/rateLimitMiddleware';
 import BankAccountRoutes from './BankAccountRoutes';
+import ChatRoutes from './chatbot/ChatRoutes';
 
 /******************************************************************************
                                 Setup
@@ -211,6 +212,12 @@ bankAccountRouter.delete(
 );
 
 apiRouter.use(Paths.BankAccount._, bankAccountRouter);
+
+const chatRouter = Router()
+
+chatRouter.post(Paths.ChatBot.Complete, auth, ChatRoutes.complete);
+
+apiRouter.use(Paths.ChatBot._, chatRouter);
 
 /******************************************************************************
                                 Export
