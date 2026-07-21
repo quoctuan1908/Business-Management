@@ -149,7 +149,12 @@ const Paths = {
   ChatBot: {
     _: '/chat',
     Complete: '/complete'
-  }
+  },
+  Backup: {
+    _: '/backup',
+    Export: '/export',
+    Restore: '/restore',
+  },
 } as const;
 
 export default Paths;

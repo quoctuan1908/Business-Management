@@ -12,6 +12,7 @@ import {
   UserCog,
   LayoutDashboard,
   BarChart3,
+  HardDrive,
   Menu,
   X,
 } from "lucide-react";
@@ -23,7 +24,7 @@ import { useAuth } from "@/lib/auth-context";
 import { sectionsForRole } from "@/lib/permissions";
 import { useEffect, useState } from "react";
 
-export type AppSection = "user-dashboard" | "admin-sales-dashboard" | "products" | "suppliers" | "imports" | "customers" | "activities" | "salaries" | "users";
+export type AppSection = "user-dashboard" | "admin-sales-dashboard" | "products" | "suppliers" | "imports" | "customers" | "activities" | "salaries" | "users" | "backup";
 
 type NavItem = {
   id: AppSection;
@@ -81,6 +82,12 @@ const allNavItems: NavItem[] = [
     id: "salaries",
     label: "Tiền lương",
     icon: <DollarSign className="h-4 w-4" />,
+    adminOnly: true,
+  },
+  {
+    id: "backup",
+    label: "Sao lưu & Phục hồi",
+    icon: <HardDrive className="h-4 w-4" />,
     adminOnly: true,
   }
 ];
@@ -287,5 +294,9 @@ export const sectionMeta: Record<
   salaries: {
     title: "Tiền lương",
     description: "Quản lý bảng lương, thưởng và thu nhập nhân viên",
+  },
+  backup: {
+    title: "Sao lưu & Phục hồi",
+    description: "Xuất và khôi phục toàn bộ dữ liệu hệ thống từ file JSON",
   },
 };

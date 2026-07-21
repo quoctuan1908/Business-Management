@@ -22,6 +22,7 @@ import EmployeeLocationRoutes from './EmployeeLocationRoutes';
 import rateLimiters from '@src/middlewares/rateLimitMiddleware';
 import BankAccountRoutes from './BankAccountRoutes';
 import ChatRoutes from './chatbot/ChatRoutes';
+import BackupRoutes from './BackupRoutes';
 
 /******************************************************************************
                                 Setup
@@ -220,6 +221,11 @@ const chatRouter = Router()
 chatRouter.post(Paths.ChatBot.Complete, auth, ChatRoutes.complete);
 
 apiRouter.use(Paths.ChatBot._, chatRouter);
+
+const backupRouter = Router();
+backupRouter.get(Paths.Backup.Export, ...adminOnly, BackupRoutes.exportBackup);
+backupRouter.post(Paths.Backup.Restore, ...adminOnly, BackupRoutes.restore);
+apiRouter.use(Paths.Backup._, backupRouter);
 
 /******************************************************************************
                                 Export

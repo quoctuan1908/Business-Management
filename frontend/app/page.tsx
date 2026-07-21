@@ -22,6 +22,7 @@ import {
 } from "@/lib/permissions";
 import { UserDashboard } from "@/components/users/user-dashboard";
 import { AdminSalesDashboard } from "@/components/users/admin-sales-dashboard";
+import { BackupPanel } from "@/components/backup/backup-panel";
 import { ChatbotBox } from "@/components/chatbot/chatbot-box";
 import { chatApi } from "@/lib/api";
 
@@ -45,6 +46,8 @@ function SectionPanel({ section }: { section: AppSection }) {
       return <UserDashboard />;
     case "admin-sales-dashboard":
       return <AdminSalesDashboard />;
+    case "backup":
+      return <BackupPanel />;
     default:
       return null;
   }
