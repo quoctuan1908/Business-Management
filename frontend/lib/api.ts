@@ -1,3 +1,4 @@
+import { ChatMessage } from "@/components/chatbot/chatbot-messages";
 import type {
   Activity,
   ActivityDetail,
@@ -39,9 +40,8 @@ import type {
   IBankAccountUpdate,
 } from "@/lib/types";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "https://business-management-lyart.vercel.app/api";
-
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://business-management-lyart.vercel.app/api";
+  
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
@@ -693,6 +693,14 @@ export const importDetailsApi = {
       `/imports/details/delete/${importId}/${productId}`,
       { method: "DELETE" },
     ),
+};
+
+export const chatApi = {
+  complete: (message: string, history: ChatMessage[] = []) =>
+    request<{ answer: string }>("/chat/complete", {
+      method: "POST",
+      body: JSON.stringify({ message, history }),
+    }).then((d) => d.answer),
 };
 
 export const lookupApi = {

@@ -22,6 +22,8 @@ import {
 } from "@/lib/permissions";
 import { UserDashboard } from "@/components/users/user-dashboard";
 import { AdminSalesDashboard } from "@/components/users/admin-sales-dashboard";
+import { ChatbotBox } from "@/components/chatbot/chatbot-box";
+import { chatApi } from "@/lib/api";
 
 function SectionPanel({ section }: { section: AppSection }) {
   switch (section) {
@@ -93,6 +95,9 @@ export default function HomePage() {
           <SectionPanel section={activeSection} />
         </div>
       </div>
+      <ChatbotBox
+        onSendMessage={(message, history) => chatApi.complete(message, history)}
+      />
     </AppShell>
   );
 }

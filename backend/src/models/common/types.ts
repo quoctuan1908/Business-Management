@@ -11,6 +11,9 @@ export interface ISessionUser {
   role: string;
 }
 
+export interface ToolContext {
+  sessionUser: ISessionUser;
+}
 export { AuthErrors as Errors } from '@src/common/constants/service-errors';
 
 const isProduction = EnvVars.NodeEnv === NodeEnvs.PRODUCTION;

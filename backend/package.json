@@ -31,6 +31,7 @@
     "@src": "dist"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",
@@ -49,6 +50,7 @@
     "module-alias": "^2.3.4",
     "morgan": "^1.10.1",
     "nodemailer": "^8.0.10",
+    "openai": "^6.48.0",
     "pg": "^8.21.0",
     "redis": "^6.0.0"
   },
