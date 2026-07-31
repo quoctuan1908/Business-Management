@@ -43,6 +43,18 @@ async function getAll(scope: EmployeeDataScope) {
   return CustomerRepo.getAll(scope.locationIds);
 }
 
+async function getPage(
+  scope: EmployeeDataScope,
+  page: number,
+  pageSize: number,
+) {
+  const skip = (page - 1) * pageSize;
+  if (scope.mode === 'all') {
+    return CustomerRepo.getPage(skip, pageSize);
+  }
+  return CustomerRepo.getPage(skip, pageSize, scope.locationIds);
+}
+
 async function getPendingApproval() {
   return CustomerRepo.getPendingApproval();
 }
@@ -208,6 +220,7 @@ async function receivePayment(
 export default {
   Errors,
   getAll,
+  getPage,
   getPendingApproval, 
   getOne,
   addOne,

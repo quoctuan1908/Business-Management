@@ -8,6 +8,7 @@ import ImportExportService from '@src/services/import-export';
 import ImportService from '@src/services/ImportService';
 
 import { Req, Res } from './common/express-types';
+import { parsePaginationQuery } from './common/pagination';
 import parseReq from './common/parseReq';
 
 const reqValidators = {
@@ -46,7 +47,25 @@ async function exportExcel(req: Req, res: Res) {
   res.status(HttpStatusCodes.OK).send(buffer);
 }
 
-async function getAll(_: Req, res: Res) {
+async function getAll(req: Req, res: Res) {
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+  );
+
+  if (pagination.enabled) {
+    const { items, total } = await ImportService.getPage(
+      pagination.page,
+      pagination.pageSize,
+    );
+    res.status(HttpStatusCodes.OK).json({
+      imports: items,
+      total,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
+    return;
+  }
+
   const imports = await ImportService.getAll();
   res.status(HttpStatusCodes.OK).json({ imports });
 }

@@ -35,6 +35,23 @@ async function getAll(): Promise<ILocation[]> {
   return rows.map(toLocation);
 }
 
+async function getPage(
+  skip: number,
+  take: number,
+): Promise<{ items: ILocation[]; total: number }> {
+  const where = { province: CAN_THO_PROVINCE_NAME };
+  const [rows, total] = await Promise.all([
+    prisma.location.findMany({
+      where,
+      orderBy: { ward: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.location.count({ where }),
+  ]);
+  return { items: rows.map(toLocation), total };
+}
+
 async function add(location: ILocation): Promise<ILocation> {
   const row = await prisma.location.create({
     data: locationToPrismaData(location),
@@ -104,6 +121,7 @@ export default {
   getByWardCode,
   persists,
   getAll,
+  getPage,
   add,
   update,
   delete: delete_,

@@ -39,6 +39,7 @@ import type {
   IBankAccountCreate,
   IBankAccountUpdate,
 } from "@/lib/types";
+import { pageQuery, type PaginatedResult } from "@/lib/pagination";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://business-management-lyart.vercel.app/api";
   
@@ -182,6 +183,20 @@ export const activitiesApi = {
     request<{ activities: Activity[] }>("/activities/all").then(
       (d) => d.activities,
     ),
+  getPage: (page: number, pageSize: number) =>
+    request<{
+      activities: Activity[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/activities/all${pageQuery(page, pageSize)}`).then(
+      (d): PaginatedResult<Activity> => ({
+        items: d.activities,
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+      }),
+    ),
   getOne: (id: number) =>
     request<{ activity: Activity }>(`/activities/${id}`).then((d) => d.activity),
   add: (activity: ActivityWrite) =>
@@ -306,6 +321,20 @@ export const invoicesApi = {
 export const productsApi = {
   getAll: () =>
     request<{ products: Product[] }>("/products/all").then((d) => d.products),
+  getPage: (page: number, pageSize: number) =>
+    request<{
+      products: Product[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/products/all${pageQuery(page, pageSize)}`).then(
+      (d): PaginatedResult<Product> => ({
+        items: d.products,
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+      }),
+    ),
   getOne: (id: number) =>
     request<{ product: Product }>(`/products/${id}`).then((d) => d.product),
   add: (product: Omit<Product, "id">) =>
@@ -326,6 +355,20 @@ export const customersApi = {
   getAll: () =>
     request<{ customers: Customer[] }>("/customers/all").then(
       (d) => d.customers,
+    ),
+  getPage: (page: number, pageSize: number) =>
+    request<{
+      customers: Customer[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/customers/all${pageQuery(page, pageSize)}`).then(
+      (d): PaginatedResult<Customer> => ({
+        items: d.customers,
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+      }),
     ),
   getOne: (id: number) =>
     request<{ customer: Customer }>(`/customers/${id}`).then((d) => d.customer),
@@ -360,7 +403,7 @@ export const customersApi = {
   approve: (id: number) =>
     request<{ customer: Customer }>(`/customers/approve/${id}`, {
       method: "POST",
-    }).then((d) => d.customer), 
+    }).then((d) => d.customer),
 };
 
 export const authApi = {
@@ -621,6 +664,20 @@ export const suppliersApi = {
     request<{ suppliers: Supplier[] }>("/suppliers/all").then(
       (d) => d.suppliers,
     ),
+  getPage: (page: number, pageSize: number) =>
+    request<{
+      suppliers: Supplier[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/suppliers/all${pageQuery(page, pageSize)}`).then(
+      (d): PaginatedResult<Supplier> => ({
+        items: d.suppliers,
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+      }),
+    ),
   getOne: (id: number) =>
     request<{ supplier: Supplier }>(`/suppliers/${id}`).then(
       (d) => d.supplier,
@@ -642,6 +699,20 @@ export const suppliersApi = {
 export const importsApi = {
   getAll: () =>
     request<{ imports: ImportView[] }>("/imports/all").then((d) => d.imports),
+  getPage: (page: number, pageSize: number) =>
+    request<{
+      imports: ImportView[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/imports/all${pageQuery(page, pageSize)}`).then(
+      (d): PaginatedResult<ImportView> => ({
+        items: d.imports,
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+      }),
+    ),
   getOne: (id: number) =>
     request<{ import: Import }>(`/imports/${id}`).then((d) => d.import),
   add: (importRecord: ImportWrite) =>

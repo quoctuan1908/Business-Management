@@ -12,3 +12,14 @@ export function paginateItems<T>(
   const start = (page - 1) * pageSize;
   return items.slice(start, start + pageSize);
 }
+
+export type PaginatedResult<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export function pageQuery(page: number, pageSize: number): string {
+  return `?page=${page}&pageSize=${pageSize}`;
+}

@@ -22,6 +22,7 @@ import {
 import { TablePagination } from "@/components/ui/table-pagination";
 import { ListTableShell } from "@/components/ui/list-table-shell";
 import { usePagination } from "@/hooks/use-pagination";
+import { useServerPagination } from "@/hooks/use-server-pagination";
 import { listCol, listCell } from "@/lib/list-table-layout";
 import { matchesAnySearchField } from "@/lib/list-search";
 
@@ -61,6 +62,7 @@ function defaultToDate() {
 export function ImportsPanel() {
   const { isAdmin } = useAuth();
   const [imports, setImports] = useState<ImportView[]>([]);
+  const [total, setTotal] = useState(0);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,15 @@ export function ImportsPanel() {
   const [exportFrom, setExportFrom] = useState(defaultFromDate);
   const [exportTo, setExportTo] = useState(defaultToDate);
   const [exporting, setExporting] = useState(false);
+
+  const useClientMode =
+    searchQuery.trim().length > 0 || filterFrom !== "" || filterTo !== "";
+  const {
+    page: serverPage,
+    setPage: setServerPage,
+    pageSize,
+    getPageCount,
+  } = useServerPagination(useClientMode ? "search" : "browse");
 
   const filteredImports = useMemo(
     () =>
@@ -98,35 +109,47 @@ export function ImportsPanel() {
 
   const filterKey = `${filterFrom}|${filterTo}|${searchQuery}`;
 
-  const {
-    page,
-    setPage,
+  const clientPagination = usePagination(
+    filteredImports,
     pageSize,
-    totalItems,
-    totalPages,
-    paginatedItems: paginatedImports,
-  } = usePagination(filteredImports, undefined, filterKey);
+    filterKey,
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [importList, supplierList] = await Promise.all([
-        importsApi.getAll(),
-        lookupApi.suppliers(),
-      ]);
-      setImports(importList);
+      const supplierList = await lookupApi.suppliers();
       setSuppliers(supplierList);
+
+      if (useClientMode) {
+        const importList = await importsApi.getAll();
+        setImports(importList);
+        setTotal(importList.length);
+      } else {
+        const res = await importsApi.getPage(serverPage, pageSize);
+        setImports(res.items);
+        setTotal(res.total);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [useClientMode, serverPage, pageSize]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const rows = useClientMode ? clientPagination.paginatedItems : imports;
+  const page = useClientMode ? clientPagination.page : serverPage;
+  const setPage = useClientMode ? clientPagination.setPage : setServerPage;
+  const totalItems = useClientMode ? clientPagination.totalItems : total;
+  const totalPages = useClientMode
+    ? clientPagination.totalPages
+    : getPageCount(total);
+  const displayCount = useClientMode ? filteredImports.length : total;
 
   function openDetail(record: ImportView) {
     setCreateMode(false);
@@ -146,8 +169,7 @@ export function ImportsPanel() {
     setSearchQuery("");
   }
 
-  const hasActiveFilters =
-    filterFrom !== "" || filterTo !== "" || searchQuery.trim() !== "";
+  const hasActiveFilters = useClientMode;
 
   async function handleDelete(id: number) {
     if (
@@ -211,9 +233,9 @@ export function ImportsPanel() {
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            {!loading && (
+            {!loading && displayCount > 0 && (
               <>
-                {filteredImports.length}
+                {displayCount}
                 {hasActiveFilters ? " kết quả" : " phiếu"}
               </>
             )}
@@ -285,7 +307,7 @@ export function ImportsPanel() {
           <p className="text-sm text-muted-foreground">Đang tải...</p>
         ) : imports.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có phiếu nhập.</p>
-        ) : filteredImports.length === 0 ? (
+        ) : useClientMode && filteredImports.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Không có kết quả phù hợp.
           </p>
@@ -314,7 +336,7 @@ export function ImportsPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedImports.map((record) => (
+              {rows.map((record) => (
                 <TableRow key={record.id}>
                   <TableCell className={listCell.nowrap}>{record.id}</TableCell>
                   <TableCell className={listCell.truncate}>

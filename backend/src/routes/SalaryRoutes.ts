@@ -5,6 +5,7 @@ import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import Salary from '@src/models/Salary.model';
 
 import { Req, Res } from './common/express-types';
+import { parsePaginationQuery } from './common/pagination';
 import parseReq from './common/parseReq';
 import SalaryService from '@src/services/SalaryService';
 
@@ -32,7 +33,25 @@ const reqValidators = {
  * Get all salary records (Admin only).
  * @route GET /api/salaries/all
  */
-async function getAll(_: Req, res: Res) {
+async function getAll(req: Req, res: Res) {
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+  );
+
+  if (pagination.enabled) {
+    const { items, total } = await SalaryService.getPage(
+      pagination.page,
+      pagination.pageSize,
+    );
+    res.status(HttpStatusCodes.OK).json({
+      salaries: items,
+      total,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
+    return;
+  }
+
   const salaries = await SalaryService.getAll();
   res.status(HttpStatusCodes.OK).json({ salaries });
 }

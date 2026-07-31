@@ -17,6 +17,10 @@ async function getAll() {
   return ImportRepo.getAll();
 }
 
+async function getPage(page: number, pageSize: number) {
+  return ImportRepo.getPage((page - 1) * pageSize, pageSize);
+}
+
 async function getOne(id: number) {
   const record = await ImportRepo.getOne(id);
   if (!record) {
@@ -72,6 +76,7 @@ async function deleteWithStockRollback(id: number): Promise<void> {
 export default {
   Errors,
   getAll,
+  getPage,
   getOne,
   addOne,
   updateOne,

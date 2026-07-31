@@ -37,6 +37,7 @@ import {
 import { TablePagination } from "@/components/ui/table-pagination";
 import { ListTableShell } from "@/components/ui/list-table-shell";
 import { usePagination } from "@/hooks/use-pagination";
+import { useServerPagination } from "@/hooks/use-server-pagination";
 import { listCol, listCell } from "@/lib/list-table-layout";
 import { matchesAnySearchField } from "@/lib/list-search";
 import { FieldScanDialog } from "./customer-scan-dialog";
@@ -68,6 +69,7 @@ function locationLabel(loc: Location) {
 export function CustomersPanel() {
   const { isAdmin } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [total, setTotal] = useState(0);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +87,14 @@ export function CustomersPanel() {
   const innerMapContainerRef = useRef<HTMLDivElement>(null);
   const innerMapInstanceRef = useRef<LeafletMap | null>(null);
   const innerMarkerRef = useRef<LeafletMarker | null>(null);
+
+  const hasSearch = searchQuery.trim().length > 0;
+  const {
+    page: serverPage,
+    setPage: setServerPage,
+    pageSize,
+    getPageCount,
+  } = useServerPagination(hasSearch ? "search" : "browse");
 
   const locationMap = useMemo(
     () =>
@@ -117,35 +127,43 @@ export function CustomersPanel() {
     [customers, locationMap, searchQuery],
   );
 
-  const {
-    page,
-    setPage,
+  const clientPagination = usePagination(
+    filteredCustomers,
     pageSize,
-    totalItems,
-    totalPages,
-    paginatedItems: paginatedCustomers,
-  } = usePagination(filteredCustomers, undefined, searchQuery);
+    searchQuery,
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [customerList, locationList] = await Promise.all([
-        customersApi.getAll(),
-        locationsApi.getAll(),
-      ]);
-      let pendingCustomers: Customer[] = [];
-      if(isAdmin)
-        pendingCustomers = await customersApi.getPendingApproval(); 
-
-      setCustomers([...pendingCustomers, ...customerList]);
+      const locationList = await locationsApi.getAll();
       setLocations(locationList);
+
+      let pendingCustomers: Customer[] = [];
+      if (isAdmin) {
+        pendingCustomers = await customersApi.getPendingApproval();
+      }
+
+      if (hasSearch) {
+        const customerList = await customersApi.getAll();
+        setCustomers([...pendingCustomers, ...customerList]);
+        setTotal(pendingCustomers.length + customerList.length);
+      } else {
+        const res = await customersApi.getPage(serverPage, pageSize);
+        if (serverPage === 1) {
+          setCustomers([...pendingCustomers, ...res.items]);
+        } else {
+          setCustomers(res.items);
+        }
+        setTotal(res.total + pendingCustomers.length);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, hasSearch, serverPage, pageSize]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -156,6 +174,15 @@ export function CustomersPanel() {
       window.clearTimeout(timer);
     };
   }, [load]);
+
+  const rows = hasSearch ? clientPagination.paginatedItems : customers;
+  const page = hasSearch ? clientPagination.page : serverPage;
+  const setPage = hasSearch ? clientPagination.setPage : setServerPage;
+  const totalItems = hasSearch ? clientPagination.totalItems : total;
+  const totalPages = hasSearch
+    ? clientPagination.totalPages
+    : getPageCount(total);
+  const displayCount = hasSearch ? filteredCustomers.length : total;
 
   // Khởi tạo bản đồ nhỏ và định vị GPS bản thân
   useEffect(() => {
@@ -385,10 +412,10 @@ export function CustomersPanel() {
           </Button>
           </div>
         </div>
-        {!loading && customers.length > 0 && (
+        {!loading && displayCount > 0 && (
           <p className="text-sm text-muted-foreground">
-            {filteredCustomers.length}
-            {searchQuery.trim() ? " kết quả" : " khách hàng"}
+            {displayCount}
+            {hasSearch ? " kết quả" : " khách hàng"}
           </p>
         )}
       </CardHeader>
@@ -407,7 +434,7 @@ export function CustomersPanel() {
           <p className="text-sm text-muted-foreground">Đang tải...</p>
         ) : customers.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có khách hàng.</p>
-        ) : filteredCustomers.length === 0 ? (
+        ) : hasSearch && filteredCustomers.length === 0 ? (
           <p className="text-sm text-muted-foreground">Không có kết quả phù hợp.</p>
         ) : (
           <ListTableShell
@@ -437,7 +464,7 @@ export function CustomersPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedCustomers.map((customer) => (
+              {rows.map((customer) => (
                 <TableRow key={customer.id}>
                   <TableCell className={listCell.nowrap}>{customer.id}</TableCell>
                   <TableCell className={`font-medium ${listCell.truncate}`}>

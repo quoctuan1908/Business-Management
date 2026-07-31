@@ -9,6 +9,7 @@ import CustomerService from '@src/services/CustomerService';
 import { resolveEmployeeDataScope } from '@src/services/employee-scope';
 
 import { Req, Res } from './common/express-types';
+import { parsePaginationQuery } from './common/pagination';
 import parseReq from './common/parseReq';
 
 /******************************************************************************
@@ -44,9 +45,28 @@ function parseReceivePaymentBody(body: unknown): { amount: number; method: strin
                                 Functions
 ******************************************************************************/
 
-async function getAll(_: Req, res: Res) {
+async function getAll(req: Req, res: Res) {
   const sessionUser = res.locals.sessionUser as ISessionUser;
   const scope = await resolveEmployeeDataScope(sessionUser);
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+  );
+
+  if (pagination.enabled) {
+    const { items, total } = await CustomerService.getPage(
+      scope,
+      pagination.page,
+      pagination.pageSize,
+    );
+    res.status(HttpStatusCodes.OK).json({
+      customers: items,
+      total,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
+    return;
+  }
+
   const customers = await CustomerService.getAll(scope);
   res.status(HttpStatusCodes.OK).json({ customers });
 }
