@@ -53,29 +53,60 @@ async function getAllWithPaymentInfo(
     orderBy: [{ created_at: 'desc' }, { activity_id: 'desc' }],
   });
 
-  return rows.map((row) => {
-    const activity = toActivity(row);
-    const invoiceTotal = row.invoice
-      ? Number(row.invoice.total_amount)
-      : 0;
-    const paidTotal = row.payments.reduce(
-      (sum, p) => sum + Number(p.paid_amount),
-      0,
-    );
-    const remaining =
-      row.invoice_id != null
-        ? Math.max(0, invoiceTotal - paidTotal)
-        : 0;
-    const paymentStatus = resolvePaymentStatus(paidTotal, invoiceTotal);
+  return rows.map(mapActivityWithPaymentInfo);
+}
 
-    return {
-      ...activity,
-      invoiceTotal,
-      paidTotal,
-      remaining,
-      paymentStatusLabel: PaymentStatusLabels[paymentStatus],
-    };
-  });
+function mapActivityWithPaymentInfo(
+  row: {
+    invoice: { total_amount: unknown } | null;
+    payments: { paid_amount: unknown }[];
+    invoice_id: number | null;
+  } & Parameters<typeof toActivity>[0],
+): IActivityListItem {
+  const activity = toActivity(row);
+  const invoiceTotal = row.invoice
+    ? Number(row.invoice.total_amount)
+    : 0;
+  const paidTotal = row.payments.reduce(
+    (sum, p) => sum + Number(p.paid_amount),
+    0,
+  );
+  const remaining =
+    row.invoice_id != null
+      ? Math.max(0, invoiceTotal - paidTotal)
+      : 0;
+  const paymentStatus = resolvePaymentStatus(paidTotal, invoiceTotal);
+
+  return {
+    ...activity,
+    invoiceTotal,
+    paidTotal,
+    remaining,
+    paymentStatusLabel: PaymentStatusLabels[paymentStatus],
+  };
+}
+
+async function getPageWithPaymentInfo(
+  skip: number,
+  take: number,
+  userId?: number,
+): Promise<{ items: IActivityListItem[]; total: number }> {
+  const where = userId !== undefined ? { user_id: userId } : {};
+  const [rows, total] = await Promise.all([
+    prisma.activity.findMany({
+      where,
+      include: {
+        invoice: { select: { total_amount: true } },
+        payments: { select: { paid_amount: true } },
+      },
+      orderBy: [{ created_at: 'desc' }, { activity_id: 'desc' }],
+      skip,
+      take,
+    }),
+    prisma.activity.count({ where }),
+  ]);
+
+  return { items: rows.map(mapActivityWithPaymentInfo), total };
 }
 
 async function addDraft(input: IActivityWrite): Promise<IActivity> {
@@ -177,6 +208,7 @@ export default {
   getByInvoiceId,
   getAll,
   getAllWithPaymentInfo,
+  getPageWithPaymentInfo,
   getForExport,
   addDraft,
   update,

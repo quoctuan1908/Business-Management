@@ -18,6 +18,21 @@ async function getAll(): Promise<ISupplier[]> {
   return rows.map(toSupplier);
 }
 
+async function getPage(
+  skip: number,
+  take: number,
+): Promise<{ items: ISupplier[]; total: number }> {
+  const [rows, total] = await Promise.all([
+    prisma.supplier.findMany({
+      orderBy: { supplier_id: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.supplier.count(),
+  ]);
+  return { items: rows.map(toSupplier), total };
+}
+
 async function add(supplier: ISupplierWrite): Promise<ISupplier> {
   const row = await prisma.supplier.create({
     data: supplierToPrismaData(supplier),
@@ -45,6 +60,7 @@ export default {
   getOne,
   persists,
   getAll,
+  getPage,
   add,
   update,
   delete: delete_,

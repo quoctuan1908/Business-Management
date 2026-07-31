@@ -15,6 +15,10 @@ async function getAll() {
   return LocationRepo.getAll();
 }
 
+async function getPage(page: number, pageSize: number) {
+  return LocationRepo.getPage((page - 1) * pageSize, pageSize);
+}
+
 async function getOne(id: number) {
   const location = await LocationRepo.getOne(id);
   if (!location) {
@@ -67,6 +71,7 @@ async function syncCanThoFromApi() {
 export default {
   Errors,
   getAll,
+  getPage,
   getOne,
   addOne,
   updateOne,

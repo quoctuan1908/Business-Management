@@ -22,19 +22,49 @@ async function getAll() {
     orderBy: { import_id: 'desc' },
   });
 
-  return rows.map((row) => {
-    const base = toImport(row);
-    const totalAmount = row.details.reduce(
-      (sum, d) => sum + Number(d.import_price) * d.quantity,
-      0,
-    );
-    return {
-      ...base,
-      supplierName: row.supplier.supplier_name,
-      totalAmount,
-      lineCount: row.details.length,
-    };
-  });
+  return rows.map(mapImportListRow);
+}
+
+function mapImportListRow(
+  row: {
+    supplier: { supplier_name: string };
+    details: { quantity: number; import_price: unknown }[];
+  } & Parameters<typeof toImport>[0],
+) {
+  const base = toImport(row);
+  const totalAmount = row.details.reduce(
+    (sum, d) => sum + Number(d.import_price) * d.quantity,
+    0,
+  );
+  return {
+    ...base,
+    supplierName: row.supplier.supplier_name,
+    totalAmount,
+    lineCount: row.details.length,
+  };
+}
+
+async function getPage(
+  skip: number,
+  take: number,
+): Promise<{
+  items: Awaited<ReturnType<typeof getAll>>;
+  total: number;
+}> {
+  const [rows, total] = await Promise.all([
+    prisma.import.findMany({
+      include: {
+        supplier: { select: { supplier_name: true } },
+        details: { select: { quantity: true, import_price: true } },
+      },
+      orderBy: { import_id: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.import.count(),
+  ]);
+
+  return { items: rows.map(mapImportListRow), total };
 }
 
 async function add(input: IImportWrite): Promise<IImport> {
@@ -81,6 +111,7 @@ export default {
   getOne,
   persists,
   getAll,
+  getPage,
   add,
   update,
   delete: delete_,

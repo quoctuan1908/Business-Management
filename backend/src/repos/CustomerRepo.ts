@@ -20,17 +20,39 @@ async function persists(id: number): Promise<boolean> {
   return count > 0;
 }
 
+function approvedWhere(locationIds?: number[]) {
+  return {
+    is_approved: true as const,
+    ...(locationIds !== undefined
+      ? { location_id: { in: locationIds } }
+      : {}),
+  };
+}
+
 async function getAll(locationIds?: number[]): Promise<ICustomer[]> {
   const rows = await prisma.customer.findMany({
-    where: {
-      is_approved: true,
-      ...(locationIds !== undefined
-        ? { location_id: { in: locationIds } }
-        : {}),
-    },
+    where: approvedWhere(locationIds),
     orderBy: { customer_id: 'asc' },
   });
   return rows.map(toCustomer);
+}
+
+async function getPage(
+  skip: number,
+  take: number,
+  locationIds?: number[],
+): Promise<{ items: ICustomer[]; total: number }> {
+  const where = approvedWhere(locationIds);
+  const [rows, total] = await Promise.all([
+    prisma.customer.findMany({
+      where,
+      orderBy: { customer_id: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.customer.count({ where }),
+  ]);
+  return { items: rows.map(toCustomer), total };
 }
 
 async function getOneInTerritory(
@@ -98,6 +120,7 @@ export default {
   getOneInTerritory,
   persists,
   getAll,
+  getPage,
   getPendingApproval, 
   getNearby,        
   add,
