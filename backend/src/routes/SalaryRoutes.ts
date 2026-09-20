@@ -7,6 +7,9 @@ import Salary from '@src/models/Salary.model';
 import { Req, Res } from './common/express-types';
 import parseReq from './common/parseReq';
 import SalaryService from '@src/services/SalaryService';
+import { Roles } from '@src/common/constants/roles';
+import { RouteError } from '@src/common/utils/route-errors';
+import { ISessionUser } from '@src/models/common/types';
 
 /******************************************************************************
                                    Constants
@@ -43,6 +46,12 @@ async function getAll(_: Req, res: Res) {
  */
 async function getByUserId(req: Req, res: Res) {
   const { userId } = reqValidators.byUser(req.params);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+
+  if (sessionUser.role !== Roles.ADMIN && sessionUser.userId !== userId) {
+    throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Không có quyền xem lương của người khác');
+  }
+
   const salaries = await SalaryService.getByUserId(userId);
   res.status(HttpStatusCodes.OK).json({ salaries });
 }
@@ -54,6 +63,12 @@ async function getByUserId(req: Req, res: Res) {
 async function getOne(req: Req, res: Res) {
   const { id } = reqValidators.id(req.params);
   const salary = await SalaryService.getOne(id);
+  const sessionUser = res.locals.sessionUser as ISessionUser;
+
+  if (sessionUser.role !== Roles.ADMIN && sessionUser.userId !== salary.userId) {
+    throw new RouteError(HttpStatusCodes.FORBIDDEN, 'Không có quyền xem bản ghi lương này');
+  }
+
   res.status(HttpStatusCodes.OK).json({ salary });
 }
 

@@ -3,7 +3,6 @@ import { Prisma } from '@prisma/client';
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import {
   PaymentStatusLabels,
-  PaymentStatuses,
 } from '@src/common/constants/payment-status';
 import { CustomerErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';

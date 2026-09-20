@@ -13,13 +13,15 @@ async function getAll(): Promise<ISalaryWithUser[]> {
   const [salaries, users, bankAccounts] = await Promise.all([
     SalaryRepo.getAll(),
     UserRepo.getAll(),
-    BankAccountRepo.getAll(), 
+    BankAccountRepo.getAll(),
   ]);
 
+  const userMap = new Map(users.map(u => [u.id, u]));
+  const bankAccountByUserId = new Map(bankAccounts.map(b => [b.userId, b]));
+
   return salaries.map(salary => {
-    const user = users.find(u => u.id === salary.userId);
-    
-    const bankAccount = user ? bankAccounts.find(b => b.userId === user.id) : null;
+    const user = userMap.get(salary.userId);
+    const bankAccount = user ? bankAccountByUserId.get(user.id) : null;
 
     return {
       ...salary,

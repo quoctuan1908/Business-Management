@@ -55,18 +55,19 @@ userRouter.get(Paths.Users.StatsSellerTopDebtors, rateLimiters.default, auth, Us
 userRouter.get(Paths.Users.StatsShipperOverview, rateLimiters.default, auth, UserRoutes.getShipperOverviewStats);
 userRouter.get(Paths.Users.StatsShipperMonthly, rateLimiters.default, auth, UserRoutes.getShipperMonthlyStats);
 userRouter.get(Paths.Users.StatsMap, rateLimiters.default, auth, UserRoutes.getMapStatus);
-
 apiRouter.use(Paths.Users._, userRouter);
 
 const salaryRouter = Router();
-salaryRouter.get(Paths.Salaries.GetAll, SalaryRoutes.getAll);
-salaryRouter.get(Paths.Salaries.GetByUserId, SalaryRoutes.getByUserId);
-salaryRouter.get(Paths.Salaries.GetOne, SalaryRoutes.getOne);
-salaryRouter.post(Paths.Salaries.Add, SalaryRoutes.add);
-salaryRouter.put(Paths.Salaries.Update, SalaryRoutes.update);
-salaryRouter.delete(Paths.Salaries.Delete, SalaryRoutes.delete);
-salaryRouter.post(Paths.Salaries.Calculate, SalaryRoutes.calculatePayroll);
+salaryRouter.use(rateLimiters.default);
+salaryRouter.get(Paths.Salaries.GetAll, ...adminOnly, SalaryRoutes.getAll);
+salaryRouter.get(Paths.Salaries.GetByUserId, auth, SalaryRoutes.getByUserId);
+salaryRouter.get(Paths.Salaries.GetOne, auth, SalaryRoutes.getOne);
+salaryRouter.post(Paths.Salaries.Add, ...adminOnly, SalaryRoutes.add);
+salaryRouter.put(Paths.Salaries.Update, ...adminOnly, SalaryRoutes.update);
+salaryRouter.delete(Paths.Salaries.Delete, ...adminOnly, SalaryRoutes.delete);
+salaryRouter.post(Paths.Salaries.Calculate, ...adminOnly, SalaryRoutes.calculatePayroll);
 apiRouter.use(Paths.Salaries._, salaryRouter);
+
 
 const supplierRouter = Router();
 supplierRouter.use(rateLimiters.default);
@@ -130,11 +131,12 @@ customerRouter.post(Paths.Customers.Approve, ...adminOnly, CustomerRoutes.approv
 apiRouter.use(Paths.Customers._, customerRouter);
 
 const invoiceRouter = Router();
-invoiceRouter.get(Paths.Invoices.Get, InvoiceRoutes.getAll);
-invoiceRouter.get(Paths.Invoices.GetOne, InvoiceRoutes.getOne);
-invoiceRouter.post(Paths.Invoices.Add, InvoiceRoutes.add);
-invoiceRouter.put(Paths.Invoices.Update, InvoiceRoutes.update);
-invoiceRouter.delete(Paths.Invoices.Delete, InvoiceRoutes.delete);
+invoiceRouter.use(rateLimiters.default);
+invoiceRouter.get(Paths.Invoices.Get, auth, InvoiceRoutes.getAll);
+invoiceRouter.get(Paths.Invoices.GetOne, auth, InvoiceRoutes.getOne);
+invoiceRouter.post(Paths.Invoices.Add, auth, InvoiceRoutes.add);
+invoiceRouter.put(Paths.Invoices.Update, ...adminOnly, InvoiceRoutes.update);
+invoiceRouter.delete(Paths.Invoices.Delete, ...adminOnly, InvoiceRoutes.delete);
 apiRouter.use(Paths.Invoices._, invoiceRouter);
 
 const orderStatusRouter = Router();
@@ -177,41 +179,14 @@ apiRouter.use(Paths.Auth._, authRouter);
 
 
 const bankAccountRouter = Router();
-
-bankAccountRouter.get(
-  Paths.BankAccount.GetAll, 
-  rateLimiters.default, 
-  BankAccountRoutes.getAll,
-);
-
-
-bankAccountRouter.get(
-  Paths.BankAccount.GetByUserId, 
-  rateLimiters.default, 
-  BankAccountRoutes.getByUserId,
-);
-
-
-bankAccountRouter.post(
-  Paths.BankAccount.Add, 
-  rateLimiters.default, 
-  BankAccountRoutes.add,
-);
-
-
-bankAccountRouter.put(
-  Paths.BankAccount.Upsert, 
-  rateLimiters.default, 
-  BankAccountRoutes.upsert,
-);
-
-bankAccountRouter.delete(
-  Paths.BankAccount.Delete, 
-  rateLimiters.default, 
-  BankAccountRoutes.delete,
-);
-
+bankAccountRouter.use(rateLimiters.default);
+bankAccountRouter.get(Paths.BankAccount.GetAll, ...adminOnly, BankAccountRoutes.getAll);
+bankAccountRouter.get(Paths.BankAccount.GetByUserId, auth, BankAccountRoutes.getByUserId);
+bankAccountRouter.post(Paths.BankAccount.Add, auth, BankAccountRoutes.add);
+bankAccountRouter.put(Paths.BankAccount.Upsert, auth, BankAccountRoutes.upsert);
+bankAccountRouter.delete(Paths.BankAccount.Delete, ...adminOnly, BankAccountRoutes.delete);
 apiRouter.use(Paths.BankAccount._, bankAccountRouter);
+
 
 const chatRouter = Router()
 
