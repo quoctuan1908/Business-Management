@@ -63,6 +63,17 @@ async function deleteWithStockRollback(id: number): Promise<void> {
 
   await prisma.$transaction(async (tx) => {
     const lines = await tx.importDetail.findMany({ where: { import_id: id } });
+
+    for (const line of lines) {
+      const product = await tx.product.findUnique({ where: { product_id: line.product_id } });
+      if (!product || product.stock_quantity < line.quantity) {
+        throw new RouteError(
+          HttpStatusCodes.BAD_REQUEST,
+          'Không thể hoàn tồn kho: số lượng hiện tại không đủ',
+        );
+      }
+    }
+
     for (const line of lines) {
       await tx.product.update({
         where: { product_id: line.product_id },
