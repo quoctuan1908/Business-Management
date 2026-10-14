@@ -6,6 +6,7 @@ import Product from '@src/models/Product.model';
 import ProductService from '@src/services/ProductService';
 
 import { Req, Res } from './common/express-types';
+import { parsePaginationQuery } from './common/pagination';
 import parseReq from './common/parseReq';
 
 /******************************************************************************
@@ -13,8 +14,8 @@ import parseReq from './common/parseReq';
 ******************************************************************************/
 
 const reqValidators = {
-  add: parseReq({ product: Product.isComplete }),
-  update: parseReq({ product: Product.isComplete }),
+  add: parseReq({ product: Product.isCompleteWrite }),
+  update: parseReq({ product: Product.isCompleteUpdate }),
   getOne: parseReq({ id: transform(Number, isNumber) }),
   delete: parseReq({ id: transform(Number, isNumber) }),
 } as const;
@@ -23,7 +24,25 @@ const reqValidators = {
                                 Functions
 ******************************************************************************/
 
-async function getAll(_: Req, res: Res) {
+async function getAll(req: Req, res: Res) {
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+  );
+
+  if (pagination.enabled) {
+    const { items, total } = await ProductService.getPage(
+      pagination.page,
+      pagination.pageSize,
+    );
+    res.status(HttpStatusCodes.OK).json({
+      products: items,
+      total,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
+    return;
+  }
+
   const products = await ProductService.getAll();
   res.status(HttpStatusCodes.OK).json({ products });
 }

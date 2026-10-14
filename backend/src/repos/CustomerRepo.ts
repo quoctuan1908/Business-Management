@@ -1,4 +1,4 @@
-import { ICustomer } from '@src/models/Customer.model';
+import { ICustomer, ICustomerUpdate, ICustomerWrite } from '@src/models/Customer.model';
 
 import { customerToPrismaData, toCustomer } from './common/mappers';
 import prisma from './common/prisma';
@@ -20,17 +20,39 @@ async function persists(id: number): Promise<boolean> {
   return count > 0;
 }
 
+function approvedWhere(locationIds?: number[]) {
+  return {
+    is_approved: true as const,
+    ...(locationIds !== undefined
+      ? { location_id: { in: locationIds } }
+      : {}),
+  };
+}
+
 async function getAll(locationIds?: number[]): Promise<ICustomer[]> {
   const rows = await prisma.customer.findMany({
-    where: {
-      is_approved: true,
-      ...(locationIds !== undefined
-        ? { location_id: { in: locationIds } }
-        : {}),
-    },
+    where: approvedWhere(locationIds),
     orderBy: { customer_id: 'asc' },
   });
   return rows.map(toCustomer);
+}
+
+async function getPage(
+  skip: number,
+  take: number,
+  locationIds?: number[],
+): Promise<{ items: ICustomer[]; total: number }> {
+  const where = approvedWhere(locationIds);
+  const [rows, total] = await Promise.all([
+    prisma.customer.findMany({
+      where,
+      orderBy: { customer_id: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.customer.count({ where }),
+  ]);
+  return { items: rows.map(toCustomer), total };
 }
 
 async function getOneInTerritory(
@@ -56,14 +78,14 @@ async function getPendingApproval(): Promise<ICustomer[]> {
   return rows.map(toCustomer);
 }
 
-async function add(customer: ICustomer): Promise<ICustomer> {
+async function add(customer: ICustomerWrite): Promise<ICustomer> {
   const row = await prisma.customer.create({
     data: customerToPrismaData(customer),
   });
   return toCustomer(row);
 }
 
-async function update(customer: ICustomer): Promise<ICustomer> {
+async function update(customer: ICustomerUpdate | ICustomer): Promise<ICustomer> {
   const row = await prisma.customer.update({
     where: { customer_id: customer.id },
     data: customerToPrismaData(customer),
@@ -98,6 +120,7 @@ export default {
   getOneInTerritory,
   persists,
   getAll,
+  getPage,
   getPendingApproval, 
   getNearby,        
   add,

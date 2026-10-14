@@ -48,6 +48,7 @@ import { TablePagination } from "@/components/ui/table-pagination";
 import { ListTableShell } from "@/components/ui/list-table-shell";
 
 import { usePagination } from "@/hooks/use-pagination";
+import { useServerPagination } from "@/hooks/use-server-pagination";
 
 import { listCol, listCell } from "@/lib/list-table-layout";
 import { matchesAnySearchField } from "@/lib/list-search";
@@ -135,6 +136,7 @@ export function ActivitiesPanel() {
   const { user, isAdmin } = useAuth();
 
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [total, setTotal] = useState(0);
 
   const [users, setUsers] = useState<User[]>([]);
 
@@ -170,6 +172,20 @@ export function ActivitiesPanel() {
 
   const [exporting, setExporting] = useState(false);
   const [printingId, setPrintingId] = useState<number | null>(null);
+
+  const useClientMode =
+    searchQuery.trim().length > 0 ||
+    filterStatus !== "all" ||
+    filterDebt !== "all" ||
+    filterFrom !== "" ||
+    filterTo !== "";
+
+  const {
+    page: serverPage,
+    setPage: setServerPage,
+    pageSize,
+    getPageCount,
+  } = useServerPagination(useClientMode ? "search" : "browse");
 
   const userMap = useMemo(
     () => Object.fromEntries(users.map((u) => [u.id, u.fullName])),
@@ -229,14 +245,11 @@ export function ActivitiesPanel() {
 
   const filterKey = `${filterStatus}|${filterDebt}|${filterFrom}|${filterTo}|${searchQuery}`;
 
-  const {
-    page,
-    setPage,
+  const clientPagination = usePagination(
+    filteredActivities,
     pageSize,
-    totalItems,
-    totalPages,
-    paginatedItems: paginatedActivities,
-  } = usePagination(filteredActivities, undefined, filterKey);
+    filterKey,
+  );
 
 
 
@@ -248,8 +261,7 @@ export function ActivitiesPanel() {
 
     try {
 
-      const [activityList, customerList, statuses] = await Promise.all([
-        activitiesApi.getAll(),
+      const [customerList, statuses] = await Promise.all([
         lookupApi.customers(),
         orderStatusesApi.getAll(),
       ]);
@@ -258,7 +270,15 @@ export function ActivitiesPanel() {
         ? await lookupApi.users()
         : [];
 
-      setActivities(activityList);
+      if (useClientMode) {
+        const activityList = await activitiesApi.getAll();
+        setActivities(activityList);
+        setTotal(activityList.length);
+      } else {
+        const res = await activitiesApi.getPage(serverPage, pageSize);
+        setActivities(res.items);
+        setTotal(res.total);
+      }
 
       setUsers(userList);
 
@@ -286,7 +306,7 @@ export function ActivitiesPanel() {
 
     }
 
-  }, [isAdmin]);
+  }, [isAdmin, useClientMode, serverPage, pageSize]);
 
 
 
@@ -295,6 +315,15 @@ export function ActivitiesPanel() {
     void load();
 
   }, [load]);
+
+  const rows = useClientMode ? clientPagination.paginatedItems : activities;
+  const page = useClientMode ? clientPagination.page : serverPage;
+  const setPage = useClientMode ? clientPagination.setPage : setServerPage;
+  const totalItems = useClientMode ? clientPagination.totalItems : total;
+  const totalPages = useClientMode
+    ? clientPagination.totalPages
+    : getPageCount(total);
+  const displayCount = useClientMode ? filteredActivities.length : total;
 
 
 
@@ -338,12 +367,7 @@ export function ActivitiesPanel() {
 
 
 
-  const hasActiveFilters =
-    filterStatus !== "all" ||
-    filterDebt !== "all" ||
-    filterFrom !== "" ||
-    filterTo !== "" ||
-    searchQuery.trim() !== "";
+  const hasActiveFilters = useClientMode;
 
 
 
@@ -465,9 +489,9 @@ export function ActivitiesPanel() {
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            {!loading && (
+            {!loading && displayCount > 0 && (
               <>
-                {filteredActivities.length}
+                {displayCount}
                 {hasActiveFilters ? " kết quả" : " mục"}
               </>
             )}
@@ -572,7 +596,7 @@ export function ActivitiesPanel() {
           <p className="text-sm text-muted-foreground">Đang tải...</p>
         ) : activities.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có dữ liệu.</p>
-        ) : filteredActivities.length === 0 ? (
+        ) : useClientMode && filteredActivities.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Không có kết quả phù hợp.
           </p>
@@ -604,7 +628,7 @@ export function ActivitiesPanel() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedActivities.map((activity) => (
+                {rows.map((activity) => (
                   <TableRow key={activity.id}>
                     <TableCell className={`text-muted-foreground ${listCell.nowrap}`}>
                       {activity.id}

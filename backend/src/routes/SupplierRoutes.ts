@@ -6,16 +6,35 @@ import Supplier from '@src/models/Supplier.model';
 import SupplierService from '@src/services/SupplierService';
 
 import { Req, Res } from './common/express-types';
+import { parsePaginationQuery } from './common/pagination';
 import parseReq from './common/parseReq';
 
 const reqValidators = {
-  add: parseReq({ supplier: Supplier.isComplete }),
-  update: parseReq({ supplier: Supplier.isComplete }),
+  add: parseReq({ supplier: Supplier.isCompleteWrite }),
+  update: parseReq({ supplier: Supplier.isCompleteUpdate }),
   getOne: parseReq({ id: transform(Number, isNumber) }),
   delete: parseReq({ id: transform(Number, isNumber) }),
 } as const;
 
-async function getAll(_: Req, res: Res) {
+async function getAll(req: Req, res: Res) {
+  const pagination = parsePaginationQuery(
+    req.query as Record<string, unknown>,
+  );
+
+  if (pagination.enabled) {
+    const { items, total } = await SupplierService.getPage(
+      pagination.page,
+      pagination.pageSize,
+    );
+    res.status(HttpStatusCodes.OK).json({
+      suppliers: items,
+      total,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
+    return;
+  }
+
   const suppliers = await SupplierService.getAll();
   res.status(HttpStatusCodes.OK).json({ suppliers });
 }

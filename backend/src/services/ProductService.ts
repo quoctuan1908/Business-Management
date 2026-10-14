@@ -1,11 +1,15 @@
 import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
 import { ProductErrors as Errors } from '@src/common/constants/service-errors';
 import { RouteError } from '@src/common/utils/route-errors';
-import { IProduct } from '@src/models/Product.model';
+import { IProductUpdate, IProductWrite } from '@src/models/Product.model';
 import ProductRepo from '@src/repos/ProductRepo';
 
 async function getAll() {
   return ProductRepo.getAll();
+}
+
+async function getPage(page: number, pageSize: number) {
+  return ProductRepo.getPage((page - 1) * pageSize, pageSize);
 }
 
 async function getOne(id: number) {
@@ -16,11 +20,11 @@ async function getOne(id: number) {
   return product;
 }
 
-async function addOne(product: IProduct) {
+async function addOne(product: IProductWrite) {
   return ProductRepo.add(product);
 }
 
-async function updateOne(product: IProduct) {
+async function updateOne(product: IProductUpdate) {
   const exists = await ProductRepo.persists(product.id);
   if (!exists) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.PRODUCT_NOT_FOUND);
@@ -43,6 +47,7 @@ async function deleteOne(id: number): Promise<void> {
 export default {
   Errors,
   getAll,
+  getPage,
   getOne,
   addOne,
   updateOne,

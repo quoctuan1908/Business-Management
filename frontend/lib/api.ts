@@ -29,6 +29,7 @@ import type {
   StatusBreakdownStats,
   RecentSalesTimelineStats,
   SellerOverviewStats,
+  SellerRevenueSeries,
   SellerMonthlyStatItem,
   TopDebtorsStats,
   ShipperOverviewStats,
@@ -38,6 +39,7 @@ import type {
   IBankAccountCreate,
   IBankAccountUpdate,
 } from "@/lib/types";
+import { pageQuery, type PaginatedResult } from "@/lib/pagination";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://business-management-lyart.vercel.app/api";
 // const API_BASE = "http://localhost:3000/api"
@@ -182,6 +184,20 @@ export const activitiesApi = {
     request<{ activities: Activity[] }>("/activities/all").then(
       (d) => d.activities,
     ),
+  getPage: (page: number, pageSize: number) =>
+    request<{
+      activities: Activity[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/activities/all${pageQuery(page, pageSize)}`).then(
+      (d): PaginatedResult<Activity> => ({
+        items: d.activities,
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+      }),
+    ),
   getOne: (id: number) =>
     request<{ activity: Activity }>(`/activities/${id}`).then((d) => d.activity),
   add: (activity: ActivityWrite) =>
@@ -306,6 +322,20 @@ export const invoicesApi = {
 export const productsApi = {
   getAll: () =>
     request<{ products: Product[] }>("/products/all").then((d) => d.products),
+  getPage: (page: number, pageSize: number) =>
+    request<{
+      products: Product[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/products/all${pageQuery(page, pageSize)}`).then(
+      (d): PaginatedResult<Product> => ({
+        items: d.products,
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+      }),
+    ),
   getOne: (id: number) =>
     request<{ product: Product }>(`/products/${id}`).then((d) => d.product),
   add: (product: Omit<Product, "id">) =>
@@ -326,6 +356,20 @@ export const customersApi = {
   getAll: () =>
     request<{ customers: Customer[] }>("/customers/all").then(
       (d) => d.customers,
+    ),
+  getPage: (page: number, pageSize: number) =>
+    request<{
+      customers: Customer[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/customers/all${pageQuery(page, pageSize)}`).then(
+      (d): PaginatedResult<Customer> => ({
+        items: d.customers,
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+      }),
     ),
   getOne: (id: number) =>
     request<{ customer: Customer }>(`/customers/${id}`).then((d) => d.customer),
@@ -360,7 +404,7 @@ export const customersApi = {
   approve: (id: number) =>
     request<{ customer: Customer }>(`/customers/approve/${id}`, {
       method: "POST",
-    }).then((d) => d.customer), 
+    }).then((d) => d.customer),
 };
 
 export const authApi = {
@@ -552,6 +596,9 @@ export const usersApi = {
   getSellerOverviewStats: (userId: number | string, options?: StatsPeriodOptions) =>
     statsRequest<SellerOverviewStats>(`/users/stats/seller/overview/${userId}${buildStatsQueryString(options)}`),
 
+  getSellerRevenueSeries: (userId: number | string, options?: StatsPeriodOptions) =>
+    statsRequest<SellerRevenueSeries>(`/users/stats/seller/revenue-series/${userId}${buildStatsQueryString(options)}`),
+
   getSellerMonthlyStats: (userId: number | string, month?: number, year?: number) => {
     const params = new URLSearchParams();
     if (month !== undefined) params.append("month", month.toString());
@@ -618,6 +665,20 @@ export const suppliersApi = {
     request<{ suppliers: Supplier[] }>("/suppliers/all").then(
       (d) => d.suppliers,
     ),
+  getPage: (page: number, pageSize: number) =>
+    request<{
+      suppliers: Supplier[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/suppliers/all${pageQuery(page, pageSize)}`).then(
+      (d): PaginatedResult<Supplier> => ({
+        items: d.suppliers,
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+      }),
+    ),
   getOne: (id: number) =>
     request<{ supplier: Supplier }>(`/suppliers/${id}`).then(
       (d) => d.supplier,
@@ -639,6 +700,20 @@ export const suppliersApi = {
 export const importsApi = {
   getAll: () =>
     request<{ imports: ImportView[] }>("/imports/all").then((d) => d.imports),
+  getPage: (page: number, pageSize: number) =>
+    request<{
+      imports: ImportView[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/imports/all${pageQuery(page, pageSize)}`).then(
+      (d): PaginatedResult<ImportView> => ({
+        items: d.imports,
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+      }),
+    ),
   getOne: (id: number) =>
     request<{ import: Import }>(`/imports/${id}`).then((d) => d.import),
   add: (importRecord: ImportWrite) =>
@@ -653,6 +728,11 @@ export const importsApi = {
     }).then((d) => d.import),
   delete: (id: number) =>
     request<void>(`/imports/delete/${id}`, { method: "DELETE" }),
+  exportExcel: (fromDate: string, toDate: string) =>
+    downloadBlob(
+      `/imports/export?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}`,
+      `nhap-hang_${fromDate}_${toDate}.xlsx`,
+    ),
 };
 
 export const importDetailsApi = {
@@ -693,6 +773,74 @@ export const chatApi = {
       method: "POST",
       body: JSON.stringify({ message, history }),
     }).then((d) => d.answer),
+};
+
+function filenameFromDisposition(
+  header: string | null,
+  fallback: string,
+): string {
+  if (!header) return fallback;
+  const match = /filename="([^"]+)"/.exec(header);
+  return match?.[1] ?? fallback;
+}
+
+export const backupApi = {
+  download: async () => {
+    const url = `${API_BASE}/backup/export`;
+    const options: RequestInit = { credentials: "include" };
+
+    let res = await fetch(url, options);
+
+    if (shouldAttemptTokenRefresh("/backup/export", res.status)) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = (async () => {
+          try {
+            const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+              method: "POST",
+              credentials: "include",
+            });
+            if (!refreshRes.ok) throw new Error("Refresh token expired");
+          } catch (error) {
+            redirectToLoginIfNeeded();
+            throw error;
+          } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+          }
+        })();
+      }
+      await refreshPromise;
+      res = await fetch(url, options);
+    }
+
+    if (!res.ok) {
+      let message = res.statusText;
+      try {
+        const body = await res.json();
+        message = body.error ?? message;
+      } catch { }
+      throw new Error(message);
+    }
+
+    const fallback = `backup_seller_system_${new Date().toISOString().slice(0, 10).replace(/-/g, "_")}.json`;
+    const filename = filenameFromDisposition(
+      res.headers.get("Content-Disposition"),
+      fallback,
+    );
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = blobUrl;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(blobUrl);
+  },
+  restore: (backup: unknown) =>
+    request<{ message: string; restoredAt: string }>("/backup/restore", {
+      method: "POST",
+      body: JSON.stringify({ backup }),
+    }),
 };
 
 export const lookupApi = {

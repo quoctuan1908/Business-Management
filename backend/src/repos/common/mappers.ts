@@ -250,8 +250,8 @@ export function customerToPrismaData(
     phone_number: customer.phoneNumber,
     current_balance: customer.currentBalance,
   
-    lat: customer.lat,
-    lng: customer.lng,
+    lat: customer.lat ?? null,
+    lng: customer.lng ?? null,
 
     is_approved: customer.isApproved,
     approved_at: customer.approvedAt ? new Date(customer.approvedAt) : null,

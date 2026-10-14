@@ -9,6 +9,10 @@ async function getAll() {
   return InvoiceRepo.getAll();
 }
 
+async function getPage(page: number, pageSize: number) {
+  return InvoiceRepo.getPage((page - 1) * pageSize, pageSize);
+}
+
 async function getOne(id: number) {
   const invoice = await InvoiceRepo.getOne(id);
   if (!invoice) {
@@ -53,6 +57,7 @@ async function deleteOne(id: number): Promise<void> {
 export default {
   Errors,
   getAll,
+  getPage,
   getOne,
   addOne,
   updateOne,

@@ -19,7 +19,34 @@ async function getAll(): Promise<ISalaryWithUser[]> {
     ],
   });
 
-  return rows.map(row => ({
+  return rows.map(mapSalaryWithUser);
+}
+
+function mapSalaryWithUser(row: {
+  salary_id: number;
+  user_id: number;
+  month: number;
+  year: number;
+  base_salary: unknown;
+  commission: unknown;
+  bonus: unknown;
+  is_paid: boolean;
+  created_at: Date;
+  updated_at: Date;
+  user: {
+    username: string;
+    full_name: string;
+    department: string;
+    email: string;
+    phone_number: string;
+    role: string;
+    bank_account: {
+      bank_name: string;
+      account_number: string;
+    } | null;
+  } | null;
+}): ISalaryWithUser {
+  return {
     id: row.salary_id,
     userId: row.user_id,
     month: row.month,
@@ -39,7 +66,30 @@ async function getAll(): Promise<ISalaryWithUser[]> {
       phoneNumber: row.user.phone_number,
       role: row.user.role,
     } : null,
-  }));
+  };
+}
+
+async function getPage(
+  skip: number,
+  take: number,
+): Promise<{ items: ISalaryWithUser[]; total: number }> {
+  const [rows, total] = await Promise.all([
+    prisma.salary.findMany({
+      include: {
+        user: {
+          include: {
+            bank_account: true,
+          },
+        },
+      },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      skip,
+      take,
+    }),
+    prisma.salary.count(),
+  ]);
+
+  return { items: rows.map(mapSalaryWithUser), total };
 }
 
 /**
@@ -261,6 +311,7 @@ async function deleteAll(): Promise<void> {
 
 export default {
   getAll,
+  getPage,
   getOne,
   persists,
   getByUserId,

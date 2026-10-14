@@ -28,6 +28,7 @@ import {
 import { TablePagination } from "@/components/ui/table-pagination";
 import { ListTableShell } from "@/components/ui/list-table-shell";
 import { usePagination } from "@/hooks/use-pagination";
+import { useServerPagination } from "@/hooks/use-server-pagination";
 import { listCol, listCell } from "@/lib/list-table-layout";
 import { matchesAnySearchField } from "@/lib/list-search";
 
@@ -45,12 +46,21 @@ function formatMoney(value: number) {
 export function ProductsPanel() {
   const { isAdmin } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const hasSearch = searchQuery.trim().length > 0;
+  const {
+    page: serverPage,
+    setPage: setServerPage,
+    pageSize,
+    getPageCount,
+  } = useServerPagination(hasSearch ? "search" : "browse");
 
   const filteredProducts = useMemo(
     () =>
@@ -63,27 +73,31 @@ export function ProductsPanel() {
     [products, searchQuery],
   );
 
-  const {
-    page,
-    setPage,
+  const clientPagination = usePagination(
+    filteredProducts,
     pageSize,
-    totalItems,
-    totalPages,
-    paginatedItems: paginatedProducts,
-  } = usePagination(filteredProducts, undefined, searchQuery);
+    searchQuery,
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await productsApi.getAll();
-      setProducts(data);
+      if (hasSearch) {
+        const data = await productsApi.getAll();
+        setProducts(data);
+        setTotal(data.length);
+      } else {
+        const res = await productsApi.getPage(serverPage, pageSize);
+        setProducts(res.items);
+        setTotal(res.total);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hasSearch, serverPage, pageSize]);
 
   useEffect(() => {
     void load();
@@ -141,6 +155,15 @@ export function ProductsPanel() {
     }
   }
 
+  const rows = hasSearch ? clientPagination.paginatedItems : products;
+  const page = hasSearch ? clientPagination.page : serverPage;
+  const setPage = hasSearch ? clientPagination.setPage : setServerPage;
+  const totalItems = hasSearch ? clientPagination.totalItems : total;
+  const totalPages = hasSearch
+    ? clientPagination.totalPages
+    : getPageCount(total);
+  const displayCount = hasSearch ? filteredProducts.length : total;
+
   return (
     <Card>
       <CardHeader className="space-y-3 pb-4">
@@ -163,10 +186,10 @@ export function ProductsPanel() {
           )}
           </div>
         </div>
-        {!loading && products.length > 0 && (
+        {!loading && displayCount > 0 && (
           <p className="text-sm text-muted-foreground">
-            {filteredProducts.length}
-            {searchQuery.trim() ? " kết quả" : " sản phẩm"}
+            {displayCount}
+            {hasSearch ? " kết quả" : " sản phẩm"}
           </p>
         )}
       </CardHeader>
@@ -180,7 +203,7 @@ export function ProductsPanel() {
           <p className="text-sm text-muted-foreground">Đang tải...</p>
         ) : products.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có sản phẩm.</p>
-        ) : filteredProducts.length === 0 ? (
+        ) : hasSearch && filteredProducts.length === 0 ? (
           <p className="text-sm text-muted-foreground">Không có kết quả phù hợp.</p>
         ) : (
           <ListTableShell
@@ -207,7 +230,7 @@ export function ProductsPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedProducts.map((product) => (
+              {rows.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell className={listCell.nowrap}>{product.id}</TableCell>
                   <TableCell className={`font-medium ${listCell.truncate}`}>
@@ -219,14 +242,14 @@ export function ProductsPanel() {
                     <TableCell className={listCell.actions}>
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => openEdit(product)}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => void handleDelete(product.id)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -248,48 +271,56 @@ export function ProductsPanel() {
               {form.id === 0 ? "Thêm sản phẩm" : "Sửa sản phẩm"}
             </DialogTitle>
           </DialogHeader>
-          <form className="grid gap-4" onSubmit={(e) => void handleSubmit(e)}>
-            <div className="grid gap-2">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
               <Label htmlFor="productName">Tên sản phẩm</Label>
               <Input
                 id="productName"
-                required
                 value={form.productName}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, productName: e.target.value }))
                 }
+                required
               />
             </div>
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="unitPrice">Đơn giá</Label>
               <Input
                 id="unitPrice"
                 type="number"
                 min={0}
-                required
                 value={form.unitPrice}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, unitPrice: e.target.value }))
                 }
+                required
               />
             </div>
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="stockQuantity">Tồn kho</Label>
               <Input
                 id="stockQuantity"
                 type="number"
                 min={0}
-                step={1}
-                required
                 value={form.stockQuantity}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, stockQuantity: e.target.value }))
                 }
+                required
               />
             </div>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Đang lưu..." : "Lưu"}
-            </Button>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Đang lưu..." : "Lưu"}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

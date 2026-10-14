@@ -412,10 +412,12 @@ export async function getSellerOverviewStats(
       activity_id: true,
       status: true,
       invoice: { select: { total_amount: true } },
-      details: { select: { quantity: true, sale_price: true } },
+      details: { select: { quantity: true, sale_price: true, product_id: true } },
       payments: { select: { paid_amount: true } }
     }
   });
+
+  const importPriceByProduct = await getAverageImportPriceByProduct();
 
   const totalActivities = sellerActivities.length;
   const validOrdersCount = sellerActivities.filter(act => act.status !== 'draft').length;
@@ -423,11 +425,17 @@ export async function getSellerOverviewStats(
   let grossRevenue = 0;
   let collectedRevenue = 0;
   let outstandingDebt = 0;
+  let totalCost = 0;
+  let totalProfit = 0;
 
   sellerActivities.forEach(act => {
     const orderTotal = getGrossOrderTotal(act);
 
     grossRevenue += orderTotal;
+
+    const cost = getActivityCost(act, importPriceByProduct);
+    totalCost += cost;
+    totalProfit += Math.max(0, orderTotal - cost);
 
     const orderPaid = act.payments?.reduce((sum, p) => sum + Number(p.paid_amount), 0) || 0;
     collectedRevenue += orderPaid;
@@ -449,6 +457,8 @@ export async function getSellerOverviewStats(
     totalActivities, 
     conversionRate: totalActivities > 0 ? Number(((validOrdersCount / totalActivities) * 100).toFixed(2)) : 0, 
     grossRevenue, 
+    totalCost: Number(totalCost.toFixed(0)),
+    totalProfit: Number(totalProfit.toFixed(0)),
     collectedRevenue,
     outstandingDebt, 
     currentBalance,  
@@ -783,6 +793,146 @@ export async function getMapStatusByActivities(dateString: string) {
   };
 }
 
+type RevenueSeriesDetailRow = {
+  quantity: number;
+  sale_price: unknown;
+  product_id: number;
+};
+
+type ActivityCostRow = {
+  details: RevenueSeriesDetailRow[];
+};
+
+type RevenueSeriesActivityRow = ActivityCostRow & {
+  activity_date: Date;
+  invoice?: { total_amount: unknown } | null;
+  payments?: { paid_amount: unknown }[];
+};
+
+async function getAverageImportPriceByProduct(): Promise<Map<number, number>> {
+  const rows = await prisma.importDetail.groupBy({
+    by: ['product_id'],
+    _avg: { import_price: true },
+  });
+  return new Map(
+    rows.map((row) => [row.product_id, Number(row._avg.import_price) || 0]),
+  );
+}
+
+function getActivityCost(
+  activity: ActivityCostRow,
+  importPriceByProduct: Map<number, number>,
+): number {
+  if (!activity.details.length) return 0;
+  return activity.details.reduce((sum, detail) => {
+    const salePrice = Number(detail.sale_price) || 0;
+    const importPrice = importPriceByProduct.get(detail.product_id) ?? 0;
+    const unitCost = importPrice > 0 ? importPrice : salePrice * 0.65;
+    return sum + detail.quantity * unitCost;
+  }, 0);
+}
+
+function initRevenueBuckets(granularity: 'day' | 'month', year: number, month?: number) {
+  const buckets = new Map<string, { revenue: number; cost: number; profit: number }>();
+
+  if (granularity === 'month') {
+    for (let m = 1; m <= 12; m += 1) {
+      buckets.set(String(m), { revenue: 0, cost: 0, profit: 0 });
+    }
+    return buckets;
+  }
+
+  const monthIndex = month ?? 1;
+  const daysInMonth = new Date(year, monthIndex, 0).getDate();
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    buckets.set(String(day), { revenue: 0, cost: 0, profit: 0 });
+  }
+  return buckets;
+}
+
+export async function getSellerRevenueSeries(
+  scope: SellerScope,
+  year: string,
+  month: string,
+  province?: string,
+  ward?: string,
+) {
+  const granularity: 'day' | 'month' = month !== 'all' ? 'day' : 'month';
+  const parsedYear = Number.parseInt(year, 10);
+  const parsedMonth = month !== 'all' ? Number.parseInt(month, 10) : undefined;
+
+  if (Number.isNaN(parsedYear)) {
+    return { granularity, series: [] as const };
+  }
+
+  const dateFilter = buildActivityDateFilter({ month, year });
+  const locationFilter: Record<string, string> = {};
+  if (province && province !== 'all') locationFilter.province = province;
+  if (ward && ward !== 'all') locationFilter.ward = ward;
+
+  const [activities, importPriceByProduct] = await Promise.all([
+    prisma.activity.findMany({
+      where: {
+        ...activityScopeWhere(scope, dateFilter, locationFilter),
+        status: { not: 'cancelled' },
+      },
+      select: {
+        activity_date: true,
+        invoice: { select: { total_amount: true } },
+        details: {
+          select: {
+            quantity: true,
+            sale_price: true,
+            product_id: true,
+          },
+        },
+        payments: { select: { paid_amount: true } },
+      },
+      orderBy: { activity_date: 'asc' },
+    }),
+    getAverageImportPriceByProduct(),
+  ]);
+
+  const buckets = initRevenueBuckets(granularity, parsedYear, parsedMonth);
+
+  for (const activity of activities) {
+    const revenue = getGrossOrderTotal(activity);
+    if (revenue <= 0) continue;
+
+    const cost = getActivityCost(activity, importPriceByProduct);
+    const profit = Math.max(0, revenue - cost);
+
+    const bucketKey =
+      granularity === 'month'
+        ? String(activity.activity_date.getUTCMonth() + 1)
+        : String(activity.activity_date.getUTCDate());
+
+    const bucket = buckets.get(bucketKey);
+    if (!bucket) continue;
+
+    bucket.revenue += revenue;
+    bucket.cost += cost;
+    bucket.profit += profit;
+  }
+
+  const series = Array.from(buckets.entries()).map(([key, values]) => {
+    const label =
+      granularity === 'month'
+        ? `T${key}`
+        : `${key.padStart(2, '0')}/${String(parsedMonth).padStart(2, '0')}`;
+
+    return {
+      key,
+      label,
+      revenue: Number(values.revenue.toFixed(0)),
+      cost: Number(values.cost.toFixed(0)),
+      profit: Number(values.profit.toFixed(0)),
+    };
+  });
+
+  return { granularity, series };
+}
+
 /* ==========================================================================
    PART 5: EXPORT REPOSITORY OBJECT
    ========================================================================== */
@@ -812,6 +962,7 @@ export default {
   // Seller Statistics
   getSellerOverviewStats,
   getSellerMonthlyStats,
+  getSellerRevenueSeries,
   getEmployeeTopDebtors,
 
   // Shipper Statistics

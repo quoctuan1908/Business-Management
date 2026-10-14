@@ -41,6 +41,10 @@ async function getAll(): Promise<ISalaryWithUser[]> {
   });
 }
 
+async function getPage(page: number, pageSize: number) {
+  return SalaryRepo.getPage((page - 1) * pageSize, pageSize);
+}
+
 function getByUserId(userId: number): Promise<ISalary[]> {
   return SalaryRepo.getByUserId(userId);
 }
@@ -88,6 +92,7 @@ function calculateAutomatedPayroll(
 
 export default {
   getAll,
+  getPage,
   getByUserId,
   getOne,
   addOne,

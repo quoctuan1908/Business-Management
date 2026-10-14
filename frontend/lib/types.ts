@@ -383,10 +383,25 @@ export interface SellerOverviewStats {
   totalActivities: number;
   conversionRate: number;
   grossRevenue: number;
+  totalCost: number;
+  totalProfit: number;
   collectedRevenue: number;
   outstandingDebt: number;
   currentBalance: number;
   averageOrderValue: number;
+}
+
+export interface SellerRevenueSeriesPoint {
+  key: string;
+  label: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+}
+
+export interface SellerRevenueSeries {
+  granularity: "day" | "month";
+  series: SellerRevenueSeriesPoint[];
 }
 
 export interface SellerMonthlyStatItem {

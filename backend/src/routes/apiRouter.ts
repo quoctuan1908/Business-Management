@@ -22,6 +22,7 @@ import EmployeeLocationRoutes from './EmployeeLocationRoutes';
 import rateLimiters from '@src/middlewares/rateLimitMiddleware';
 import BankAccountRoutes from './BankAccountRoutes';
 import ChatRoutes from './chatbot/ChatRoutes';
+import BackupRoutes from './BackupRoutes';
 
 /******************************************************************************
                                 Setup
@@ -38,29 +39,28 @@ const admin = authMiddleware.authorize(Roles.ADMIN);
 ******************************************************************************/
 
 const userRouter = Router();
-userRouter.use(auth, rateLimiters.default);
+userRouter.get(Paths.Users.Profile, rateLimiters.default, auth, UserRoutes.getProfile);
+userRouter.get(Paths.Users.Get, rateLimiters.default, adminOnly, UserRoutes.getAll);
+userRouter.get(Paths.Users.GetUnactivated, rateLimiters.default, adminOnly, UserRoutes.getAllUnactivated);
+userRouter.get(Paths.Users.Search, rateLimiters.default, adminOnly, UserRoutes.search);
+userRouter.post(Paths.Users.Add, rateLimiters.auth, adminOnly, UserRoutes.add);
+userRouter.put(Paths.Users.Update, rateLimiters.auth, adminOnly, UserRoutes.update);
+userRouter.delete(Paths.Users.Delete, rateLimiters.auth, adminOnly, UserRoutes.delete);
+userRouter.get(Paths.Users.GetOne, rateLimiters.default, adminOnly, UserRoutes.getOne);
 
-userRouter.get(Paths.Users.Profile, UserRoutes.getProfile);
-userRouter.get(Paths.Users.Get, admin, UserRoutes.getAll);
-userRouter.get(Paths.Users.GetUnactivated, admin, UserRoutes.getAllUnactivated);
-userRouter.get(Paths.Users.Search, admin, UserRoutes.search);
-userRouter.post(Paths.Users.Add, rateLimiters.write, admin, UserRoutes.add);
-userRouter.put(Paths.Users.Update, rateLimiters.write, admin, UserRoutes.update);
-userRouter.delete(Paths.Users.Delete, rateLimiters.write, admin, UserRoutes.delete);
-userRouter.get(Paths.Users.GetOne, admin, UserRoutes.getOne);
-
-userRouter.get(Paths.Users.StatsOverview, UserRoutes.getOverviewStats);
-userRouter.get(Paths.Users.StatsMonthly, UserRoutes.getMonthlyStats);
-userRouter.get(Paths.Users.StatsLocations, UserRoutes.getLocationStats);
-userRouter.get(Paths.Users.StatsTopProducts, UserRoutes.getTopProducts);
-userRouter.get(Paths.Users.StatsStatusBreakdown, UserRoutes.getStatusBreakdown);
-userRouter.get(Paths.Users.StatsRecentSales, UserRoutes.getRecentSalesTimeline);
-userRouter.get(Paths.Users.StatsSellerOverview, UserRoutes.getSellerOverviewStats);
-userRouter.get(Paths.Users.StatsSellerMonthly, UserRoutes.getSellerMonthlyStats);
-userRouter.get(Paths.Users.StatsSellerTopDebtors, UserRoutes.getEmployeeTopDebtors);
-userRouter.get(Paths.Users.StatsShipperOverview, UserRoutes.getShipperOverviewStats);
-userRouter.get(Paths.Users.StatsShipperMonthly, UserRoutes.getShipperMonthlyStats);
-userRouter.get(Paths.Users.StatsMap, UserRoutes.getMapStatus);
+userRouter.get(Paths.Users.StatsOverview, rateLimiters.default, auth, UserRoutes.getOverviewStats);
+userRouter.get(Paths.Users.StatsMonthly, rateLimiters.default, auth, UserRoutes.getMonthlyStats);
+userRouter.get(Paths.Users.StatsLocations, rateLimiters.default, auth, UserRoutes.getLocationStats);
+userRouter.get(Paths.Users.StatsTopProducts, rateLimiters.default, auth, UserRoutes.getTopProducts);
+userRouter.get(Paths.Users.StatsStatusBreakdown, rateLimiters.default, auth, UserRoutes.getStatusBreakdown);
+userRouter.get(Paths.Users.StatsRecentSales, rateLimiters.default, auth, UserRoutes.getRecentSalesTimeline);
+userRouter.get(Paths.Users.StatsSellerOverview, rateLimiters.default, auth, UserRoutes.getSellerOverviewStats);
+userRouter.get(Paths.Users.StatsSellerRevenueSeries, rateLimiters.default, auth, UserRoutes.getSellerRevenueSeries);
+userRouter.get(Paths.Users.StatsSellerMonthly, rateLimiters.default, auth, UserRoutes.getSellerMonthlyStats);
+userRouter.get(Paths.Users.StatsSellerTopDebtors, rateLimiters.default, auth, UserRoutes.getEmployeeTopDebtors);
+userRouter.get(Paths.Users.StatsShipperOverview, rateLimiters.default, auth, UserRoutes.getShipperOverviewStats);
+userRouter.get(Paths.Users.StatsShipperMonthly, rateLimiters.default, auth, UserRoutes.getShipperMonthlyStats);
+userRouter.get(Paths.Users.StatsMap, rateLimiters.default, auth, UserRoutes.getMapStatus);
 apiRouter.use(Paths.Users._, userRouter);
 
 /******************************************************************************
@@ -96,16 +96,17 @@ apiRouter.use(Paths.Suppliers._, supplierRouter);
 ******************************************************************************/
 
 const importRouter = Router();
-importRouter.use(auth, rateLimiters.default);
-importRouter.get(Paths.Imports.Get, ImportRoutes.getAll);
-importRouter.get(Paths.Imports.GetOne, ImportRoutes.getOne);
-importRouter.post(Paths.Imports.Add, admin, ImportRoutes.add);
-importRouter.put(Paths.Imports.Update, admin, ImportRoutes.update);
-importRouter.delete(Paths.Imports.Delete, admin, ImportRoutes.delete);
-importRouter.get(Paths.Imports.DetailsGet, ImportDetailRoutes.getByImport);
-importRouter.post(Paths.Imports.DetailsAdd, admin, ImportDetailRoutes.add);
-importRouter.put(Paths.Imports.DetailsUpdate, admin, ImportDetailRoutes.update);
-importRouter.delete(Paths.Imports.DetailsDelete, admin, ImportDetailRoutes.delete);
+importRouter.use(rateLimiters.default);
+importRouter.get(Paths.Imports.Get, auth, ImportRoutes.getAll);
+importRouter.get(Paths.Imports.Export, auth, ImportRoutes.exportExcel);
+importRouter.get(Paths.Imports.GetOne, auth, ImportRoutes.getOne);
+importRouter.post(Paths.Imports.Add, ...adminOnly, ImportRoutes.add);
+importRouter.put(Paths.Imports.Update, ...adminOnly, ImportRoutes.update);
+importRouter.delete(Paths.Imports.Delete, ...adminOnly, ImportRoutes.delete);
+importRouter.get(Paths.Imports.DetailsGet, auth, ImportDetailRoutes.getByImport);
+importRouter.post(Paths.Imports.DetailsAdd, ...adminOnly, ImportDetailRoutes.add);
+importRouter.put(Paths.Imports.DetailsUpdate, ...adminOnly, ImportDetailRoutes.update);
+importRouter.delete(Paths.Imports.DetailsDelete, ...adminOnly, ImportDetailRoutes.delete);
 apiRouter.use(Paths.Imports._, importRouter);
 
 /******************************************************************************
@@ -253,6 +254,11 @@ const chatRouter = Router();
 chatRouter.use(auth, rateLimiters.chatbot, rateLimiters.chatbotDaily);
 chatRouter.post(Paths.ChatBot.Complete, ChatRoutes.complete);
 apiRouter.use(Paths.ChatBot._, chatRouter);
+
+const backupRouter = Router();
+backupRouter.get(Paths.Backup.Export, ...adminOnly, BackupRoutes.exportBackup);
+backupRouter.post(Paths.Backup.Restore, ...adminOnly, BackupRoutes.restore);
+apiRouter.use(Paths.Backup._, backupRouter);
 
 /******************************************************************************
                                 Export

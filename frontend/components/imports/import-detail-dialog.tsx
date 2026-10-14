@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Pencil, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 
 import { importDetailsApi, importsApi, lookupApi } from "@/lib/api";
-import type { Import, ImportDetail, ImportWrite, Product, Supplier } from "@/lib/types";
+import type { Import, ImportDetail, Product, Supplier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,13 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Table,
@@ -37,10 +30,15 @@ type ImportDetailDialogProps = {
   onOpenChange: (open: boolean) => void;
   onChanged: () => void;
   suppliers: Supplier[];
-  /** Mở dialog tạo mới — nhập header và chi tiết trong cùng một màn hình */
   createMode?: boolean;
   onCreated?: (id: number) => void;
   canManage?: boolean;
+};
+
+type DraftImportLine = {
+  productId: number;
+  quantity: number;
+  importPrice: number;
 };
 
 const emptyLineForm = {
@@ -69,6 +67,22 @@ function buildDraftImport(): Import {
   };
 }
 
+function draftLineToDisplay(
+  line: DraftImportLine,
+  products: Product[],
+): ImportDetail {
+  const product = products.find((p) => p.id === line.productId);
+  return {
+    importId: 0,
+    productId: line.productId,
+    quantity: line.quantity,
+    importPrice: line.importPrice,
+    productName: product?.productName ?? `#${line.productId}`,
+    unitPrice: product?.unitPrice ?? 0,
+    lineTotal: line.quantity * line.importPrice,
+  };
+}
+
 export function ImportDetailDialog({
   importId,
   open,
@@ -83,6 +97,7 @@ export function ImportDetailDialog({
   const effectiveImportId = importId ?? resolvedImportId;
   const [importRecord, setImportRecord] = useState<Import | null>(null);
   const [details, setDetails] = useState<ImportDetail[]>([]);
+  const [draftLines, setDraftLines] = useState<DraftImportLine[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +108,9 @@ export function ImportDetailDialog({
     supplierId: "",
     content: "",
   });
+
+  const isDraft = importRecord?.id === 0;
+  const isLocked = importRecord != null && importRecord.id > 0;
 
   const load = useCallback(
     async (overrideId?: number) => {
@@ -108,6 +126,7 @@ export function ImportDetailDialog({
         ]);
         setImportRecord(record);
         setDetails(detailList);
+        setDraftLines([]);
         setProducts(productList);
         setHeaderForm({
           supplierId: String(record.supplierId),
@@ -129,6 +148,7 @@ export function ImportDetailDialog({
       const productList = await lookupApi.products();
       setImportRecord(buildDraftImport());
       setDetails([]);
+      setDraftLines([]);
       setProducts(productList);
       setHeaderForm({
         supplierId: "",
@@ -144,21 +164,27 @@ export function ImportDetailDialog({
   useEffect(() => {
     if (!open) {
       setResolvedImportId(null);
+      setDraftLines([]);
       return;
     }
     setLineForm(emptyLineForm);
     setEditingProductId(null);
 
     if (createMode && !importId) {
-      void initCreateMode();
-      return;
+      const timer = window.setTimeout(() => {
+        void initCreateMode();
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
     if (effectiveImportId) {
-      void load();
+      const timer = window.setTimeout(() => {
+        void load();
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [open, importId, createMode, effectiveImportId, load, initCreateMode]);
 
-  function validateHeaderForCreate() {
+  function validateHeader() {
     if (!headerForm.supplierId) {
       throw new Error("Vui lòng chọn nhà cung cấp");
     }
@@ -167,40 +193,38 @@ export function ImportDetailDialog({
     }
   }
 
-  async function ensureImportCreated(): Promise<Import> {
-    if (importRecord && importRecord.id > 0) {
-      return importRecord;
-    }
-    validateHeaderForCreate();
-    const payload: ImportWrite = {
-      supplierId: Number(headerForm.supplierId),
-      content: headerForm.content.trim(),
-    };
-    const created = await importsApi.add(payload);
-    setImportRecord(created);
-    setResolvedImportId(created.id);
-    onCreated?.(created.id);
-    onChanged();
-    return created;
-  }
-
-  async function saveHeader() {
-    if (!importRecord) return;
+  async function saveImport() {
+    if (!importRecord || !isDraft) return;
     setSaving(true);
     setError(null);
     try {
-      if (importRecord.id === 0) {
-        await ensureImportCreated();
-        return;
+      validateHeader();
+      if (draftLines.length === 0) {
+        throw new Error("Vui lòng thêm ít nhất một sản phẩm nhập");
       }
-      const updated = await importsApi.update(importRecord.id, {
+
+      const created = await importsApi.add({
         supplierId: Number(headerForm.supplierId),
-        content: headerForm.content,
+        content: headerForm.content.trim(),
       });
-      setImportRecord(updated);
+
+      for (const line of draftLines) {
+        await importDetailsApi.add({
+          importId: created.id,
+          productId: line.productId,
+          quantity: line.quantity,
+          importPrice: line.importPrice,
+        });
+      }
+
+      setImportRecord(created);
+      setResolvedImportId(created.id);
+      setDraftLines([]);
+      await load(created.id);
+      onCreated?.(created.id);
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Lưu thông tin thất bại");
+      setError(err instanceof Error ? err.message : "Lưu phiếu nhập thất bại");
     } finally {
       setSaving(false);
     }
@@ -215,59 +239,74 @@ export function ImportDetailDialog({
     }));
   }
 
-  async function saveLine(e: React.FormEvent) {
+  function saveDraftLine(e: React.FormEvent) {
     e.preventDefault();
-    if (!importRecord) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const record = await ensureImportCreated();
-      const payload = {
-        importId: record.id,
-        productId: Number(lineForm.productId),
-        quantity: Number(lineForm.quantity),
-        importPrice: Number(lineForm.importPrice),
-      };
-      if (editingProductId !== null) {
-        await importDetailsApi.update(payload);
-      } else {
-        await importDetailsApi.add(payload);
-      }
-      setLineForm(emptyLineForm);
-      setEditingProductId(null);
-      await load(record.id);
-      onChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Lưu dòng hàng thất bại");
-    } finally {
-      setSaving(false);
-    }
-  }
+    if (!isDraft) return;
 
-  async function deleteLine(productId: number) {
-    if (
-      !importRecord ||
-      importRecord.id === 0 ||
-      !confirm("Xóa sản phẩm khỏi phiếu nhập? Tồn kho sẽ giảm tương ứng.")
-    ) {
+    const productId = Number(lineForm.productId);
+    const quantity = Number(lineForm.quantity);
+    const importPrice = Number(lineForm.importPrice);
+
+    if (!productId) {
+      setError("Vui lòng chọn sản phẩm");
       return;
     }
+    if (!quantity || quantity <= 0) {
+      setError("Số lượng phải lớn hơn 0");
+      return;
+    }
+    if (!Number.isFinite(importPrice) || importPrice < 0) {
+      setError("Giá nhập không hợp lệ");
+      return;
+    }
+
     setError(null);
-    try {
-      await importDetailsApi.delete(importRecord.id, productId);
-      await load(importRecord.id);
-      onChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Xóa thất bại");
+
+    if (editingProductId !== null) {
+      setDraftLines((lines) =>
+        lines.map((line) =>
+          line.productId === editingProductId
+            ? { productId, quantity, importPrice }
+            : line,
+        ),
+      );
+    } else if (draftLines.some((line) => line.productId === productId)) {
+      setError("Sản phẩm đã có trong phiếu nhập");
+      return;
+    } else {
+      setDraftLines((lines) => [
+        ...lines,
+        { productId, quantity, importPrice },
+      ]);
+    }
+
+    setLineForm(emptyLineForm);
+    setEditingProductId(null);
+  }
+
+  function deleteDraftLine(productId: number) {
+    if (!confirm("Xóa sản phẩm khỏi phiếu nhập?")) return;
+    setDraftLines((lines) => lines.filter((line) => line.productId !== productId));
+    if (editingProductId === productId) {
+      setEditingProductId(null);
+      setLineForm(emptyLineForm);
     }
   }
 
-  const orderTotal = details.reduce((sum, d) => sum + d.lineTotal, 0);
+  const displayLines = isDraft
+    ? draftLines.map((line) => draftLineToDisplay(line, products))
+    : details;
+
+  const orderTotal = displayLines.reduce((sum, d) => sum + d.lineTotal, 0);
   const supplierName =
     suppliers.find((s) => s.id === importRecord?.supplierId)?.supplierName ??
     "—";
 
-  const usedProductIds = new Set(details.map((d) => d.productId));
+  const usedProductIds = new Set(
+    isDraft
+      ? draftLines.map((d) => d.productId)
+      : details.map((d) => d.productId),
+  );
   const availableProducts = products.filter(
     (p) => editingProductId === p.id || !usedProductIds.has(p.id),
   );
@@ -297,7 +336,7 @@ export function ImportDetailDialog({
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {createMode && importRecord?.id === 0
+            {isDraft
               ? "Tạo phiếu nhập mới"
               : `Chi tiết phiếu nhập #${effectiveImportId ?? importId}`}
           </DialogTitle>
@@ -318,7 +357,7 @@ export function ImportDetailDialog({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-xs text-muted-foreground">Nhà cung cấp</p>
-                  {canManage ? (
+                  {canManage && isDraft ? (
                     <SearchableSelect
                       options={supplierOptions}
                       value={headerForm.supplierId}
@@ -335,14 +374,12 @@ export function ImportDetailDialog({
                 <div>
                   <p className="text-xs text-muted-foreground">Ngày tạo</p>
                   <p className="text-sm">
-                    {importRecord.id > 0
-                      ? formatDate(importRecord.importDate)
-                      : "—"}
+                    {isLocked ? formatDate(importRecord.importDate) : "—"}
                   </p>
                 </div>
                 <div className="sm:col-span-2">
                   <p className="text-xs text-muted-foreground">Nội dung</p>
-                  {canManage ? (
+                  {canManage && isDraft ? (
                     <Input
                       value={headerForm.content}
                       onChange={(e) =>
@@ -354,35 +391,27 @@ export function ImportDetailDialog({
                   )}
                 </div>
               </div>
-              {canManage && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={saving}
-                    onClick={() => void saveHeader()}
-                  >
-                    {importRecord.id === 0
-                      ? "Lưu phiếu nhập"
-                      : "Lưu thông tin phiếu"}
-                  </Button>
-                  {importRecord.id === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Chọn nhà cung cấp và nội dung trước khi thêm sản phẩm, hoặc
-                      nhấn &quot;Lưu phiếu nhập&quot; để tạo phiếu.
-                    </p>
-                  )}
-                </>
+              {isDraft && (
+                <p className="text-xs text-muted-foreground">
+                  Thêm sản phẩm bên dưới, sau đó nhấn &quot;Lưu phiếu nhập&quot; để
+                  ghi nhận phiếu và cập nhật tồn kho.
+                </p>
+              )}
+              {isLocked && (
+                <p className="text-xs text-muted-foreground">
+                  Phiếu đã lưu — không thể thêm hoặc sửa dòng hàng. Xóa phiếu nếu
+                  cần nhập lại.
+                </p>
               )}
             </section>
 
             <section className="space-y-3">
               <h3 className="text-sm font-semibold">Chi tiết nhập hàng</h3>
 
-              {canManage && (
+              {canManage && isDraft && (
                 <form
                   className="grid gap-3 rounded-lg border p-4"
-                  onSubmit={(e) => void saveLine(e)}
+                  onSubmit={saveDraftLine}
                 >
                   <p className="text-sm font-medium">
                     {editingProductId !== null
@@ -435,7 +464,7 @@ export function ImportDetailDialog({
                   <div className="flex gap-2">
                     <Button type="submit" size="sm" disabled={saving}>
                       <Plus className="h-4 w-4" />
-                      {editingProductId !== null ? "Cập nhật" : "Thêm"}
+                      {editingProductId !== null ? "Cập nhật dòng" : "Thêm vào phiếu"}
                     </Button>
                     {editingProductId !== null && (
                       <Button
@@ -462,30 +491,30 @@ export function ImportDetailDialog({
                     <TableHead>Giá nhập</TableHead>
                     <TableHead>SL</TableHead>
                     <TableHead>Thành tiền</TableHead>
-                    {canManage && (
+                    {canManage && isDraft && (
                       <TableHead className="text-right">Thao tác</TableHead>
                     )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {details.length === 0 ? (
+                  {displayLines.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={canManage ? 6 : 5}
+                        colSpan={canManage && isDraft ? 6 : 5}
                         className="text-center text-muted-foreground"
                       >
                         Chưa có sản phẩm
                       </TableCell>
                     </TableRow>
                   ) : (
-                    details.map((d) => (
+                    displayLines.map((d) => (
                       <TableRow key={d.productId}>
                         <TableCell>{d.productName}</TableCell>
                         <TableCell>{formatMoney(d.unitPrice)}</TableCell>
                         <TableCell>{formatMoney(d.importPrice)}</TableCell>
                         <TableCell>{d.quantity}</TableCell>
                         <TableCell>{formatMoney(d.lineTotal)}</TableCell>
-                        {canManage && (
+                        {canManage && isDraft && (
                           <TableCell className="text-right">
                             <Button
                               variant="ghost"
@@ -504,7 +533,7 @@ export function ImportDetailDialog({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => void deleteLine(d.productId)}
+                              onClick={() => deleteDraftLine(d.productId)}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -518,23 +547,26 @@ export function ImportDetailDialog({
               <p className="text-right text-sm font-semibold">
                 Tổng giá trị nhập: {formatMoney(orderTotal)} đ
               </p>
-              {canManage && (
-                <p className="text-xs text-muted-foreground">
-                  Thêm hoặc sửa dòng sẽ cập nhật tồn kho sản phẩm tự động.
-                </p>
-              )}
             </section>
 
-            {effectiveImportId && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void load()}
-              >
-                <RefreshCw className="h-4 w-4" />
-                Tải lại
-              </Button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {canManage && isDraft && (
+                <Button disabled={saving} onClick={() => void saveImport()}>
+                  <Save className="h-4 w-4" />
+                  {saving ? "Đang lưu..." : "Lưu phiếu nhập"}
+                </Button>
+              )}
+              {isLocked && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void load()}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Tải lại
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </DialogContent>

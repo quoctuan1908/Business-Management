@@ -9,7 +9,7 @@ import {
 import { makeNullable, parseObject, Schema, testObject } from 'jet-validators/utils';
 
 import { transformIsDate } from '@src/common/utils/validators';
-import { Entity } from './common/types';
+import { AutoCreatePayload, Entity } from './common/types';
 
 const isNullableNumber = makeNullable(isNumber);
 
@@ -41,6 +41,12 @@ export interface ICustomer extends Entity {
   lng: number | null;
   isApproved: boolean;
   approvedAt: Date | null;
+}
+
+export type ICustomerWrite = AutoCreatePayload<ICustomer>;
+
+export interface ICustomerUpdate extends ICustomerWrite {
+  id: number;
 }
 
 /******************************************************************************
@@ -81,11 +87,42 @@ const schema = {
   updatedAt: transformIsDate,
 } satisfies Schema<ICustomer>;
 
+const writeSchema = {
+  locationId: isUnsignedInteger,
+  companyName: isString,
+  businessType: isString,
+  representativeName: isString,
+  position: isString,
+  phoneNumber: isString,
+  currentBalance: isNumber,
+  lat: isNullableNumber,
+  lng: isNullableNumber,
+  isApproved: isBoolean,
+  approvedAt: isNullableApprovedAt,
+} satisfies Schema<ICustomerWrite>;
+
+const updateSchema = {
+  id: isUnsignedInteger,
+  locationId: isUnsignedInteger,
+  companyName: isString,
+  businessType: isString,
+  representativeName: isString,
+  position: isString,
+  phoneNumber: isString,
+  currentBalance: isNumber,
+  lat: isNullableNumber,
+  lng: isNullableNumber,
+  isApproved: isBoolean,
+  approvedAt: isNullableApprovedAt,
+} satisfies Schema<ICustomerUpdate>;
+
 /******************************************************************************
                                   Setup
 ******************************************************************************/
 
 const parseCustomer = parseObject(schema);
+const parseCustomerWrite = parseObject(writeSchema);
+const parseCustomerUpdate = parseObject(updateSchema);
 
 const isCompleteCustomer = testObject<ICustomer>({
   ...schema,
@@ -96,8 +133,30 @@ const isCompleteCustomer = testObject<ICustomer>({
   position: isNonEmptyString,
   phoneNumber: isNonEmptyString,
   currentBalance: isNumber,
-  lat: isNumber,
-  lng: isNumber,
+  isApproved: isBoolean,
+});
+
+const isCompleteCustomerWrite = testObject<ICustomerWrite>({
+  ...writeSchema,
+  locationId: isUnsignedInteger,
+  companyName: isNonEmptyString,
+  businessType: isNonEmptyString,
+  representativeName: isNonEmptyString,
+  position: isNonEmptyString,
+  phoneNumber: isNonEmptyString,
+  currentBalance: isNumber,
+  isApproved: isBoolean,
+});
+
+const isCompleteCustomerUpdate = testObject<ICustomerUpdate>({
+  ...updateSchema,
+  locationId: isUnsignedInteger,
+  companyName: isNonEmptyString,
+  businessType: isNonEmptyString,
+  representativeName: isNonEmptyString,
+  position: isNonEmptyString,
+  phoneNumber: isNonEmptyString,
+  currentBalance: isNumber,
   isApproved: isBoolean,
 });
 
@@ -113,11 +172,64 @@ function new_(customer?: Partial<ICustomer>): ICustomer {
   });
 }
 
+function newWrite(customer?: Partial<ICustomerWrite>): ICustomerWrite {
+  return parseCustomerWrite(
+    {
+      locationId: 0,
+      companyName: '',
+      businessType: '',
+      representativeName: '',
+      position: '',
+      phoneNumber: '',
+      currentBalance: 0,
+      lat: null,
+      lng: null,
+      isApproved: false,
+      approvedAt: null,
+      ...customer,
+    },
+    (errors) => {
+      throw new Error(
+        'Setup customer write failed ' + JSON.stringify(errors, null, 2),
+      );
+    },
+  );
+}
+
+function newUpdate(customer?: Partial<ICustomerUpdate>): ICustomerUpdate {
+  return parseCustomerUpdate(
+    {
+      id: 0,
+      locationId: 0,
+      companyName: '',
+      businessType: '',
+      representativeName: '',
+      position: '',
+      phoneNumber: '',
+      currentBalance: 0,
+      lat: null,
+      lng: null,
+      isApproved: false,
+      approvedAt: null,
+      ...customer,
+    },
+    (errors) => {
+      throw new Error(
+        'Setup customer update failed ' + JSON.stringify(errors, null, 2),
+      );
+    },
+  );
+}
+
 /******************************************************************************
                                Export default
 ******************************************************************************/
 
 export default {
   new: new_,
+  newWrite,
+  newUpdate,
   isComplete: isCompleteCustomer,
+  isCompleteWrite: isCompleteCustomerWrite,
+  isCompleteUpdate: isCompleteCustomerUpdate,
 } as const;

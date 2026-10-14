@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { 
-  Activity, DollarSign, TrendingUp, MapPin,
+  Activity, TrendingUp, MapPin,
   RefreshCw, Percent, BarChart3, PieChart as PieIcon, 
-  Users, Clock, AlertCircle
+  Users, AlertCircle
 } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -12,6 +12,7 @@ import {
 } from "recharts";
 
 import { usersApi } from "@/lib/api";
+import type { SellerRevenueSeries } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -71,9 +72,9 @@ const formatYAxis = (val: number) => {
 
 export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
   const [overview, setOverview] = useState<any>(null);
+  const [revenueSeries, setRevenueSeries] = useState<SellerRevenueSeries | null>(null);
   const [locations, setLocations] = useState<any[]>([]);
   const [statusBreakdown, setStatusBreakdown] = useState<any[]>([]);
-  const [recentSales, setRecentSales] = useState<any[]>([]);
   const [debtors, setDebtors] = useState<any[]>([]);
   
   const [masterLocations, setMasterLocations] = useState<any[]>([]);
@@ -111,6 +112,11 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
   }, [userId, timeFilter.year]);
 
   const dateQuery = useMemo(() => dashboardTimeFilterToQuery(timeFilter), [timeFilter]);
+  const showRevenueChart = timeFilter.mode === "month";
+  const revenueChartTitle =
+    timeFilter.month === "all"
+      ? "Doanh số mang về theo tháng"
+      : "Doanh số mang về theo ngày";
 
   useEffect(() => {
     if (masterLocations.length > 0) {
@@ -143,26 +149,49 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
         ward: selectedWard,
       };
 
-      const [overviewData, locationsData, statusData, salesData, debtorsData] = await Promise.all([
+      const requests: Promise<unknown>[] = [
         usersApi.getSellerOverviewStats(safeId, params),
         usersApi.getLocationStats(safeId, params),
         usersApi.getStatusBreakdown(safeId, params),
-        usersApi.getRecentSalesTimeline(safeId, params),
-        usersApi.getTopDebtors(safeId, { province: selectedProvince, ward: selectedWard })
-      ]);
+        usersApi.getTopDebtors(safeId, { province: selectedProvince, ward: selectedWard }),
+      ];
+
+      if (timeFilter.mode === "month") {
+        requests.push(
+          usersApi.getSellerRevenueSeries(safeId, {
+            month: timeFilter.month,
+            year: timeFilter.year,
+            province: selectedProvince,
+            ward: selectedWard,
+          }),
+        );
+      }
+
+      const results = await Promise.all(requests);
+      const [
+        overviewData,
+        locationsData,
+        statusData,
+        debtorsData,
+        revenueSeriesData,
+      ] = results;
 
       setOverview(overviewData);
       setLocations(extractArray(locationsData, 'locations'));
       setStatusBreakdown(extractArray(statusData, 'breakdown'));
-      setRecentSales(extractArray(salesData, 'timeline'));
       setDebtors(extractArray(debtorsData, 'debtors'));
+      setRevenueSeries(
+        timeFilter.mode === "month"
+          ? (revenueSeriesData as SellerRevenueSeries)
+          : null,
+      );
 
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không thể tải dữ liệu báo cáo");
     } finally {
       setLoading(false);
     }
-  }, [userId, dateQuery, selectedProvince, selectedWard]);
+  }, [userId, dateQuery, selectedProvince, selectedWard, timeFilter.mode, timeFilter.month, timeFilter.year]);
 
   useEffect(() => {
     void loadStats();
@@ -220,6 +249,20 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
       };
     })
     .sort((a, b) => statusOrder.indexOf(a.rawStatus) - statusOrder.indexOf(b.rawStatus));
+
+  const revenueSeriesTotals = useMemo(() => {
+    if (!revenueSeries?.series.length) {
+      return { revenue: 0, cost: 0, profit: 0 };
+    }
+    return revenueSeries.series.reduce(
+      (acc, point) => ({
+        revenue: acc.revenue + point.revenue,
+        cost: acc.cost + point.cost,
+        profit: acc.profit + point.profit,
+      }),
+      { revenue: 0, cost: 0, profit: 0 },
+    );
+  }, [revenueSeries]);
 
   if (loading) {
     return (
@@ -294,62 +337,151 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
         </div>
       </div>
 
-      {/* 4 Thẻ Thống Kê Tổng Quan */}
+      {/* Thẻ thống kê tổng quan */}
       {overview && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardContent className="p-6 flex items-center justify-between space-y-0">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Tổng số hợp đồng</p>
-                <div className="text-2xl font-bold">{overview.totalActivities || 0}</div>
-              </div>
-              <Activity className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6 flex items-center justify-between space-y-0">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Tỷ lệ chốt thành công</p>
-                <div className="text-2xl font-bold">{overview.conversionRate || 0}%</div>
-              </div>
-              <Percent className="h-8 w-8 text-purple-500 bg-purple-50 p-1.5 rounded-lg" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6 flex items-center justify-between space-y-0">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Doanh số mang về</p>
-                <div className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(overview.grossRevenue || 0)}
+        <div className="space-y-4">
+          <div
+            className={
+              showRevenueChart
+                ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                : "grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+            }
+          >
+            <Card>
+              <CardContent className="p-6 flex items-center justify-between space-y-0">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Tổng số hợp đồng</p>
+                  <div className="text-2xl font-bold">{overview.totalActivities || 0}</div>
                 </div>
-              </div>
-              <TrendingUp className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg" />
-            </CardContent>
-          </Card>
+                <Activity className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg shrink-0" />
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="p-6 flex items-center justify-between space-y-0">
-              <div className="space-y-1 w-full">
-                <p className="text-sm font-medium text-muted-foreground">Tài chính kỳ bộ lọc</p>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-[11px] text-muted-foreground font-medium">Nợ phát sinh:</span>
-                  <span className="text-xl font-bold text-red-600">
-                    {formatCurrency(overview.outstandingDebt || 0)}
+            <Card>
+              <CardContent className="p-6 flex items-center justify-between space-y-0">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Tỷ lệ chốt thành công</p>
+                  <div className="text-2xl font-bold">{overview.conversionRate || 0}%</div>
+                </div>
+                <Percent className="h-8 w-8 text-purple-500 bg-purple-50 p-1.5 rounded-lg shrink-0" />
+              </CardContent>
+            </Card>
+
+            {!showRevenueChart && (
+              <Card>
+                <CardContent className="p-6 flex items-center justify-between space-y-0">
+                  <div className="space-y-1 w-full">
+                    <p className="text-sm font-medium text-muted-foreground">Doanh số mang về</p>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {formatCurrency(overview.grossRevenue || 0)}
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-[11px]">
+                      <span>
+                        <span className="text-muted-foreground">Chi phí: </span>
+                        <span className="font-semibold text-orange-600">
+                          {formatCurrency(overview.totalCost || 0)}
+                        </span>
+                      </span>
+                      <span>
+                        <span className="text-muted-foreground">Lợi nhuận: </span>
+                        <span className="font-semibold text-emerald-600">
+                          {formatCurrency(overview.totalProfit || 0)}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg shrink-0" />
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardContent className="p-6 flex items-center justify-between space-y-0">
+                <div className="space-y-1 w-full">
+                  <p className="text-sm font-medium text-muted-foreground">Tài chính kỳ bộ lọc</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[11px] text-muted-foreground font-medium">Nợ phát sinh:</span>
+                    <span className="text-xl font-bold text-red-600">
+                      {formatCurrency(overview.outstandingDebt || 0)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline gap-1.5 border-t pt-1 mt-1 border-dashed">
+                    <span className="text-[10px] text-muted-foreground">Ví dư hiện tại:</span>
+                    <span className="text-xs font-semibold text-emerald-600">
+                      {formatCurrency(overview.currentBalance || 0)}
+                    </span>
+                  </div>
+                </div>
+                <AlertCircle className="h-8 w-8 text-amber-600 bg-amber-50 p-1.5 rounded-lg shrink-0" />
+              </CardContent>
+            </Card>
+          </div>
+
+          {showRevenueChart && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  {revenueChartTitle}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Tổng doanh thu kỳ: {formatCurrency(revenueSeriesTotals.revenue || overview.grossRevenue || 0)}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                  <span>
+                    <span className="text-muted-foreground">Tổng chi phí: </span>
+                    <span className="font-semibold text-orange-600">
+                      {formatCurrency(revenueSeriesTotals.cost)}
+                    </span>
+                  </span>
+                  <span>
+                    <span className="text-muted-foreground">Tổng lợi nhuận: </span>
+                    <span className="font-semibold text-emerald-600">
+                      {formatCurrency(revenueSeriesTotals.profit)}
+                    </span>
                   </span>
                 </div>
-
-                <div className="flex items-baseline gap-1.5 border-t pt-1 mt-1 border-dashed">
-                  <span className="text-[10px] text-muted-foreground">Ví dư hiện tại:</span>
-                  <span className="text-xs font-semibold text-emerald-600">
-                    {formatCurrency(overview.currentBalance || 0)}
-                  </span>
-                </div>
-              </div>
-              <AlertCircle className="h-8 w-8 text-amber-600 bg-amber-50 p-1.5 rounded-lg shrink-0" />
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                {!revenueSeries?.series.length ? (
+                  <p className="text-center py-10 text-sm text-muted-foreground">
+                    Chưa có dữ liệu doanh số trong kỳ.
+                  </p>
+                ) : (
+                  <div className="h-[260px] w-full">
+                    <ResponsiveContainer width="100%" height={260}>
+                      <BarChart data={revenueSeries.series} barCategoryGap="20%">
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="label" fontSize={10} tickLine={false} />
+                        <YAxis
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={formatYAxis}
+                        />
+                        <Tooltip content={<CustomChartTooltip />} />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: "11px" }} />
+                        <Bar
+                          dataKey="cost"
+                          name="Chi phí"
+                          stackId="revenue"
+                          fill="#f97316"
+                        />
+                        <Bar
+                          dataKey="profit"
+                          name="Lợi nhuận"
+                          stackId="revenue"
+                          fill="#10b981"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
@@ -423,7 +555,7 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
       </div>
 
       {/* Bảng Dữ Liệu Chi Tiết */}
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-1">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
@@ -471,38 +603,6 @@ export function SellerStatistic({ userId, userName }: SellerStatisticProps) {
                   })}
                 </TableBody>
               </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Các hợp đồng vừa chốt gần đây */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <Clock className="h-5 w-5 text-indigo-500" /> Các hợp đồng vừa chốt gần đây
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentSales.length === 0 ? (
-              <p className="text-center py-6 text-sm text-muted-foreground">Chưa chốt được hợp đồng nào mới.</p>
-            ) : (
-              <div className="space-y-4 relative before:absolute before:inset-0 before:left-[11px] before:bg-muted before:w-[2px] h-[280px] overflow-y-auto pr-2">
-                {recentSales.map((sale, idx) => (
-                  <div key={idx} className="flex gap-4 relative items-start">
-                    <div className="h-6 w-6 rounded-full bg-emerald-100 border-2 border-emerald-500 flex items-center justify-center shrink-0 z-10">
-                      <DollarSign className="h-3 w-3 text-emerald-600" />
-                    </div>
-                    <div className="flex-1 bg-slate-50 rounded-lg p-3 text-xs border border-slate-100 space-y-1">
-                      <div className="flex justify-between font-bold text-slate-800">
-                        <span>{sale.customerName || "Khách hàng mới"}</span>
-                        <span className="text-emerald-600">{formatCurrency(sale.amount || 0)}</span>
-                      </div>
-                      <p className="text-muted-foreground text-[11px]">Gói dịch vụ: {sale.productName || "Hợp đồng hệ thống"}</p>
-                      <p className="text-[10px] text-slate-400">{sale.createdAt ? new Date(sale.createdAt).toLocaleString("vi-VN") : "Vừa xong"}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             )}
           </CardContent>
         </Card>

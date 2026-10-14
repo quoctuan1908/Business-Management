@@ -24,9 +24,7 @@ import { Label } from "@/components/ui/label";
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
-import { TablePagination } from "@/components/ui/table-pagination";
 import { ListTableShell } from "@/components/ui/list-table-shell";
-import { usePagination } from "@/hooks/use-pagination";
 import { listCol, listCell } from "@/lib/list-table-layout";
 import { EmployeeLocationsDialog } from "@/components/users/employee-locations-dialog";
 
@@ -125,7 +123,7 @@ export function UsersPanel() {
   }, [loadUsers]);
 
   /******************************************************************************
-                                     Filtered + Paginated
+                                     Filtered
   ******************************************************************************/
 
   const filteredUsers = useMemo(
@@ -137,15 +135,6 @@ export function UsersPanel() {
       ),
     [users, searchQuery],
   );
-
-  const {
-    page,
-    setPage,
-    pageSize,
-    totalItems,
-    totalPages,
-    paginatedItems: paginatedUsers,
-  } = usePagination(filteredUsers, undefined, searchQuery);
 
   /******************************************************************************
                                      User handlers
@@ -317,17 +306,7 @@ export function UsersPanel() {
             <RefreshCw className="animate-spin h-8 w-8 text-muted-foreground" />
           </div>
         ) : (
-          <ListTableShell
-            pagination={
-              <TablePagination
-                page={page}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                pageSize={pageSize}
-                onPageChange={setPage}
-              />
-            }
-          >
+          <ListTableShell>
             <Table className="min-w-[1100px]">
               <TableHeader className="bg-muted/50">
                 <TableRow>
@@ -342,8 +321,8 @@ export function UsersPanel() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedUsers.length > 0 ? (
-                  paginatedUsers.map((u) => {
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((u) => {
                     const ba = bankAccounts.get(u.id);
                     return (
                       <TableRow key={u.id} className="hover:bg-muted/30 transition-colors">

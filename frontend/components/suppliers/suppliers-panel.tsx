@@ -28,6 +28,7 @@ import {
 import { TablePagination } from "@/components/ui/table-pagination";
 import { ListTableShell } from "@/components/ui/list-table-shell";
 import { usePagination } from "@/hooks/use-pagination";
+import { useServerPagination } from "@/hooks/use-server-pagination";
 import { listCol, listCell } from "@/lib/list-table-layout";
 import { matchesAnySearchField } from "@/lib/list-search";
 
@@ -43,12 +44,21 @@ const emptyForm = {
 export function SuppliersPanel() {
   const { isAdmin } = useAuth();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const hasSearch = searchQuery.trim().length > 0;
+  const {
+    page: serverPage,
+    setPage: setServerPage,
+    pageSize,
+    getPageCount,
+  } = useServerPagination(hasSearch ? "search" : "browse");
 
   const filteredSuppliers = useMemo(
     () =>
@@ -68,31 +78,44 @@ export function SuppliersPanel() {
     [suppliers, searchQuery],
   );
 
-  const {
-    page,
-    setPage,
+  const clientPagination = usePagination(
+    filteredSuppliers,
     pageSize,
-    totalItems,
-    totalPages,
-    paginatedItems: paginatedSuppliers,
-  } = usePagination(filteredSuppliers, undefined, searchQuery);
+    searchQuery,
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await suppliersApi.getAll();
-      setSuppliers(data);
+      if (hasSearch) {
+        const data = await suppliersApi.getAll();
+        setSuppliers(data);
+        setTotal(data.length);
+      } else {
+        const res = await suppliersApi.getPage(serverPage, pageSize);
+        setSuppliers(res.items);
+        setTotal(res.total);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hasSearch, serverPage, pageSize]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const rows = hasSearch ? clientPagination.paginatedItems : suppliers;
+  const page = hasSearch ? clientPagination.page : serverPage;
+  const setPage = hasSearch ? clientPagination.setPage : setServerPage;
+  const totalItems = hasSearch ? clientPagination.totalItems : total;
+  const totalPages = hasSearch
+    ? clientPagination.totalPages
+    : getPageCount(total);
+  const displayCount = hasSearch ? filteredSuppliers.length : total;
 
   function openCreate() {
     setForm(emptyForm);
@@ -177,10 +200,10 @@ export function SuppliersPanel() {
           )}
           </div>
         </div>
-        {!loading && suppliers.length > 0 && (
+        {!loading && displayCount > 0 && (
           <p className="text-sm text-muted-foreground">
-            {filteredSuppliers.length}
-            {searchQuery.trim() ? " kết quả" : " nhà cung cấp"}
+            {displayCount}
+            {hasSearch ? " kết quả" : " nhà cung cấp"}
           </p>
         )}
       </CardHeader>
@@ -194,7 +217,7 @@ export function SuppliersPanel() {
           <p className="text-sm text-muted-foreground">Đang tải...</p>
         ) : suppliers.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có nhà cung cấp.</p>
-        ) : filteredSuppliers.length === 0 ? (
+        ) : hasSearch && filteredSuppliers.length === 0 ? (
           <p className="text-sm text-muted-foreground">Không có kết quả phù hợp.</p>
         ) : (
           <ListTableShell
@@ -223,7 +246,7 @@ export function SuppliersPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedSuppliers.map((supplier) => (
+              {rows.map((supplier) => (
                 <TableRow key={supplier.id}>
                   <TableCell className={listCell.nowrap}>{supplier.id}</TableCell>
                   <TableCell className={`font-medium ${listCell.truncate}`}>

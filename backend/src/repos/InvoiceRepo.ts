@@ -22,6 +22,21 @@ async function getAll(): Promise<IInvoice[]> {
   return rows.map(toInvoice);
 }
 
+async function getPage(
+  skip: number,
+  take: number,
+): Promise<{ items: IInvoice[]; total: number }> {
+  const [rows, total] = await Promise.all([
+    prisma.invoice.findMany({
+      orderBy: { invoice_id: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.invoice.count(),
+  ]);
+  return { items: rows.map(toInvoice), total };
+}
+
 async function add(invoice: IInvoice): Promise<IInvoice> {
   const row = await prisma.invoice.create({
     data: invoiceToPrismaData(invoice),
@@ -56,6 +71,7 @@ export default {
   getOne,
   persists,
   getAll,
+  getPage,
   add,
   update,
   delete: delete_,
