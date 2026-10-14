@@ -42,7 +42,8 @@ import type {
 import { pageQuery, type PaginatedResult } from "@/lib/pagination";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://business-management-lyart.vercel.app/api";
-  
+// const API_BASE = "http://localhost:3000/api"
+
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
