@@ -1,0 +1,26 @@
+[2026-10-14 17:21:36] [INFO] [SYSTEM] Tài khoản "admin" (ID: 1) đăng nhập thành công.
+[2026-10-14 17:21:37] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng all/2026.
+[2026-10-14 17:21:37] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.
+[2026-10-14 17:21:38] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng all/2026.
+[2026-10-14 17:21:38] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.
+[2026-10-14 17:22:49] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng all/2026.
+[2026-10-14 17:22:49] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.
+[2026-10-14 17:22:49] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng all/2026.
+[2026-10-14 17:22:49] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.
+[2026-10-14 17:22:55] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 5/2026.
+[2026-10-14 17:22:58] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.
+[2026-10-14 17:24:04] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng all/2026.
+[2026-10-14 17:24:04] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.
+[2026-10-14 17:24:05] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng all/2026.
+[2026-10-14 17:24:05] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.
+[2026-10-14 17:24:17] [WARN] [SYSTEM] Đăng nhập thất bại: Tài khoản "admin" nhập sai mật khẩu.
+[2026-10-14 17:24:38] [INFO] [SYSTEM] Tài khoản "admin" (ID: 1) đăng nhập thành công.
+[2026-10-14 17:24:39] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng all/2026.
+[2026-10-14 17:24:39] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.
+[2026-10-14 17:24:39] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng all/2026.
+[2026-10-14 17:24:39] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.
+[2026-10-14 17:26:39] [INFO] [SYSTEM] Tài khoản "admin" (ID: 4) đăng nhập thành công.
+[2026-10-14 17:26:39] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng all/2026.
+[2026-10-14 17:26:39] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.
+[2026-10-14 17:26:39] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng all/2026.
+[2026-10-14 17:26:39] [INFO] [SYSTEM] Truy xuất thống kê phân bổ doanh thu địa bàn (Tỉnh: all, Xã/Phường: all) vào tháng 10/2026.

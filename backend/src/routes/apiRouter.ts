@@ -31,167 +31,227 @@ const apiRouter = Router();
 
 const auth = authMiddleware.auth;
 
-const adminOnly = [auth, authMiddleware.authorize(Roles.ADMIN)];
+const admin = authMiddleware.authorize(Roles.ADMIN);
+
+/******************************************************************************
+                                Users
+******************************************************************************/
 
 const userRouter = Router();
-userRouter.get(Paths.Users.Profile, rateLimiters.default, auth, UserRoutes.getProfile);
-userRouter.get(Paths.Users.Get, rateLimiters.default, adminOnly, UserRoutes.getAll);
-userRouter.get(Paths.Users.GetUnactivated, rateLimiters.default, adminOnly, UserRoutes.getAllUnactivated);
-userRouter.get(Paths.Users.Search, rateLimiters.default, adminOnly, UserRoutes.search);
-userRouter.post(Paths.Users.Add, rateLimiters.auth, adminOnly, UserRoutes.add);
-userRouter.put(Paths.Users.Update, rateLimiters.auth, adminOnly, UserRoutes.update);
-userRouter.delete(Paths.Users.Delete, rateLimiters.auth, adminOnly, UserRoutes.delete);
-userRouter.get(Paths.Users.GetOne, rateLimiters.default, adminOnly, UserRoutes.getOne);
+userRouter.use(auth, rateLimiters.default);
 
-userRouter.get(Paths.Users.StatsOverview, rateLimiters.default, auth, UserRoutes.getOverviewStats);
-userRouter.get(Paths.Users.StatsMonthly, rateLimiters.default, auth, UserRoutes.getMonthlyStats);
-userRouter.get(Paths.Users.StatsLocations, rateLimiters.default, auth, UserRoutes.getLocationStats);
-userRouter.get(Paths.Users.StatsTopProducts, rateLimiters.default, auth, UserRoutes.getTopProducts);
-userRouter.get(Paths.Users.StatsStatusBreakdown, rateLimiters.default, auth, UserRoutes.getStatusBreakdown);
-userRouter.get(Paths.Users.StatsRecentSales, rateLimiters.default, auth, UserRoutes.getRecentSalesTimeline);
-userRouter.get(Paths.Users.StatsSellerOverview, rateLimiters.default, auth, UserRoutes.getSellerOverviewStats);
-userRouter.get(Paths.Users.StatsSellerMonthly, rateLimiters.default, auth, UserRoutes.getSellerMonthlyStats);
-userRouter.get(Paths.Users.StatsSellerTopDebtors, rateLimiters.default, auth, UserRoutes.getEmployeeTopDebtors);
-userRouter.get(Paths.Users.StatsShipperOverview, rateLimiters.default, auth, UserRoutes.getShipperOverviewStats);
-userRouter.get(Paths.Users.StatsShipperMonthly, rateLimiters.default, auth, UserRoutes.getShipperMonthlyStats);
-userRouter.get(Paths.Users.StatsMap, rateLimiters.default, auth, UserRoutes.getMapStatus);
+userRouter.get(Paths.Users.Profile, UserRoutes.getProfile);
+userRouter.get(Paths.Users.Get, admin, UserRoutes.getAll);
+userRouter.get(Paths.Users.GetUnactivated, admin, UserRoutes.getAllUnactivated);
+userRouter.get(Paths.Users.Search, admin, UserRoutes.search);
+userRouter.post(Paths.Users.Add, rateLimiters.write, admin, UserRoutes.add);
+userRouter.put(Paths.Users.Update, rateLimiters.write, admin, UserRoutes.update);
+userRouter.delete(Paths.Users.Delete, rateLimiters.write, admin, UserRoutes.delete);
+userRouter.get(Paths.Users.GetOne, admin, UserRoutes.getOne);
+
+userRouter.get(Paths.Users.StatsOverview, UserRoutes.getOverviewStats);
+userRouter.get(Paths.Users.StatsMonthly, UserRoutes.getMonthlyStats);
+userRouter.get(Paths.Users.StatsLocations, UserRoutes.getLocationStats);
+userRouter.get(Paths.Users.StatsTopProducts, UserRoutes.getTopProducts);
+userRouter.get(Paths.Users.StatsStatusBreakdown, UserRoutes.getStatusBreakdown);
+userRouter.get(Paths.Users.StatsRecentSales, UserRoutes.getRecentSalesTimeline);
+userRouter.get(Paths.Users.StatsSellerOverview, UserRoutes.getSellerOverviewStats);
+userRouter.get(Paths.Users.StatsSellerMonthly, UserRoutes.getSellerMonthlyStats);
+userRouter.get(Paths.Users.StatsSellerTopDebtors, UserRoutes.getEmployeeTopDebtors);
+userRouter.get(Paths.Users.StatsShipperOverview, UserRoutes.getShipperOverviewStats);
+userRouter.get(Paths.Users.StatsShipperMonthly, UserRoutes.getShipperMonthlyStats);
+userRouter.get(Paths.Users.StatsMap, UserRoutes.getMapStatus);
 apiRouter.use(Paths.Users._, userRouter);
 
+/******************************************************************************
+                                Salaries
+******************************************************************************/
+
 const salaryRouter = Router();
-salaryRouter.use(rateLimiters.default);
-salaryRouter.get(Paths.Salaries.GetAll, ...adminOnly, SalaryRoutes.getAll);
-salaryRouter.get(Paths.Salaries.GetByUserId, auth, SalaryRoutes.getByUserId);
-salaryRouter.get(Paths.Salaries.GetOne, auth, SalaryRoutes.getOne);
-salaryRouter.post(Paths.Salaries.Add, ...adminOnly, SalaryRoutes.add);
-salaryRouter.put(Paths.Salaries.Update, ...adminOnly, SalaryRoutes.update);
-salaryRouter.delete(Paths.Salaries.Delete, ...adminOnly, SalaryRoutes.delete);
-salaryRouter.post(Paths.Salaries.Calculate, ...adminOnly, SalaryRoutes.calculatePayroll);
+salaryRouter.use(auth, rateLimiters.default);
+salaryRouter.get(Paths.Salaries.GetAll, admin, SalaryRoutes.getAll);
+salaryRouter.get(Paths.Salaries.GetByUserId, SalaryRoutes.getByUserId);
+salaryRouter.get(Paths.Salaries.GetOne, SalaryRoutes.getOne);
+salaryRouter.post(Paths.Salaries.Add, admin, SalaryRoutes.add);
+salaryRouter.put(Paths.Salaries.Update, admin, SalaryRoutes.update);
+salaryRouter.delete(Paths.Salaries.Delete, admin, SalaryRoutes.delete);
+salaryRouter.post(Paths.Salaries.Calculate, admin, SalaryRoutes.calculatePayroll);
 apiRouter.use(Paths.Salaries._, salaryRouter);
 
+/******************************************************************************
+                                Suppliers
+******************************************************************************/
 
 const supplierRouter = Router();
-supplierRouter.use(rateLimiters.default);
-supplierRouter.get(Paths.Suppliers.Get, auth, SupplierRoutes.getAll);
-supplierRouter.get(Paths.Suppliers.GetOne, auth, SupplierRoutes.getOne);
-supplierRouter.post(Paths.Suppliers.Add, ...adminOnly, SupplierRoutes.add);
-supplierRouter.put(Paths.Suppliers.Update, ...adminOnly, SupplierRoutes.update);
-supplierRouter.delete(Paths.Suppliers.Delete, ...adminOnly, SupplierRoutes.delete);
+supplierRouter.use(auth, rateLimiters.default);
+supplierRouter.get(Paths.Suppliers.Get, SupplierRoutes.getAll);
+supplierRouter.get(Paths.Suppliers.GetOne, SupplierRoutes.getOne);
+supplierRouter.post(Paths.Suppliers.Add, admin, SupplierRoutes.add);
+supplierRouter.put(Paths.Suppliers.Update, admin, SupplierRoutes.update);
+supplierRouter.delete(Paths.Suppliers.Delete, admin, SupplierRoutes.delete);
 apiRouter.use(Paths.Suppliers._, supplierRouter);
 
+/******************************************************************************
+                                Imports
+******************************************************************************/
+
 const importRouter = Router();
-importRouter.use(rateLimiters.default);
-importRouter.get(Paths.Imports.Get, auth, ImportRoutes.getAll);
-importRouter.get(Paths.Imports.GetOne, auth, ImportRoutes.getOne);
-importRouter.post(Paths.Imports.Add, ...adminOnly, ImportRoutes.add);
-importRouter.put(Paths.Imports.Update, ...adminOnly, ImportRoutes.update);
-importRouter.delete(Paths.Imports.Delete, ...adminOnly, ImportRoutes.delete);
-importRouter.get(Paths.Imports.DetailsGet, auth, ImportDetailRoutes.getByImport);
-importRouter.post(Paths.Imports.DetailsAdd, ...adminOnly, ImportDetailRoutes.add);
-importRouter.put(Paths.Imports.DetailsUpdate, ...adminOnly, ImportDetailRoutes.update);
-importRouter.delete(Paths.Imports.DetailsDelete, ...adminOnly, ImportDetailRoutes.delete);
+importRouter.use(auth, rateLimiters.default);
+importRouter.get(Paths.Imports.Get, ImportRoutes.getAll);
+importRouter.get(Paths.Imports.GetOne, ImportRoutes.getOne);
+importRouter.post(Paths.Imports.Add, admin, ImportRoutes.add);
+importRouter.put(Paths.Imports.Update, admin, ImportRoutes.update);
+importRouter.delete(Paths.Imports.Delete, admin, ImportRoutes.delete);
+importRouter.get(Paths.Imports.DetailsGet, ImportDetailRoutes.getByImport);
+importRouter.post(Paths.Imports.DetailsAdd, admin, ImportDetailRoutes.add);
+importRouter.put(Paths.Imports.DetailsUpdate, admin, ImportDetailRoutes.update);
+importRouter.delete(Paths.Imports.DetailsDelete, admin, ImportDetailRoutes.delete);
 apiRouter.use(Paths.Imports._, importRouter);
 
+/******************************************************************************
+                                Products
+******************************************************************************/
+
 const productRouter = Router();
-productRouter.use(rateLimiters.default);
-productRouter.get(Paths.Products.Get, auth, ProductRoutes.getAll);
-productRouter.get(Paths.Products.GetOne, auth, ProductRoutes.getOne);
-productRouter.post(Paths.Products.Add, ...adminOnly, ProductRoutes.add);
-productRouter.put(Paths.Products.Update, ...adminOnly, ProductRoutes.update);
-productRouter.delete(Paths.Products.Delete, ...adminOnly, ProductRoutes.delete);
+productRouter.use(auth, rateLimiters.default);
+productRouter.get(Paths.Products.Get, ProductRoutes.getAll);
+productRouter.get(Paths.Products.GetOne, ProductRoutes.getOne);
+productRouter.post(Paths.Products.Add, admin, ProductRoutes.add);
+productRouter.put(Paths.Products.Update, admin, ProductRoutes.update);
+productRouter.delete(Paths.Products.Delete, admin, ProductRoutes.delete);
 apiRouter.use(Paths.Products._, productRouter);
 
+/******************************************************************************
+                                Locations
+******************************************************************************/
+
 const locationRouter = Router();
-locationRouter.get(Paths.Locations.Get, auth, LocationRoutes.getAll);
-locationRouter.get(Paths.Locations.GetOne, auth, LocationRoutes.getOne);
-locationRouter.post(Paths.Locations.Add, ...adminOnly, LocationRoutes.add);
-locationRouter.put(Paths.Locations.Update, ...adminOnly, LocationRoutes.update);
-locationRouter.delete(Paths.Locations.Delete, ...adminOnly, LocationRoutes.delete);
-locationRouter.post(Paths.Locations.SyncCanTho,  ...adminOnly, LocationRoutes.syncCanTho);
+locationRouter.use(auth, rateLimiters.default);
+locationRouter.get(Paths.Locations.Get, LocationRoutes.getAll);
+locationRouter.get(Paths.Locations.GetOne, LocationRoutes.getOne);
+locationRouter.post(Paths.Locations.Add, admin, LocationRoutes.add);
+locationRouter.put(Paths.Locations.Update, admin, LocationRoutes.update);
+locationRouter.delete(Paths.Locations.Delete, admin, LocationRoutes.delete);
+
+locationRouter.post(Paths.Locations.SyncCanTho, rateLimiters.heavy, admin, LocationRoutes.syncCanTho);
 apiRouter.use(Paths.Locations._, locationRouter);
 
+/******************************************************************************
+                            Employee Locations
+******************************************************************************/
+
 const employeeLocationRouter = Router();
-employeeLocationRouter.get(Paths.EmployeeLocations.GetAll, auth, EmployeeLocationRoutes.getAll);
-employeeLocationRouter.get(Paths.EmployeeLocations.GetAvailable, auth, EmployeeLocationRoutes.getAvailable);
-employeeLocationRouter.get(Paths.EmployeeLocations.GetByUser, auth, EmployeeLocationRoutes.getByUserId);
-employeeLocationRouter.put(Paths.EmployeeLocations.SetByUser, ...adminOnly, EmployeeLocationRoutes.setByUserId);
-employeeLocationRouter.post(Paths.EmployeeLocations.Assign, ...adminOnly, EmployeeLocationRoutes.assign);
-employeeLocationRouter.delete(Paths.EmployeeLocations.Unassign, ...adminOnly, EmployeeLocationRoutes.unassign);
+employeeLocationRouter.use(auth, rateLimiters.default);
+employeeLocationRouter.get(Paths.EmployeeLocations.GetAll, EmployeeLocationRoutes.getAll);
+employeeLocationRouter.get(Paths.EmployeeLocations.GetAvailable, EmployeeLocationRoutes.getAvailable);
+employeeLocationRouter.get(Paths.EmployeeLocations.GetByUser, EmployeeLocationRoutes.getByUserId);
+employeeLocationRouter.put(Paths.EmployeeLocations.SetByUser, admin, EmployeeLocationRoutes.setByUserId);
+employeeLocationRouter.post(Paths.EmployeeLocations.Assign, admin, EmployeeLocationRoutes.assign);
+employeeLocationRouter.delete(Paths.EmployeeLocations.Unassign, admin, EmployeeLocationRoutes.unassign);
 apiRouter.use(Paths.EmployeeLocations._, employeeLocationRouter);
 
+/******************************************************************************
+                                Customers
+******************************************************************************/
+
 const customerRouter = Router();
-customerRouter.get(Paths.Customers.Get, auth, CustomerRoutes.getAll);
-customerRouter.get(Paths.Customers.GetPendingApproval, ...adminOnly, CustomerRoutes.getPendingApproval);
-customerRouter.get(Paths.Customers.GetOne, auth, CustomerRoutes.getOne);
-customerRouter.get(Paths.Customers.Account, auth, CustomerRoutes.getAccount);
-customerRouter.post(Paths.Customers.ReceivePayment, ...adminOnly, CustomerRoutes.receivePayment);
-customerRouter.post(Paths.Customers.Add, auth, CustomerRoutes.add);
-customerRouter.put(Paths.Customers.Update, ...adminOnly, CustomerRoutes.update);
-customerRouter.delete(Paths.Customers.Delete, ...adminOnly, CustomerRoutes.delete);
-customerRouter.post(Paths.Customers.Approve, ...adminOnly, CustomerRoutes.approve);
+customerRouter.use(auth, rateLimiters.default);
+customerRouter.get(Paths.Customers.Get, CustomerRoutes.getAll);
+customerRouter.get(Paths.Customers.GetPendingApproval, admin, CustomerRoutes.getPendingApproval);
+customerRouter.get(Paths.Customers.GetOne, CustomerRoutes.getOne);
+customerRouter.get(Paths.Customers.Account, CustomerRoutes.getAccount);
+customerRouter.post(Paths.Customers.ReceivePayment, admin, CustomerRoutes.receivePayment);
+customerRouter.post(Paths.Customers.Add, CustomerRoutes.add);
+customerRouter.put(Paths.Customers.Update, admin, CustomerRoutes.update);
+customerRouter.delete(Paths.Customers.Delete, admin, CustomerRoutes.delete);
+customerRouter.post(Paths.Customers.Approve, admin, CustomerRoutes.approve);
 apiRouter.use(Paths.Customers._, customerRouter);
 
+/******************************************************************************
+                                Invoices
+******************************************************************************/
+
 const invoiceRouter = Router();
-invoiceRouter.use(rateLimiters.default);
-invoiceRouter.get(Paths.Invoices.Get, auth, InvoiceRoutes.getAll);
-invoiceRouter.get(Paths.Invoices.GetOne, auth, InvoiceRoutes.getOne);
-invoiceRouter.post(Paths.Invoices.Add, auth, InvoiceRoutes.add);
-invoiceRouter.put(Paths.Invoices.Update, ...adminOnly, InvoiceRoutes.update);
-invoiceRouter.delete(Paths.Invoices.Delete, ...adminOnly, InvoiceRoutes.delete);
+invoiceRouter.use(auth, rateLimiters.default);
+invoiceRouter.get(Paths.Invoices.Get, InvoiceRoutes.getAll);
+invoiceRouter.get(Paths.Invoices.GetOne, InvoiceRoutes.getOne);
+invoiceRouter.post(Paths.Invoices.Add, InvoiceRoutes.add);
+invoiceRouter.put(Paths.Invoices.Update, admin, InvoiceRoutes.update);
+invoiceRouter.delete(Paths.Invoices.Delete, admin, InvoiceRoutes.delete);
 apiRouter.use(Paths.Invoices._, invoiceRouter);
 
+/******************************************************************************
+                                Order Statuses
+******************************************************************************/
+
 const orderStatusRouter = Router();
-orderStatusRouter.get(Paths.OrderStatuses.Get, auth, OrderStatusRoutes.getAll);
+orderStatusRouter.use(auth, rateLimiters.default);
+orderStatusRouter.get(Paths.OrderStatuses.Get, OrderStatusRoutes.getAll);
 apiRouter.use(Paths.OrderStatuses._, orderStatusRouter);
 
+/******************************************************************************
+                                Activities
+******************************************************************************/
+
 const activityRouter = Router();
-activityRouter.use(rateLimiters.default);
-activityRouter.get(Paths.Activities.Get, auth, ActivityRoutes.getAll);
-activityRouter.get(Paths.Activities.Export, auth, ActivityRoutes.exportExcel);
-activityRouter.get(Paths.Activities.GetOne, auth, ActivityRoutes.getOne);
-activityRouter.post(Paths.Activities.Add, auth, ActivityRoutes.add);
-activityRouter.put(Paths.Activities.Update, auth, ActivityRoutes.update);
-activityRouter.delete(Paths.Activities.Delete, ...adminOnly, ActivityRoutes.delete);
-activityRouter.post(Paths.Activities.Confirm, ...adminOnly, ActivityRoutes.confirm);
-activityRouter.post(Paths.Activities.AdvanceStatus, ...adminOnly, ActivityRoutes.advanceStatus);
+activityRouter.use(auth, rateLimiters.default);
+activityRouter.get(Paths.Activities.Get, ActivityRoutes.getAll);
 
-activityRouter.get(Paths.Activities.DetailsGet, auth, ActivityDetailRoutes.getByActivity);
-activityRouter.post(Paths.Activities.DetailsAdd, auth, ActivityDetailRoutes.add);
-activityRouter.put(Paths.Activities.DetailsUpdate, auth, ActivityDetailRoutes.update);
-activityRouter.delete(Paths.Activities.DetailsDelete, auth, ActivityDetailRoutes.delete);
+activityRouter.get(Paths.Activities.Export, rateLimiters.heavy, ActivityRoutes.exportExcel);
+activityRouter.get(Paths.Activities.GetOne, ActivityRoutes.getOne);
+activityRouter.post(Paths.Activities.Add, ActivityRoutes.add);
+activityRouter.put(Paths.Activities.Update, ActivityRoutes.update);
+activityRouter.delete(Paths.Activities.Delete, admin, ActivityRoutes.delete);
+activityRouter.post(Paths.Activities.Confirm, admin, ActivityRoutes.confirm);
+activityRouter.post(Paths.Activities.AdvanceStatus, admin, ActivityRoutes.advanceStatus);
 
-activityRouter.get(Paths.Activities.PaymentSummary, ...adminOnly, PaymentRoutes.getSummary);
-activityRouter.get(Paths.Activities.PaymentsList, ...adminOnly, PaymentRoutes.listByActivity);
-activityRouter.post(Paths.Activities.PaymentsApplyBalance, ...adminOnly, PaymentRoutes.applyBalance);
-activityRouter.post(Paths.Activities.PaymentsAdd, ...adminOnly, PaymentRoutes.record);
-activityRouter.delete(Paths.Activities.PaymentsDelete, ...adminOnly, PaymentRoutes.delete);
+activityRouter.get(Paths.Activities.DetailsGet, ActivityDetailRoutes.getByActivity);
+activityRouter.post(Paths.Activities.DetailsAdd, ActivityDetailRoutes.add);
+activityRouter.put(Paths.Activities.DetailsUpdate, ActivityDetailRoutes.update);
+activityRouter.delete(Paths.Activities.DetailsDelete, ActivityDetailRoutes.delete);
+
+activityRouter.get(Paths.Activities.PaymentSummary, admin, PaymentRoutes.getSummary);
+activityRouter.get(Paths.Activities.PaymentsList, admin, PaymentRoutes.listByActivity);
+activityRouter.post(Paths.Activities.PaymentsApplyBalance, admin, PaymentRoutes.applyBalance);
+activityRouter.post(Paths.Activities.PaymentsAdd, admin, PaymentRoutes.record);
+activityRouter.delete(Paths.Activities.PaymentsDelete, admin, PaymentRoutes.delete);
 apiRouter.use(Paths.Activities._, activityRouter);
 
+/******************************************************************************
+                                Auth
+******************************************************************************/
+
 const authRouter = Router();
-authRouter.post(Paths.Auth.Login, rateLimiters.auth, AuthRoutes.login);
-authRouter.post(Paths.Auth.Refresh, rateLimiters.default, AuthRoutes.refresh);
-authRouter.get(Paths.Auth.Logout, rateLimiters.default, AuthRoutes.logout);
-authRouter.post(Paths.Auth.Register, rateLimiters.auth, AuthRoutes.register);
-authRouter.get(Paths.Auth.Check, rateLimiters.default, AuthRoutes.check);
-authRouter.get(Paths.Auth.VerifyEmail, rateLimiters.default, AuthRoutes.verifyEmail);
-authRouter.post(Paths.Auth.ForgotPassword, rateLimiters.auth, AuthRoutes.forgotPassword);
-authRouter.post(Paths.Auth.ResetPassword, rateLimiters.auth, AuthRoutes.resetPassword);
+authRouter.post(Paths.Auth.Login, rateLimiters.loginByIp, rateLimiters.login, AuthRoutes.login);
+authRouter.post(Paths.Auth.Refresh, rateLimiters.public, AuthRoutes.refresh);
+authRouter.get(Paths.Auth.Logout, rateLimiters.public, AuthRoutes.logout);
+authRouter.post(Paths.Auth.Register, rateLimiters.register, AuthRoutes.register);
+authRouter.get(Paths.Auth.Check, rateLimiters.public, AuthRoutes.check);
+authRouter.get(Paths.Auth.VerifyEmail, rateLimiters.public, AuthRoutes.verifyEmail);
+authRouter.post(Paths.Auth.ForgotPassword, rateLimiters.forgotPassword, AuthRoutes.forgotPassword);
+authRouter.post(Paths.Auth.ResetPassword, rateLimiters.resetPassword, AuthRoutes.resetPassword);
 apiRouter.use(Paths.Auth._, authRouter);
 
+/******************************************************************************
+                                Bank Accounts
+******************************************************************************/
 
 const bankAccountRouter = Router();
-bankAccountRouter.use(rateLimiters.default);
-bankAccountRouter.get(Paths.BankAccount.GetAll, ...adminOnly, BankAccountRoutes.getAll);
-bankAccountRouter.get(Paths.BankAccount.GetByUserId, auth, BankAccountRoutes.getByUserId);
-bankAccountRouter.post(Paths.BankAccount.Add, auth, BankAccountRoutes.add);
-bankAccountRouter.put(Paths.BankAccount.Upsert, auth, BankAccountRoutes.upsert);
-bankAccountRouter.delete(Paths.BankAccount.Delete, ...adminOnly, BankAccountRoutes.delete);
+bankAccountRouter.use(auth, rateLimiters.default);
+bankAccountRouter.get(Paths.BankAccount.GetAll, admin, BankAccountRoutes.getAll);
+bankAccountRouter.get(Paths.BankAccount.GetByUserId, BankAccountRoutes.getByUserId);
+bankAccountRouter.post(Paths.BankAccount.Add, BankAccountRoutes.add);
+bankAccountRouter.put(Paths.BankAccount.Upsert, BankAccountRoutes.upsert);
+bankAccountRouter.delete(Paths.BankAccount.Delete, admin, BankAccountRoutes.delete);
 apiRouter.use(Paths.BankAccount._, bankAccountRouter);
 
+/******************************************************************************
+                                Chatbot
+******************************************************************************/
 
-const chatRouter = Router()
-
-chatRouter.post(Paths.ChatBot.Complete, auth, ChatRoutes.complete);
-
+const chatRouter = Router();
+chatRouter.use(auth, rateLimiters.chatbot, rateLimiters.chatbotDaily);
+chatRouter.post(Paths.ChatBot.Complete, ChatRoutes.complete);
 apiRouter.use(Paths.ChatBot._, chatRouter);
 
 /******************************************************************************
